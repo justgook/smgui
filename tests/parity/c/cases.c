@@ -31,6 +31,7 @@ int main(int argc, char **argv)
     int64_t progress_midpoint_value = 50;
     int64_t decimal_value = 42;
     int64_t decimal_negative_value = -42;
+    uint64_t hexadecimal_value = 0x2a;
     int64_t progress_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
@@ -153,6 +154,10 @@ int main(int argc, char **argv)
         { .type = UI_DEC64, .flags = UI_DISABLED, .ptr = &decimal_value },
         { .type = UI_END }
     };
+    ui_form_t hex_normal[] = {
+        { .type = UI_HEX64, .ptr = &hexadecimal_value },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -228,6 +233,8 @@ int main(int argc, char **argv)
         forms = decimal_explicit_size;
     } else if (!strcmp(argv[1], "decimal-disabled")) {
         forms = decimal_disabled;
+    } else if (!strcmp(argv[1], "hex-normal")) {
+        forms = hex_normal;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

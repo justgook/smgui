@@ -2339,14 +2339,8 @@ format_bound_value :: proc(field: ^Form) -> (string, Error) {
 		return "", .Invalid_Input
 	}
 	#partial switch field.kind {
-	case .Hexadecimal_8:
-		return fmt.tprintf("%02X", value), .None
-	case .Hexadecimal_16:
-		return fmt.tprintf("%04X", value), .None
-	case .Hexadecimal_32:
-		return fmt.tprintf("%08X", value), .None
-	case .Hexadecimal_64:
-		return fmt.tprintf("%016X", value), .None
+	case .Hexadecimal_8, .Hexadecimal_16, .Hexadecimal_32, .Hexadecimal_64:
+		return fmt.tprintf("%x", value), .None
 	}
 	return fmt.tprintf("%d", value), .None
 }
