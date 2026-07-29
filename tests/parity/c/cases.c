@@ -26,6 +26,7 @@ int main(int argc, char **argv)
     int slider_value = 0;
     int slider_midpoint_value = 50;
     int slider_maximum_value = 100;
+    int slider_interaction_value = 0;
     int checked_value = 1;
     int pressed_value = 0;
     ui_form_t empty[] = {
@@ -107,6 +108,10 @@ int main(int argc, char **argv)
         { .type = UI_SLIDER, .w = 58, .h = 20, .ptr = &slider_maximum_value, .min = 0, .max = 100 },
         { .type = UI_END }
     };
+    ui_form_t slider_interaction[] = {
+        { .type = UI_SLIDER, .w = 58, .h = 20, .ptr = &slider_interaction_value, .min = 0, .max = 100 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -162,6 +167,8 @@ int main(int argc, char **argv)
         forms = slider_midpoint;
     } else if (!strcmp(argv[1], "slider-maximum")) {
         forms = slider_maximum;
+    } else if (!strcmp(argv[1], "slider-interaction")) {
+        forms = slider_interaction;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -171,6 +178,8 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "button-hover") || !strcmp(argv[1], "checkbox-hover") ||
         !strcmp(argv[1], "radio-hover")) {
         ui_image_backend_set_mouse_event(10, 10, 0);
+    } else if (!strcmp(argv[1], "slider-interaction")) {
+        ui_image_backend_set_mouse_event(29, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "button-pressed") || !strcmp(argv[1], "checkbox-pressed") ||
         !strcmp(argv[1], "radio-pressed")) {
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
@@ -189,6 +198,11 @@ int main(int argc, char **argv)
         context.mousey = -1;
     }
     while (ui_event(&context, forms)) { }
+    if (!strcmp(argv[1], "slider-interaction") && slider_interaction_value != 53) {
+        fprintf(stderr, "slider interaction produced %d instead of 53\n", slider_interaction_value);
+        ui_free(&context);
+        return 1;
+    }
     if (!strcmp(argv[1], "radio-pressed") && pressed_radio_value != 1) {
         fprintf(stderr, "radio press did not update its bound value\n");
         ui_free(&context);

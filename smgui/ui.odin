@@ -2932,8 +2932,8 @@ update_slider :: proc(field: ^Form, mouse_x: int) {
 	if maximum <= minimum {
 		return
 	}
-	track_width := max(field.computed_width - 10, 1)
-	position := clamp(mouse_x - field.computed_x - 5, 0, track_width)
+	track_width := max(field.computed_width - 9, 1)
+	position := clamp(mouse_x - field.computed_x - 3, 0, track_width)
 	value := minimum + position * (maximum - minimum) / track_width
 	((^int)(field.binding.data))^ = clamp(value, minimum, maximum)
 }

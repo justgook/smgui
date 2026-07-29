@@ -98,6 +98,17 @@ main :: proc() {
 			maximum = 100,
 		},
 	}
+	slider_interaction_value := 0
+	slider_interaction := []smgui.Form {
+		{
+			kind = .Slider,
+			width = 58,
+			height = 20,
+			binding = smgui.bind(&slider_interaction_value),
+			minimum = 0,
+			maximum = 100,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -140,6 +151,8 @@ main :: proc() {
 		forms = slider_midpoint
 	case "slider-maximum":
 		forms = slider_maximum
+	case "slider-interaction":
+		forms = slider_interaction
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -152,7 +165,8 @@ main :: proc() {
 		os.args[1] == "checkbox-hover" ||
 		os.args[1] == "checkbox-pressed" ||
 		os.args[1] == "radio-hover" ||
-		os.args[1] == "radio-pressed"
+		os.args[1] == "radio-pressed" ||
+		os.args[1] == "slider-interaction"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
@@ -200,11 +214,18 @@ main :: proc() {
 		buttons: smgui.Input_Buttons
 		if os.args[1] == "button-pressed" ||
 		   os.args[1] == "checkbox-pressed" ||
-		   os.args[1] == "radio-pressed" {
+		   os.args[1] == "radio-pressed" ||
+		   os.args[1] == "slider-interaction" {
 			buttons += {.Mouse_Left}
 		}
-		if error := smgui.push_event(&ctx, {kind = .Mouse, buttons = buttons, x = 10, y = 10});
-		   error != .None {
+		event_x := 10
+		if os.args[1] == "slider-interaction" {
+			event_x = 29
+		}
+		if error := smgui.push_event(
+			&ctx,
+			{kind = .Mouse, buttons = buttons, x = event_x, y = 10},
+		); error != .None {
 			fmt.eprintf("event injection failed: %v\n", error)
 			os.exit(1)
 		}
@@ -218,6 +239,10 @@ main :: proc() {
 		if state == .Closed {
 			break
 		}
+	}
+	if os.args[1] == "slider-interaction" && slider_interaction_value != 53 {
+		fmt.eprintf("slider interaction produced %d instead of 53\n", slider_interaction_value)
+		os.exit(1)
 	}
 	if os.args[1] == "radio-pressed" && pressed_radio_value != 1 {
 		fmt.eprintln("radio press did not update its bound value")
