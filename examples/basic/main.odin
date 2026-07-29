@@ -12,6 +12,7 @@ Status:
   [x] Buttons, checkboxes, and radio buttons render
   [x] Active controls mutate application state
   [x] Disabled controls are visually distinct and inert
+  [x] Division containers use automatic flow layout
   [ ] Remaining built-in controls represented
   [ ] Optional font and widget modules represented
   [ ] Backend can be selected through `BACKEND=<name>`
@@ -46,6 +47,29 @@ main :: proc() {
 	shadows_enabled := true
 	difficulty := 0
 	apply_requested := false
+	active_controls := []smgui.Form {
+		{kind = .Label, label = 2},
+		{kind = .Checkbox, label = 3, binding = smgui.bind(&shadows_enabled)},
+		{
+			kind = .Radio,
+			flags = {.No_Break},
+			label = 4,
+			binding = smgui.bind(&difficulty),
+			value = 0,
+		},
+		{kind = .Radio, label = 5, binding = smgui.bind(&difficulty), value = 1},
+		{kind = .Button, label = 6, binding = smgui.bind(&apply_requested)},
+	}
+	inactive_controls := []smgui.Form {
+		{kind = .Label, flags = {.Disabled}, label = 7},
+		{
+			kind = .Checkbox,
+			flags = {.Disabled, .No_Break},
+			label = 8,
+			binding = smgui.bind(&shadows_enabled),
+		},
+		{kind = .Button, flags = {.Disabled}, label = 6},
+	}
 	forms := []smgui.Form {
 		{
 			kind = .Label,
@@ -54,58 +78,29 @@ main :: proc() {
 			y = smgui.absolute(45),
 			label = 1,
 		},
-		{kind = .Label, x = smgui.absolute(50), y = smgui.absolute(100), label = 2},
 		{
-			kind = .Checkbox,
-			x = smgui.absolute(70),
-			y = smgui.absolute(130),
-			label = 3,
-			binding = smgui.bind(&shadows_enabled),
+			kind = .Division,
+			x = smgui.absolute(50),
+			y = smgui.absolute(85),
+			width = 540,
+			height = 175,
+			margin = 16,
+			children = active_controls,
 		},
 		{
-			kind = .Radio,
-			x = smgui.absolute(70),
-			y = smgui.absolute(165),
-			label = 4,
-			binding = smgui.bind(&difficulty),
-			value = 0,
-		},
-		{
-			kind = .Radio,
-			x = smgui.absolute(145),
-			y = smgui.absolute(165),
-			label = 5,
-			binding = smgui.bind(&difficulty),
-			value = 1,
-		},
-		{
-			kind = .Button,
-			x = smgui.absolute(70),
-			y = smgui.absolute(205),
-			label = 6,
-			binding = smgui.bind(&apply_requested),
-		},
-		{kind = .Label, x = smgui.absolute(50), y = smgui.absolute(275), label = 7},
-		{
-			kind = .Checkbox,
-			flags = {.Disabled},
-			x = smgui.absolute(70),
-			y = smgui.absolute(305),
-			label = 8,
-			binding = smgui.bind(&shadows_enabled),
-		},
-		{
-			kind = .Button,
-			flags = {.Disabled},
-			x = smgui.absolute(70),
-			y = smgui.absolute(340),
-			label = 6,
+			kind = .Division,
+			x = smgui.absolute(50),
+			y = smgui.absolute(285),
+			width = 540,
+			height = 110,
+			margin = 16,
+			children = inactive_controls,
 		},
 		{
 			kind = .Label,
 			horizontal_alignment = .Center,
 			x = smgui.percent(50),
-			y = smgui.absolute(430),
+			y = smgui.absolute(440),
 			label = 9,
 		},
 	}

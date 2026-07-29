@@ -14,7 +14,8 @@ Status:
   [x] Labels, buttons, checkboxes, and radio buttons render
   [x] Buttons, checkboxes, and radio buttons mutate bound state
   [ ] Remaining drawing primitives implemented
-  [ ] Flow/container layout implemented
+  [x] Relative flow layout and division containers implemented
+  [ ] Popup/menu layout, scrolling, and advanced alignment implemented
   [ ] Remaining widget interaction and event processing implemented
   [ ] Remaining built-in widgets implemented
 
@@ -763,27 +764,12 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 		ctx.screen.height,
 		ctx.theme[int(Theme_Color.Background)],
 	)
-	for &field in form {
-		if field.kind == .End {
-			break
-		}
-		if .Hidden in field.flags {
-			continue
-		}
-		#partial switch field.kind {
-		case .Label:
-			if error := draw_label(ctx, &field); error != .None {
-				return error
-			}
-		case .Button:
-			if error := draw_button(ctx, &field); error != .None {
-				return error
-			}
-		case .Checkbox, .Radio:
-			if error := draw_choice(ctx, &field); error != .None {
-				return error
-			}
-		}
+	if _, _, error := layout_forms(ctx, form, 0, 0, ctx.screen.width, ctx.screen.height, 8);
+	   error != .None {
+		return error
+	}
+	if error := draw_forms(ctx, form); error != .None {
+		return error
 	}
 	ctx.flags -= {.Refresh, .Recalculate}
 	return .None
@@ -841,6 +827,220 @@ resolve_position :: proc(position: Position, extent: int) -> int {
 }
 
 @(private = "file")
+layout_forms :: proc(
+	ctx: ^Context,
+	forms: []Form,
+	x, y, width, height, gap: int,
+) -> (
+	used_width, used_height: int,
+	error: Error,
+) {
+	cursor_x := x
+	cursor_y := y
+	row_height := 0
+	content_right := x
+	content_bottom := y
+
+	for &field in forms {
+		if field.kind == .End {
+			break
+		}
+		if .Hidden in field.flags {
+			continue
+		}
+		field_width, field_height, measure_error := measure_form(ctx, &field, width, height)
+		if measure_error != .None {
+			return 0, 0, measure_error
+		}
+		is_flow := field.x.mode == .Relative && field.y.mode == .Relative
+		field_x, field_y: int
+		if is_flow {
+			field_x = cursor_x + int(field.x.value) + int(field.x.offset)
+			field_y = cursor_y + int(field.y.value) + int(field.y.offset)
+			if cursor_x > x && field_x + field_width > x + width {
+				cursor_x = x
+				cursor_y += row_height + gap
+				row_height = 0
+				field_x = cursor_x + int(field.x.value) + int(field.x.offset)
+				field_y = cursor_y + int(field.y.value) + int(field.y.offset)
+			}
+		} else {
+			field_x = x + resolve_position(field.x, width)
+			field_y = y + resolve_position(field.y, height)
+		}
+
+		switch field.horizontal_alignment {
+		case .Center:
+			field_x -= field_width / 2
+		case .Right:
+			field_x -= field_width
+		case .Left:
+		}
+		switch field.vertical_alignment {
+		case .Middle:
+			field_y -= field_height / 2
+		case .Bottom:
+			field_y -= field_height
+		case .Top:
+		}
+
+		field.computed_x = field_x
+		field.computed_y = field_y
+		field.computed_width = field_width
+		field.computed_height = field_height
+
+		if field.kind == .Division {
+			inner_margin := max(field.margin, 1)
+			inner_x := field_x + inner_margin
+			inner_y := field_y + inner_margin
+			inner_width := max(field_width - inner_margin * 2, 0)
+			inner_height := max(field_height - inner_margin * 2, 0)
+			if _, _, child_error := layout_forms(
+				ctx,
+				field.children,
+				inner_x,
+				inner_y,
+				inner_width,
+				inner_height,
+				gap,
+			); child_error != .None {
+				return 0, 0, child_error
+			}
+		}
+
+		content_right = max(content_right, field_x + field_width)
+		content_bottom = max(content_bottom, field_y + field_height)
+		if is_flow {
+			row_height = max(row_height, field_height + int(field.y.value) + int(field.y.offset))
+			if .No_Break in field.flags && .Force_Break not_in field.flags {
+				cursor_x = field_x + field_width + gap
+			} else {
+				cursor_x = x
+				cursor_y += row_height + gap
+				row_height = 0
+			}
+		}
+	}
+	return content_right - x, content_bottom - y, .None
+}
+
+@(private = "file")
+measure_form :: proc(
+	ctx: ^Context,
+	field: ^Form,
+	available_width, available_height: int,
+) -> (
+	int,
+	int,
+	Error,
+) {
+	width := field.width
+	height := field.height
+	#partial switch field.kind {
+	case .Label:
+		text_width, text_height, _, _, error := measure_label(ctx, field)
+		if error != .None {
+			return 0, 0, error
+		}
+		if width < 1 {
+			width = text_width
+		}
+		if height < 1 {
+			height = text_height
+		}
+	case .Button:
+		text_width, text_height, _, _, error := measure_label(ctx, field)
+		if error != .None {
+			return 0, 0, error
+		}
+		if width < 1 {
+			width = text_width + 20
+		}
+		if height < 1 {
+			height = text_height + 10
+		}
+	case .Checkbox, .Radio:
+		text_width, text_height, _, _, error := measure_label(ctx, field)
+		if error != .None {
+			return 0, 0, error
+		}
+		if height < 1 {
+			height = max(text_height + 4, 11)
+		}
+		if width < 1 {
+			width = text_width + height
+		}
+	case .Division:
+		if width < 1 {
+			width = available_width
+		}
+		if height < 1 {
+			height = available_height
+		}
+	}
+	return max(width, 0), max(height, 0), .None
+}
+
+@(private = "file")
+measure_label :: proc(
+	ctx: ^Context,
+	field: ^Form,
+) -> (
+	width, height, left, top: int,
+	error: Error,
+) {
+	if field.label < 0 ||
+	   field.label >= len(ctx.texts) ||
+	   ctx.font == nil ||
+	   ctx.font_bounds == nil {
+		return 0, 0, 0, 0, .Invalid_Input
+	}
+	error = ctx.font_bounds(ctx.font, ctx.texts[field.label], &width, &height, &left, &top)
+	return
+}
+
+@(private = "file")
+draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
+	for &field in forms {
+		if field.kind == .End {
+			break
+		}
+		if .Hidden in field.flags {
+			continue
+		}
+		#partial switch field.kind {
+		case .Division:
+			draw_beveled_rectangle(
+				ctx,
+				field.computed_x,
+				field.computed_y,
+				field.computed_width,
+				field.computed_height,
+				ctx.theme[int(Theme_Color.Input_Light_Border)],
+				ctx.theme[int(Theme_Color.Input_Background)],
+				ctx.theme[int(Theme_Color.Input_Dark_Border)],
+			)
+			if error := draw_forms(ctx, field.children); error != .None {
+				return error
+			}
+		case .Label:
+			if error := draw_label(ctx, &field); error != .None {
+				return error
+			}
+		case .Button:
+			if error := draw_button(ctx, &field); error != .None {
+				return error
+			}
+		case .Checkbox, .Radio:
+			if error := draw_choice(ctx, &field); error != .None {
+				return error
+			}
+		}
+	}
+	return .None
+}
+
+@(private = "file")
 draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if field.label < 0 ||
 	   field.label >= len(ctx.texts) ||
@@ -850,37 +1050,21 @@ draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
 		return .Invalid_Input
 	}
 	text := ctx.texts[field.label]
-	width, height, left, top: int
-	if error := ctx.font_bounds(ctx.font, text, &width, &height, &left, &top); error != .None {
+	_, _, left, top, error := measure_label(ctx, field)
+	if error != .None {
 		return error
 	}
-	x := resolve_position(field.x, ctx.screen.width)
-	y := resolve_position(field.y, ctx.screen.height)
-	switch field.horizontal_alignment {
-	case .Center:
-		x -= width / 2
-	case .Right:
-		x -= width
-	case .Left:
+	foreground := ctx.theme[int(Theme_Color.Foreground)]
+	if .Disabled in field.flags {
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	}
-	switch field.vertical_alignment {
-	case .Middle:
-		y -= height / 2
-	case .Bottom:
-		y -= height
-	case .Top:
-	}
-	field.computed_x = x
-	field.computed_y = y
-	field.computed_width = width
-	field.computed_height = height
 	return ctx.font_draw(
 		ctx.font,
 		text,
 		ctx.screen.pixels,
-		ctx.theme[int(Theme_Color.Foreground)],
-		x,
-		y,
+		foreground,
+		field.computed_x,
+		field.computed_y,
 		left,
 		top,
 		ctx.screen.pitch,
@@ -906,30 +1090,10 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	   error != .None {
 		return error
 	}
-	width := field.width
-	height := field.height
-	if width < 1 {
-		width = text_width + 20
-	}
-	if height < 1 {
-		height = text_height + 10
-	}
-	x := resolve_position(field.x, ctx.screen.width)
-	y := resolve_position(field.y, ctx.screen.height)
-	if field.horizontal_alignment == .Center {
-		x -= width / 2
-	} else if field.horizontal_alignment == .Right {
-		x -= width
-	}
-	if field.vertical_alignment == .Middle {
-		y -= height / 2
-	} else if field.vertical_alignment == .Bottom {
-		y -= height
-	}
-	field.computed_x = x
-	field.computed_y = y
-	field.computed_width = width
-	field.computed_height = height
+	width := field.computed_width
+	height := field.computed_height
+	x := field.computed_x
+	y := field.computed_y
 	disabled := .Disabled in field.flags
 	pressed := ctx.pressed == field
 	foreground := ctx.theme[int(Theme_Color.Button_Foreground)]
@@ -977,19 +1141,13 @@ draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
 		return .Invalid_Input
 	}
 	text := ctx.texts[field.label]
-	text_width, text_height, left, top: int
-	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
-	   error != .None {
+	_, text_height, left, top, error := measure_label(ctx, field)
+	if error != .None {
 		return error
 	}
-	height := max(text_height + 4, 11)
-	width := text_width + height
-	x := resolve_position(field.x, ctx.screen.width)
-	y := resolve_position(field.y, ctx.screen.height)
-	field.computed_x = x
-	field.computed_y = y
-	field.computed_width = width
-	field.computed_height = height
+	height := field.computed_height
+	x := field.computed_x
+	y := field.computed_y
 	disabled := .Disabled in field.flags
 	selected := binding_selected(field)
 	center_x := x + height / 2
@@ -1100,18 +1258,27 @@ binding_selected :: proc(field: ^Form) -> bool {
 
 @(private = "file")
 update_hover :: proc(ctx: ^Context, form: []Form) {
-	ctx.hovered = nil
-	for &field in form {
+	ctx.hovered = hovered_form_at(form, ctx.mouse_x, ctx.mouse_y)
+}
+
+@(private = "file")
+hovered_form_at :: proc(forms: []Form, x, y: int) -> ^Form {
+	candidate: ^Form
+	for &field in forms {
 		if field.kind == .End {
 			break
 		}
-		if .Hidden in field.flags {
+		if .Hidden in field.flags || !point_inside(&field, x, y) {
 			continue
 		}
-		if point_inside(&field, ctx.mouse_x, ctx.mouse_y) {
-			ctx.hovered = &field
+		candidate = &field
+		if field.kind == .Division {
+			if child := hovered_form_at(field.children, x, y); child != nil {
+				candidate = child
+			}
 		}
 	}
+	return candidate
 }
 
 @(private = "file")

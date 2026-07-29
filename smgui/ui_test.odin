@@ -78,6 +78,61 @@ interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	testing.expect(t, !disabled_action)
 }
 
+@(test)
+flow_layout_positions_children_inside_divisions :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test", "A", "Button", "B"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 200, 100); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+	}
+
+	clicked := false
+	children := []Form {
+		{kind = .Label, flags = {.No_Break}, label = 1},
+		{kind = .Button, label = 2, binding = bind(&clicked)},
+		{kind = .Label, label = 3},
+	}
+	forms := []Form {
+		{
+			kind = .Division,
+			x = absolute(10),
+			y = absolute(10),
+			width = 140,
+			height = 80,
+			margin = 5,
+			children = children,
+		},
+	}
+	if error := render(&ctx, forms); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+	}
+
+	testing.expect_value(t, children[0].computed_x, 15)
+	testing.expect_value(t, children[0].computed_y, 15)
+	testing.expect_value(t, children[1].computed_x, 32)
+	testing.expect_value(t, children[1].computed_y, 15)
+	testing.expect_value(t, children[2].computed_x, 15)
+	testing.expect_value(t, children[2].computed_y, 49)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Mouse_Left})
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Released})
+	testing.expect(t, clicked)
+}
+
 @(private = "file")
 poll_for_test :: proc(t: ^testing.T, ctx: ^Context, forms: []Form) {
 	_, state, error := poll_event(ctx, forms)
