@@ -1622,8 +1622,14 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else if hovered {
 		outer = ctx.theme[int(Theme_Color.Button_Selected_Border)]
 	}
-	draw_outline_rectangle(ctx, x - 1, y - 1, width + 1, height + 2, outer, outer, outer)
+	for border_x in x - 1 ..< min(x + width, ctx.screen.width - 1) {
+		blend_pixel(ctx, border_x, y - 1, outer)
+	}
+	for border_x in x ..< min(x + width, ctx.screen.width - 1) {
+		blend_pixel(ctx, border_x, y + height, outer)
+	}
 	for border_y in y ..< y + height {
+		blend_pixel(ctx, x - 1, border_y, outer)
 		blend_pixel(ctx, x + width, border_y, outer)
 	}
 	if disabled {
@@ -2960,11 +2966,14 @@ draw_outline_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, c
 	if width < 2 || height < 2 {
 		return
 	}
+	top_right := min(x + width - 1, ctx.screen.width - 1)
+	for pixel_x in x ..< top_right {
+		blend_pixel(ctx, pixel_x, y, light)
+	}
 	for offset in 0 ..< width - 1 {
-		blend_pixel(ctx, x + offset, y, light)
 		blend_pixel(ctx, x + offset + 1, y + height - 1, dark)
 	}
-	blend_pixel(ctx, x + width - 1, y, color)
+	blend_pixel(ctx, top_right, y, color)
 	blend_pixel(ctx, x, y + height - 1, color)
 	for offset in 1 ..< height - 1 {
 		blend_pixel(ctx, x, y + offset, light)

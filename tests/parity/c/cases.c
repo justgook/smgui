@@ -17,8 +17,8 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
 
 int main(int argc, char **argv)
 {
-    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT };
-    char *texts[] = { "Parity fixture", "Label", "Button" };
+    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT };
+    char *texts[] = { "Parity fixture", "Label", "Button", "Btn" };
     ui_form_t empty[] = {
         { .type = UI_END }
     };
@@ -28,6 +28,10 @@ int main(int argc, char **argv)
     };
     ui_form_t button_normal[] = {
         { .type = UI_BUTTON, .label = BUTTON_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t button_explicit_size[] = {
+        { .type = UI_BUTTON, .label = BUTTON_SHORT_TEXT, .w = 58, .h = 28 },
         { .type = UI_END }
     };
     ui_form_t *forms;
@@ -51,6 +55,8 @@ int main(int argc, char **argv)
         forms = label_normal;
     } else if (!strcmp(argv[1], "button-normal")) {
         forms = button_normal;
+    } else if (!strcmp(argv[1], "button-explicit-size")) {
+        forms = button_explicit_size;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -62,7 +68,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "ui_init failed: %d\n", result);
         return 1;
     }
-    if (!strcmp(argv[1], "button-normal")) {
+    if (!strcmp(argv[1], "button-normal") || !strcmp(argv[1], "button-explicit-size")) {
         context.mousex = -1;
         context.mousey = -1;
     }

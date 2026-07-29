@@ -102,7 +102,8 @@ only their module and must agree with this list.
 - [x] Pass the 64×48 empty-framebuffer tracer fixture.
 - [x] Pass the normal-label glyph, baseline, and intrinsic-size fixture.
 - [x] Pass the normal button fixture.
-- [ ] Pass button explicit-size, hover, pressed, and disabled fixtures.
+- [x] Pass the explicit-size button fixture.
+- [ ] Pass button hover, pressed, and disabled fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

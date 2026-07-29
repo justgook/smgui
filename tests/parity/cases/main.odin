@@ -23,6 +23,7 @@ main :: proc() {
 
 	label_normal := []smgui.Form{{kind = .Label, label = 1}}
 	button_normal := []smgui.Form{{kind = .Button, label = 2}}
+	button_explicit_size := []smgui.Form{{kind = .Button, label = 3, width = 58, height = 28}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -31,12 +32,14 @@ main :: proc() {
 		forms = label_normal
 	case "button-normal":
 		forms = button_normal
+	case "button-explicit-size":
+		forms = button_explicit_size
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
 	}
 
-	texts := []string{"Parity fixture", "Label", "Button"}
+	texts := []string{"Parity fixture", "Label", "Button", "Btn"}
 	image_state: image_backend.State
 	ctx: smgui.Context
 	if error := smgui.init(
@@ -64,7 +67,7 @@ main :: proc() {
 		os.exit(1)
 	}
 
-	if os.args[1] == "button-normal" {
+	if os.args[1] == "button-normal" || os.args[1] == "button-explicit-size" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
