@@ -14,6 +14,7 @@ Status:
   [x] Disabled controls are visually distinct and inert
   [x] Division containers use automatic flow layout
   [x] Integer display, slider, and progress bar represented
+  [x] Editable UTF-8 text input represented
   [ ] Remaining built-in controls represented
   [ ] Optional font and widget modules represented
   [ ] Backend can be selected through `BACKEND=<name>`
@@ -45,12 +46,18 @@ main :: proc() {
 		"Close the window to exit",
 		"Volume",
 		"Progress",
+		"Player name",
 	}
 
 	shadows_enabled := true
 	difficulty := 0
 	volume := 42
 	apply_requested := false
+	player_name: smgui.Text_Buffer
+	if error := smgui.text_buffer_init(&player_name, "Player One", 32); error != .None {
+		fail("initializing player-name buffer", error)
+	}
+	defer smgui.text_buffer_deinit(&player_name)
 	active_controls := []smgui.Form {
 		{kind = .Label, label = 2},
 		{kind = .Checkbox, label = 3, binding = smgui.bind(&shadows_enabled)},
@@ -67,6 +74,8 @@ main :: proc() {
 		{kind = .Slider, binding = smgui.bind(&volume), minimum = 0, maximum = 100},
 		{kind = .Label, flags = {.No_Break}, label = 11},
 		{kind = .Progress_Bar, binding = smgui.bind(&volume), minimum = 0, maximum = 100},
+		{kind = .Label, flags = {.No_Break}, label = 12},
+		{kind = .Text_Input, width = 220, binding = smgui.bind(&player_name), max_length = 32},
 		{kind = .Button, label = 6, binding = smgui.bind(&apply_requested)},
 	}
 	inactive_controls := []smgui.Form {
@@ -144,10 +153,11 @@ main :: proc() {
 		}
 		if apply_requested {
 			fmt.printf(
-				"Applied settings: shadows=%v difficulty=%d volume=%d\n",
+				"Applied settings: shadows=%v difficulty=%d volume=%d player=%s\n",
 				shadows_enabled,
 				difficulty,
 				volume,
+				smgui.text_buffer_string(&player_name),
 			)
 			apply_requested = false
 			if refresh_error := smgui.refresh(&ctx); refresh_error != .None {

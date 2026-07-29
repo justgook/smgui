@@ -14,6 +14,7 @@ Status:
   [x] Labels, buttons, checkboxes, and radio buttons render
   [x] Buttons, checkboxes, radio buttons, and sliders mutate bound state
   [x] Integer/float displays, sliders, and progress bars render
+  [x] UTF-8 text input, cursor editing, and input filters implemented
   [ ] Remaining drawing primitives implemented
   [x] Relative flow layout and division containers implemented
   [ ] Popup/menu layout, scrolling, and advanced alignment implemented
@@ -28,6 +29,7 @@ Definition of done:
 */
 
 import "core:fmt"
+import "core:strings"
 
 Error :: enum {
 	None,
@@ -297,6 +299,26 @@ Image :: struct {
 	pixels: []u8,
 }
 
+Key_Input :: struct {
+	bytes:  [16]u8,
+	length: u8,
+}
+
+key_input :: proc(text: string) -> Key_Input {
+	key: Key_Input
+	length := min(len(text), len(key.bytes))
+	copy(key.bytes[:], transmute([]u8)(text[:length]))
+	key.length = u8(length)
+	return key
+}
+
+key_text :: proc(key: ^Key_Input) -> string {
+	if key == nil {
+		return ""
+	}
+	return string(key.bytes[:key.length])
+}
+
 Event :: struct {
 	kind:      Event_Kind,
 	buttons:   Input_Buttons,
@@ -304,7 +326,7 @@ Event :: struct {
 	y:         int,
 	right_x:   int,
 	right_y:   int,
-	key:       string,
+	key:       Key_Input,
 	file_name: string,
 }
 
@@ -323,6 +345,50 @@ Binding_Kind :: enum u8 {
 Binding :: struct {
 	kind: Binding_Kind,
 	data: rawptr,
+}
+
+Text_Buffer :: struct {
+	data:       [dynamic]u8,
+	max_length: int,
+}
+
+@(require_results)
+text_buffer_init :: proc(
+	buffer: ^Text_Buffer,
+	initial: string = "",
+	max_length: int = 256,
+) -> Error {
+	if buffer == nil || max_length < 1 || len(initial) > max_length {
+		return .Invalid_Input
+	}
+	buffer.data = make([dynamic]u8, 0, max_length) or_else nil
+	if buffer.data == nil {
+		return .Out_Of_Memory
+	}
+	buffer.max_length = max_length
+	if (append(&buffer.data, initial) or_else -1) < 0 {
+		delete(buffer.data)
+		buffer^ = {}
+		return .Out_Of_Memory
+	}
+	return .None
+}
+
+text_buffer_deinit :: proc(buffer: ^Text_Buffer) {
+	if buffer == nil {
+		return
+	}
+	if buffer.data != nil {
+		delete(buffer.data)
+	}
+	buffer^ = {}
+}
+
+text_buffer_string :: proc(buffer: ^Text_Buffer) -> string {
+	if buffer == nil || buffer.data == nil {
+		return ""
+	}
+	return string(buffer.data[:])
 }
 
 Font_Bounds_Proc :: #type proc(
@@ -393,6 +459,8 @@ Form :: struct {
 	minimum:              i64,
 	maximum:              i64,
 	increment:            i64,
+	max_length:           int,
+	filter:               Text_Filter,
 	float_minimum:        f32,
 	float_maximum:        f32,
 	float_increment:      f32,
@@ -468,6 +536,7 @@ Context :: struct {
 	vertical_bar:   ^Form,
 	horizontal_bar: ^Form,
 	text_field:     ^Form,
+	text_cursor:    int,
 	popup:          ^Form,
 	drag_x:         int,
 	drag_y:         int,
@@ -537,6 +606,7 @@ bind :: proc {
 	bind_boolean,
 	bind_integer,
 	bind_float,
+	bind_text,
 }
 
 bind_boolean :: proc(value: ^bool) -> Binding {
@@ -549,6 +619,10 @@ bind_integer :: proc(value: ^int) -> Binding {
 
 bind_float :: proc(value: ^f32) -> Binding {
 	return {kind = .Float, data = value}
+}
+
+bind_text :: proc(value: ^Text_Buffer) -> Binding {
+	return {kind = .Text, data = value}
 }
 
 @(require_results, tag = "reference:ui_fonthook")
@@ -739,7 +813,9 @@ poll_event :: proc(ctx: ^Context, form: []Form) -> (Event, Poll_State, Error) {
 	}
 	event := ctx.events[ctx.event_tail]
 	ctx.event_tail = (ctx.event_tail + 1) % MAX_EVENTS
-	process_event(ctx, form, event)
+	if error = process_event(ctx, form, &event); error != .None {
+		return event, .Running, error
+	}
 	return event, .Running, .None
 }
 
@@ -800,7 +876,7 @@ push_event :: proc(ctx: ^Context, event: Event) -> Error {
 }
 
 @(require_results, tag = "reference:_ui_resize")
-resize :: proc(ctx: ^Context, width, height: int) -> Error {
+resize_framebuffer :: proc(ctx: ^Context, width, height: int) -> Error {
 	if ctx == nil || width < 1 || height < 1 {
 		return .Invalid_Input
 	}
@@ -978,6 +1054,26 @@ measure_form :: proc(
 		if width < 1 {
 			width = text_width + height
 		}
+	case .Text_Input:
+		if field.binding.kind != .Text ||
+		   field.binding.data == nil ||
+		   ctx.font == nil ||
+		   ctx.font_bounds == nil {
+			return 0, 0, .Invalid_Input
+		}
+		text_width, text_height, left, top: int
+		if bounds_error := ctx.font_bounds(ctx.font, "Ag", &text_width, &text_height, &left, &top);
+		   bounds_error != .None {
+			return 0, 0, bounds_error
+		}
+		field.left = left
+		field.top = top
+		if width < 1 {
+			width = min(max(available_width, 120), 240)
+		}
+		if height < 1 {
+			height = text_height + 8
+		}
 	case .Slider, .Progress_Bar:
 		if width < 1 {
 			width = min(max(available_width, 100), 180)
@@ -1074,6 +1170,10 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			}
 		case .Checkbox, .Radio:
 			if error := draw_choice(ctx, &field); error != .None {
+				return error
+			}
+		case .Text_Input:
+			if error := draw_text_input(ctx, &field); error != .None {
 				return error
 			}
 		case .Slider:
@@ -1238,6 +1338,78 @@ draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
 }
 
 @(private = "file")
+draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
+	buffer, valid := bound_text_buffer(field)
+	if !valid || ctx.font == nil || ctx.font_bounds == nil || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	disabled := .Disabled in field.flags
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	if disabled {
+		background = ctx.theme[int(Theme_Color.Disabled_Background)]
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		dark = foreground
+		light = foreground
+	}
+	draw_beveled_rectangle(
+		ctx,
+		field.computed_x,
+		field.computed_y,
+		field.computed_width,
+		field.computed_height,
+		dark,
+		background,
+		light,
+	)
+	text := text_buffer_string(buffer)
+	text_height := max(field.computed_height - 8, 1)
+	if error := ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		foreground,
+		field.computed_x + 4,
+		field.computed_y + (field.computed_height - text_height) / 2,
+		field.left,
+		field.top,
+		ctx.screen.pitch,
+		field.computed_x + 2,
+		field.computed_y + 1,
+		field.computed_x + field.computed_width - 2,
+		field.computed_y + field.computed_height - 1,
+	); error != .None {
+		return error
+	}
+	if ctx.text_field == field && !disabled {
+		cursor := clamp(ctx.text_cursor, 0, len(text))
+		cursor_width, cursor_height, left, top: int
+		if error := ctx.font_bounds(
+			ctx.font,
+			text[:cursor],
+			&cursor_width,
+			&cursor_height,
+			&left,
+			&top,
+		); error != .None {
+			return error
+		}
+		cursor_x := field.computed_x + 4 + cursor_width
+		fill_rectangle(
+			ctx,
+			cursor_x,
+			field.computed_y + 3,
+			1,
+			field.computed_height - 6,
+			ctx.theme[int(Theme_Color.Input_Cursor)],
+		)
+	}
+	return .None
+}
+
+@(private = "file")
 draw_slider :: proc(ctx: ^Context, field: ^Form) {
 	x := field.computed_x
 	y := field.computed_y
@@ -1382,6 +1554,14 @@ format_bound_value :: proc(field: ^Form) -> (string, Error) {
 }
 
 @(private = "file")
+bound_text_buffer :: proc(field: ^Form) -> (^Text_Buffer, bool) {
+	if field.binding.kind != .Text || field.binding.data == nil {
+		return nil, false
+	}
+	return (^Text_Buffer)(field.binding.data), true
+}
+
+@(private = "file")
 bound_integer :: proc(field: ^Form) -> (int, bool) {
 	if field.binding.kind != .Integer || field.binding.data == nil {
 		return 0, false
@@ -1493,9 +1673,15 @@ hovered_form_at :: proc(forms: []Form, x, y: int) -> ^Form {
 }
 
 @(private = "file")
-process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
+process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
+	if event.kind == .Key {
+		if ctx.text_field != nil {
+			return process_text_key(ctx, event)
+		}
+		return .None
+	}
 	if event.kind != .Mouse {
-		return
+		return .None
 	}
 	update_hover(ctx, form)
 	if ctx.horizontal_bar != nil {
@@ -1508,7 +1694,11 @@ process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
 	}
 	if .Mouse_Left in event.buttons {
 		if ctx.hovered == nil || .Disabled in ctx.hovered.flags {
-			return
+			deactivate_text_input(ctx)
+			return .None
+		}
+		if ctx.hovered.kind != .Text_Input {
+			deactivate_text_input(ctx)
 		}
 		#partial switch ctx.hovered.kind {
 		case .Button:
@@ -1520,6 +1710,8 @@ process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
 		case .Slider:
 			ctx.horizontal_bar = ctx.hovered
 			update_slider(ctx.hovered, event.x)
+		case .Text_Input:
+			activate_text_input(ctx, ctx.hovered)
 		case:
 		}
 		ctx.flags += {.Refresh}
@@ -1530,6 +1722,157 @@ process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
 		ctx.pressed = nil
 		ctx.flags += {.Refresh}
 	}
+	return .None
+}
+
+@(private = "file")
+activate_text_input :: proc(ctx: ^Context, field: ^Form) {
+	buffer, valid := bound_text_buffer(field)
+	if !valid {
+		return
+	}
+	ctx.text_field = field
+	ctx.text_cursor = len(buffer.data)
+	if ctx.backend.show_keyboard != nil {
+		_ = ctx.backend.show_keyboard(ctx.backend.data)
+	}
+}
+
+@(private = "file")
+deactivate_text_input :: proc(ctx: ^Context) {
+	if ctx.text_field == nil {
+		return
+	}
+	ctx.text_field = nil
+	ctx.text_cursor = 0
+	if ctx.backend.hide_keyboard != nil {
+		_ = ctx.backend.hide_keyboard(ctx.backend.data)
+	}
+}
+
+@(private = "file")
+process_text_key :: proc(ctx: ^Context, event: ^Event) -> Error {
+	field := ctx.text_field
+	buffer, valid := bound_text_buffer(field)
+	if !valid {
+		return .Invalid_Input
+	}
+	text := key_text(&event.key)
+	switch text {
+	case "Escape", "Enter":
+		deactivate_text_input(ctx)
+	case "Home":
+		ctx.text_cursor = 0
+	case "End":
+		ctx.text_cursor = len(buffer.data)
+	case "Left":
+		ctx.text_cursor = previous_codepoint(buffer.data[:], ctx.text_cursor)
+	case "Right":
+		ctx.text_cursor = next_codepoint(buffer.data[:], ctx.text_cursor)
+	case "Backspace":
+		if ctx.text_cursor > 0 {
+			start := previous_codepoint(buffer.data[:], ctx.text_cursor)
+			remove_text_range(buffer, start, ctx.text_cursor)
+			ctx.text_cursor = start
+		}
+	case "Delete":
+		if ctx.text_cursor < len(buffer.data) {
+			end := next_codepoint(buffer.data[:], ctx.text_cursor)
+			remove_text_range(buffer, ctx.text_cursor, end)
+		}
+	case:
+		if len(text) > 0 && text_allowed(field.filter, buffer.data[:], text) {
+			limit := buffer.max_length
+			if field.max_length > 0 {
+				limit = min(limit, field.max_length)
+			}
+			if len(buffer.data) + len(text) <= limit {
+				old_length := len(buffer.data)
+				if (append(&buffer.data, text) or_else -1) < 0 {
+					return .Out_Of_Memory
+				}
+				copy(
+					buffer.data[ctx.text_cursor + len(text):],
+					buffer.data[ctx.text_cursor:old_length],
+				)
+				copy(buffer.data[ctx.text_cursor:], transmute([]u8)(text))
+				ctx.text_cursor += len(text)
+			}
+		}
+	}
+	ctx.flags += {.Refresh}
+	return .None
+}
+
+@(private = "file")
+remove_text_range :: proc(buffer: ^Text_Buffer, start, end: int) {
+	copy(buffer.data[start:], buffer.data[end:])
+	resize(&buffer.data, len(buffer.data) - (end - start))
+}
+
+@(private = "file")
+previous_codepoint :: proc(text: []u8, cursor: int) -> int {
+	position := clamp(cursor, 0, len(text))
+	if position == 0 {
+		return 0
+	}
+	position -= 1
+	for position > 0 && text[position] & 0xc0 == 0x80 {
+		position -= 1
+	}
+	return position
+}
+
+@(private = "file")
+next_codepoint :: proc(text: []u8, cursor: int) -> int {
+	position := clamp(cursor, 0, len(text))
+	if position >= len(text) {
+		return len(text)
+	}
+	position += 1
+	for position < len(text) && text[position] & 0xc0 == 0x80 {
+		position += 1
+	}
+	return position
+}
+
+@(private = "file")
+text_allowed :: proc(filter: Text_Filter, existing: []u8, text: string) -> bool {
+	if len(text) == 0 || text[0] < ' ' {
+		return false
+	}
+	character := text[0]
+	switch filter {
+	case .Identifier:
+		return(
+			character >= '0' && character <= '9' ||
+			character >= 'a' && character <= 'z' ||
+			character >= 'A' && character <= 'Z' ||
+			len(existing) > 0 && character == '_' \
+		)
+	case .Variable:
+		return(
+			character >= 'a' && character <= 'z' ||
+			character >= 'A' && character <= 'Z' ||
+			len(existing) > 0 && (character == '_' || character >= '0' && character <= '9') \
+		)
+	case .Hexadecimal:
+		return(
+			character >= '0' && character <= '9' ||
+			character >= 'a' && character <= 'f' ||
+			character >= 'A' && character <= 'F' \
+		)
+	case .Expression:
+		return(
+			character >= '0' && character <= '9' ||
+			character >= 'a' && character <= 'z' ||
+			character >= 'A' && character <= 'Z' ||
+			strings.contains_rune("._()+-*/%@<>=!&|,", rune(character)) \
+		)
+	case .None, .Password:
+		return len(existing) > 0 || character != ' '
+	}
+	return false
 }
 
 @(private = "file")

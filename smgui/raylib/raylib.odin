@@ -10,9 +10,9 @@ Purpose:
 Status:
   [x] Package scaffolded
   [x] Window and framebuffer presentation implemented
-  [x] Close, mouse-button, and mouse-motion events implemented
+  [x] Close, mouse-button, mouse-motion, and keyboard events implemented
   [x] Clipboard, cursor, title, and fullscreen hooks implemented
-  [ ] Keyboard, wheel, drop-file, gamepad, and resize events implemented
+  [ ] Wheel, drop-file, gamepad, and resize events implemented
   [ ] Parity fixtures passing
 
 Definition of done:
@@ -23,6 +23,7 @@ Definition of done:
 
 import smgui ".."
 import "core:strings"
+import "core:unicode/utf8"
 import rl "vendor:raylib/v6"
 
 State :: struct {
@@ -132,6 +133,9 @@ backend_poll :: proc(data: rawptr) -> (closed: bool, error: smgui.Error) {
 	if error = translate_mouse_button(state, .RIGHT, .Mouse_Right); error != .None {
 		return false, error
 	}
+	if error = translate_keyboard(state); error != .None {
+		return false, error
+	}
 	if mouse_moved {
 		state.last_mouse_x = mouse_x
 		state.last_mouse_y = mouse_y
@@ -169,6 +173,88 @@ translate_mouse_button :: proc(
 		state.ctx,
 		{kind = .Mouse, buttons = buttons, x = state.ctx.mouse_x, y = state.ctx.mouse_y},
 	)
+}
+
+@(private = "file")
+translate_keyboard :: proc(state: ^State) -> smgui.Error {
+	buttons := keyboard_modifiers(state.buttons)
+	for {
+		key := rl.GetKeyPressed()
+		if key == .KEY_NULL {
+			break
+		}
+		text := special_key_text(key)
+		if len(text) > 0 {
+			if error := smgui.push_event(
+				state.ctx,
+				{kind = .Key, buttons = buttons, key = smgui.key_input(text)},
+			); error != .None {
+				return error
+			}
+		}
+	}
+	for {
+		character := rl.GetCharPressed()
+		if character == 0 {
+			break
+		}
+		bytes, length := utf8.encode_rune(character)
+		text := string(bytes[:length])
+		if error := smgui.push_event(
+			state.ctx,
+			{kind = .Key, buttons = buttons, key = smgui.key_input(text)},
+		); error != .None {
+			return error
+		}
+	}
+	return .None
+}
+
+@(private = "file")
+keyboard_modifiers :: proc(buttons: smgui.Input_Buttons) -> smgui.Input_Buttons {
+	result := buttons
+	if rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT) {
+		result += {.Shift}
+	}
+	if rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL) {
+		result += {.Control}
+	}
+	if rl.IsKeyDown(.LEFT_ALT) || rl.IsKeyDown(.RIGHT_ALT) {
+		result += {.Alt}
+	}
+	if rl.IsKeyDown(.LEFT_SUPER) || rl.IsKeyDown(.RIGHT_SUPER) {
+		result += {.Gui}
+	}
+	return result
+}
+
+@(private = "file")
+special_key_text :: proc(key: rl.KeyboardKey) -> string {
+	#partial switch key {
+	case .ESCAPE:
+		return "Escape"
+	case .ENTER, .KP_ENTER:
+		return "Enter"
+	case .TAB:
+		return "Tab"
+	case .BACKSPACE:
+		return "Backspace"
+	case .DELETE:
+		return "Delete"
+	case .LEFT:
+		return "Left"
+	case .RIGHT:
+		return "Right"
+	case .UP:
+		return "Up"
+	case .DOWN:
+		return "Down"
+	case .HOME:
+		return "Home"
+	case .END:
+		return "End"
+	}
+	return ""
 }
 
 @(private = "file")

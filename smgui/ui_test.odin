@@ -187,6 +187,60 @@ slider_updates_bound_integer_and_renders_related_displays :: proc(t: ^testing.T)
 	testing.expect(t, ctx.horizontal_bar == nil)
 }
 
+@(test)
+text_input_edits_utf8_at_the_cursor :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 200, 100); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+	}
+	buffer: Text_Buffer
+	if error := text_buffer_init(&buffer, "ab", 8); error != .None {
+		testing.expectf(t, false, "text_buffer_init failed: %v", error)
+		return
+	}
+	defer text_buffer_deinit(&buffer)
+
+	forms := []Form {
+		{
+			kind = .Text_Input,
+			x = absolute(10),
+			y = absolute(10),
+			width = 120,
+			binding = bind(&buffer),
+			max_length = 8,
+		},
+	}
+	poll_for_test(t, &ctx, forms)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 15, 15, {.Mouse_Left})
+	testing.expect(t, ctx.text_field != nil)
+
+	send_key_for_test(t, &ctx, &backend_state, forms, "c")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Left")
+	send_key_for_test(t, &ctx, &backend_state, forms, "X")
+	testing.expect_value(t, text_buffer_string(&buffer), "abXc")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Backspace")
+	send_key_for_test(t, &ctx, &backend_state, forms, "End")
+	send_key_for_test(t, &ctx, &backend_state, forms, "é")
+	testing.expect_value(t, text_buffer_string(&buffer), "abcé")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Enter")
+	testing.expect(t, ctx.text_field == nil)
+}
+
 @(private = "file")
 poll_for_test :: proc(t: ^testing.T, ctx: ^Context, forms: []Form) {
 	_, state, error := poll_event(ctx, forms)
@@ -208,6 +262,22 @@ send_mouse_for_test :: proc(
 		buttons = buttons,
 		x       = x,
 		y       = y,
+	}
+	backend.has_event = true
+	poll_for_test(t, ctx, forms)
+}
+
+@(private = "file")
+send_key_for_test :: proc(
+	t: ^testing.T,
+	ctx: ^Context,
+	backend: ^Test_Backend_State,
+	forms: []Form,
+	key: string,
+) {
+	backend.pending = {
+		kind = .Key,
+		key  = key_input(key),
 	}
 	backend.has_event = true
 	poll_for_test(t, ctx, forms)
