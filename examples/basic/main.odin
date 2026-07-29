@@ -13,6 +13,7 @@ Status:
   [x] Active controls mutate application state
   [x] Disabled controls are visually distinct and inert
   [x] Division containers use automatic flow layout
+  [x] Integer display, slider, and progress bar represented
   [ ] Remaining built-in controls represented
   [ ] Optional font and widget modules represented
   [ ] Backend can be selected through `BACKEND=<name>`
@@ -42,10 +43,13 @@ main :: proc() {
 		"Disabled controls",
 		"Unavailable",
 		"Close the window to exit",
+		"Volume",
+		"Progress",
 	}
 
 	shadows_enabled := true
 	difficulty := 0
+	volume := 42
 	apply_requested := false
 	active_controls := []smgui.Form {
 		{kind = .Label, label = 2},
@@ -58,6 +62,11 @@ main :: proc() {
 			value = 0,
 		},
 		{kind = .Radio, label = 5, binding = smgui.bind(&difficulty), value = 1},
+		{kind = .Label, flags = {.No_Break}, label = 10},
+		{kind = .Decimal_64, flags = {.No_Break}, binding = smgui.bind(&volume)},
+		{kind = .Slider, binding = smgui.bind(&volume), minimum = 0, maximum = 100},
+		{kind = .Label, flags = {.No_Break}, label = 11},
+		{kind = .Progress_Bar, binding = smgui.bind(&volume), minimum = 0, maximum = 100},
 		{kind = .Button, label = 6, binding = smgui.bind(&apply_requested)},
 	}
 	inactive_controls := []smgui.Form {
@@ -82,16 +91,16 @@ main :: proc() {
 			kind = .Division,
 			x = smgui.absolute(50),
 			y = smgui.absolute(85),
-			width = 540,
-			height = 175,
+			width = 620,
+			height = 235,
 			margin = 16,
 			children = active_controls,
 		},
 		{
 			kind = .Division,
 			x = smgui.absolute(50),
-			y = smgui.absolute(285),
-			width = 540,
+			y = smgui.absolute(345),
+			width = 620,
 			height = 110,
 			margin = 16,
 			children = inactive_controls,
@@ -100,14 +109,14 @@ main :: proc() {
 			kind = .Label,
 			horizontal_alignment = .Center,
 			x = smgui.percent(50),
-			y = smgui.absolute(440),
+			y = smgui.absolute(510),
 			label = 9,
 		},
 	}
 
 	backend_state: raylib_backend.State
 	ctx: smgui.Context
-	if error := smgui.init(&ctx, raylib_backend.create(&backend_state), texts, 640, 480);
+	if error := smgui.init(&ctx, raylib_backend.create(&backend_state), texts, 720, 560);
 	   error != .None {
 		fail("initializing SMGUI", error)
 	}
@@ -134,7 +143,12 @@ main :: proc() {
 			break
 		}
 		if apply_requested {
-			fmt.printf("Applied settings: shadows=%v difficulty=%d\n", shadows_enabled, difficulty)
+			fmt.printf(
+				"Applied settings: shadows=%v difficulty=%d volume=%d\n",
+				shadows_enabled,
+				difficulty,
+				volume,
+			)
 			apply_requested = false
 			if refresh_error := smgui.refresh(&ctx); refresh_error != .None {
 				fail("refreshing SMGUI", refresh_error)

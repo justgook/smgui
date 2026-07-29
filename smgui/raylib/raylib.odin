@@ -10,7 +10,7 @@ Purpose:
 Status:
   [x] Package scaffolded
   [x] Window and framebuffer presentation implemented
-  [x] Close and mouse-button events implemented
+  [x] Close, mouse-button, and mouse-motion events implemented
   [x] Clipboard, cursor, title, and fullscreen hooks implemented
   [ ] Keyboard, wheel, drop-file, gamepad, and resize events implemented
   [ ] Parity fixtures passing
@@ -26,10 +26,12 @@ import "core:strings"
 import rl "vendor:raylib/v6"
 
 State :: struct {
-	ctx:         ^smgui.Context,
-	texture:     rl.Texture2D,
-	buttons:     smgui.Input_Buttons,
-	initialized: bool,
+	ctx:          ^smgui.Context,
+	texture:      rl.Texture2D,
+	buttons:      smgui.Input_Buttons,
+	last_mouse_x: int,
+	last_mouse_y: int,
+	initialized:  bool,
 }
 
 create :: proc(state: ^State) -> smgui.Backend {
@@ -82,6 +84,8 @@ backend_init :: proc(
 		format  = .UNCOMPRESSED_R8G8B8A8,
 	}
 	state.ctx = ctx
+	state.last_mouse_x = int(rl.GetMouseX())
+	state.last_mouse_y = int(rl.GetMouseY())
 	state.texture = rl.LoadTextureFromImage(image)
 	state.initialized = true
 	return .None
@@ -114,8 +118,11 @@ backend_poll :: proc(data: rawptr) -> (closed: bool, error: smgui.Error) {
 		return true, .None
 	}
 
-	state.ctx.mouse_x = int(rl.GetMouseX())
-	state.ctx.mouse_y = int(rl.GetMouseY())
+	mouse_x := int(rl.GetMouseX())
+	mouse_y := int(rl.GetMouseY())
+	mouse_moved := mouse_x != state.last_mouse_x || mouse_y != state.last_mouse_y
+	state.ctx.mouse_x = mouse_x
+	state.ctx.mouse_y = mouse_y
 	if error = translate_mouse_button(state, .LEFT, .Mouse_Left); error != .None {
 		return false, error
 	}
@@ -124,6 +131,16 @@ backend_poll :: proc(data: rawptr) -> (closed: bool, error: smgui.Error) {
 	}
 	if error = translate_mouse_button(state, .RIGHT, .Mouse_Right); error != .None {
 		return false, error
+	}
+	if mouse_moved {
+		state.last_mouse_x = mouse_x
+		state.last_mouse_y = mouse_y
+		if error = smgui.push_event(
+			state.ctx,
+			{kind = .Mouse, buttons = state.buttons, x = mouse_x, y = mouse_y},
+		); error != .None {
+			return false, error
+		}
 	}
 	return false, .None
 }

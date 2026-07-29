@@ -12,7 +12,8 @@ Status:
   [x] Backend adapter seam declared
   [x] Framebuffer lifecycle and bounded event queue implemented
   [x] Labels, buttons, checkboxes, and radio buttons render
-  [x] Buttons, checkboxes, and radio buttons mutate bound state
+  [x] Buttons, checkboxes, radio buttons, and sliders mutate bound state
+  [x] Integer/float displays, sliders, and progress bars render
   [ ] Remaining drawing primitives implemented
   [x] Relative flow layout and division containers implemented
   [ ] Popup/menu layout, scrolling, and advanced alignment implemented
@@ -25,6 +26,8 @@ Definition of done:
   - Deterministic framebuffer fixtures match reference-c
   - No operation reports success before doing its documented work
 */
+
+import "core:fmt"
 
 Error :: enum {
 	None,
@@ -533,6 +536,7 @@ percent :: proc(value: int, offset: int = 0) -> Position {
 bind :: proc {
 	bind_boolean,
 	bind_integer,
+	bind_float,
 }
 
 bind_boolean :: proc(value: ^bool) -> Binding {
@@ -541,6 +545,10 @@ bind_boolean :: proc(value: ^bool) -> Binding {
 
 bind_integer :: proc(value: ^int) -> Binding {
 	return {kind = .Integer, data = value}
+}
+
+bind_float :: proc(value: ^f32) -> Binding {
+	return {kind = .Float, data = value}
 }
 
 @(require_results, tag = "reference:ui_fonthook")
@@ -970,6 +978,39 @@ measure_form :: proc(
 		if width < 1 {
 			width = text_width + height
 		}
+	case .Slider, .Progress_Bar:
+		if width < 1 {
+			width = min(max(available_width, 100), 180)
+		}
+		if height < 1 {
+			height = 20
+		}
+	case .Decimal_8,
+	     .Decimal_16,
+	     .Decimal_32,
+	     .Decimal_64,
+	     .Hexadecimal_8,
+	     .Hexadecimal_16,
+	     .Hexadecimal_32,
+	     .Hexadecimal_64,
+	     .Decimal_Float:
+		text, format_error := format_bound_value(field)
+		if format_error != .None || ctx.font == nil || ctx.font_bounds == nil {
+			return 0, 0, .Invalid_Input
+		}
+		text_width, text_height, left, top: int
+		if bounds_error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+		   bounds_error != .None {
+			return 0, 0, bounds_error
+		}
+		field.left = left
+		field.top = top
+		if width < 1 {
+			width = text_width
+		}
+		if height < 1 {
+			height = text_height
+		}
 	case .Division:
 		if width < 1 {
 			width = available_width
@@ -1033,6 +1074,24 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			}
 		case .Checkbox, .Radio:
 			if error := draw_choice(ctx, &field); error != .None {
+				return error
+			}
+		case .Slider:
+			draw_slider(ctx, &field)
+		case .Progress_Bar:
+			if error := draw_progress_bar(ctx, &field); error != .None {
+				return error
+			}
+		case .Decimal_8,
+		     .Decimal_16,
+		     .Decimal_32,
+		     .Decimal_64,
+		     .Hexadecimal_8,
+		     .Hexadecimal_16,
+		     .Hexadecimal_32,
+		     .Hexadecimal_64,
+		     .Decimal_Float:
+			if error := draw_bound_value(ctx, &field); error != .None {
 				return error
 			}
 		}
@@ -1179,6 +1238,158 @@ draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
 }
 
 @(private = "file")
+draw_slider :: proc(ctx: ^Context, field: ^Form) {
+	x := field.computed_x
+	y := field.computed_y
+	width := field.computed_width
+	height := field.computed_height
+	disabled := .Disabled in field.flags
+	track_color := ctx.theme[int(Theme_Color.Scrollbar_Background)]
+	if disabled {
+		track_color = ctx.theme[int(Theme_Color.Disabled_Background)]
+	}
+	track_y := y + height / 2 - 2
+	draw_beveled_rectangle(
+		ctx,
+		x + 4,
+		track_y,
+		max(width - 8, 1),
+		5,
+		ctx.theme[int(Theme_Color.Input_Dark_Border)],
+		track_color,
+		ctx.theme[int(Theme_Color.Input_Light_Border)],
+	)
+	value, valid := bound_integer(field)
+	if !valid {
+		value = int(field.minimum)
+	}
+	minimum := int(field.minimum)
+	maximum := int(field.maximum)
+	if maximum <= minimum {
+		maximum = minimum + 1
+	}
+	value = clamp(value, minimum, maximum)
+	knob_x := x + 5 + (width - 11) * (value - minimum) / (maximum - minimum)
+	draw_radio(ctx, knob_x, y + height / 2, true, disabled)
+}
+
+@(private = "file")
+draw_progress_bar :: proc(ctx: ^Context, field: ^Form) -> Error {
+	x := field.computed_x
+	y := field.computed_y
+	width := field.computed_width
+	height := field.computed_height
+	value, valid := bound_integer(field)
+	if !valid {
+		value = int(field.minimum)
+	}
+	minimum := int(field.minimum)
+	maximum := int(field.maximum)
+	if maximum <= minimum {
+		maximum = minimum + 1
+	}
+	value = clamp(value, minimum, maximum)
+	filled := (width - 2) * (value - minimum) / (maximum - minimum)
+	draw_beveled_rectangle(
+		ctx,
+		x,
+		y,
+		width,
+		height,
+		ctx.theme[int(Theme_Color.Progress_Light)],
+		ctx.theme[int(Theme_Color.Progress_Background)],
+		ctx.theme[int(Theme_Color.Progress_Dark)],
+	)
+	fill_rectangle(
+		ctx,
+		x + 1,
+		y + 1,
+		filled,
+		max(height - 2, 0),
+		ctx.theme[int(Theme_Color.Progress_Light)],
+	)
+	percentage := (value - minimum) * 100 / (maximum - minimum)
+	text := fmt.tprintf("%d%%", percentage)
+	return draw_text_centered(ctx, text, field, ctx.theme[int(Theme_Color.Input_Foreground)])
+}
+
+@(private = "file")
+draw_bound_value :: proc(ctx: ^Context, field: ^Form) -> Error {
+	text, error := format_bound_value(field)
+	if error != .None {
+		return error
+	}
+	foreground := ctx.theme[int(Theme_Color.Foreground)]
+	if .Disabled in field.flags {
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+	}
+	return draw_text_centered(ctx, text, field, foreground)
+}
+
+@(private = "file")
+draw_text_centered :: proc(ctx: ^Context, text: string, field: ^Form, color: u32) -> Error {
+	if ctx.font == nil || ctx.font_bounds == nil || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	text_width, text_height, left, top: int
+	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+	   error != .None {
+		return error
+	}
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		color,
+		field.computed_x + (field.computed_width - text_width) / 2,
+		field.computed_y + (field.computed_height - text_height) / 2,
+		left,
+		top,
+		ctx.screen.pitch,
+		0,
+		0,
+		ctx.screen.width,
+		ctx.screen.height,
+	)
+}
+
+@(private = "file")
+format_bound_value :: proc(field: ^Form) -> (string, Error) {
+	if field.binding.data == nil {
+		return "", .Invalid_Input
+	}
+	if field.kind == .Decimal_Float {
+		if field.binding.kind != .Float {
+			return "", .Invalid_Input
+		}
+		return fmt.tprintf("%.3f", ((^f32)(field.binding.data))^), .None
+	}
+	value, valid := bound_integer(field)
+	if !valid {
+		return "", .Invalid_Input
+	}
+	#partial switch field.kind {
+	case .Hexadecimal_8:
+		return fmt.tprintf("%02X", value), .None
+	case .Hexadecimal_16:
+		return fmt.tprintf("%04X", value), .None
+	case .Hexadecimal_32:
+		return fmt.tprintf("%08X", value), .None
+	case .Hexadecimal_64:
+		return fmt.tprintf("%016X", value), .None
+	}
+	return fmt.tprintf("%d", value), .None
+}
+
+@(private = "file")
+bound_integer :: proc(field: ^Form) -> (int, bool) {
+	if field.binding.kind != .Integer || field.binding.data == nil {
+		return 0, false
+	}
+	return ((^int)(field.binding.data))^, true
+}
+
+@(private = "file")
 draw_checkbox :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
 	border_dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
 	background := ctx.theme[int(Theme_Color.Input_Background)]
@@ -1287,6 +1498,14 @@ process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
 		return
 	}
 	update_hover(ctx, form)
+	if ctx.horizontal_bar != nil {
+		if .Released in event.buttons {
+			ctx.horizontal_bar = nil
+		} else {
+			update_slider(ctx.horizontal_bar, event.x)
+			ctx.flags += {.Refresh}
+		}
+	}
 	if .Mouse_Left in event.buttons {
 		if ctx.hovered == nil || .Disabled in ctx.hovered.flags {
 			return
@@ -1298,6 +1517,9 @@ process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
 			activate_checkbox(ctx.hovered)
 		case .Radio:
 			activate_radio(ctx.hovered)
+		case .Slider:
+			ctx.horizontal_bar = ctx.hovered
+			update_slider(ctx.hovered, event.x)
 		case:
 		}
 		ctx.flags += {.Refresh}
@@ -1308,6 +1530,22 @@ process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
 		ctx.pressed = nil
 		ctx.flags += {.Refresh}
 	}
+}
+
+@(private = "file")
+update_slider :: proc(field: ^Form, mouse_x: int) {
+	if field.binding.kind != .Integer || field.binding.data == nil {
+		return
+	}
+	minimum := int(field.minimum)
+	maximum := int(field.maximum)
+	if maximum <= minimum {
+		return
+	}
+	track_width := max(field.computed_width - 10, 1)
+	position := clamp(mouse_x - field.computed_x - 5, 0, track_width)
+	value := minimum + position * (maximum - minimum) / track_width
+	((^int)(field.binding.data))^ = clamp(value, minimum, maximum)
 }
 
 @(private = "file")

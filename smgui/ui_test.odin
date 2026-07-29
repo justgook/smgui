@@ -133,6 +133,60 @@ flow_layout_positions_children_inside_divisions :: proc(t: ^testing.T) {
 	testing.expect(t, clicked)
 }
 
+@(test)
+slider_updates_bound_integer_and_renders_related_displays :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 200, 120); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+	}
+
+	value := 0
+	forms := []Form {
+		{
+			kind = .Slider,
+			x = absolute(10),
+			y = absolute(10),
+			width = 110,
+			binding = bind(&value),
+			minimum = 0,
+			maximum = 100,
+		},
+		{
+			kind = .Progress_Bar,
+			x = absolute(10),
+			y = absolute(40),
+			width = 110,
+			binding = bind(&value),
+			minimum = 0,
+			maximum = 100,
+		},
+		{kind = .Decimal_64, x = absolute(10), y = absolute(70), binding = bind(&value)},
+	}
+	poll_for_test(t, &ctx, forms)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 65, 15, {.Mouse_Left})
+	testing.expect_value(t, value, 50)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 200, 15, {.Mouse_Left})
+	testing.expect_value(t, value, 100)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 200, 15, {.Released})
+	testing.expect(t, ctx.horizontal_bar == nil)
+}
+
 @(private = "file")
 poll_for_test :: proc(t: ^testing.T, ctx: ^Context, forms: []Form) {
 	_, state, error := poll_event(ctx, forms)
