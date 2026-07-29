@@ -26,6 +26,7 @@ main :: proc() {
 	button_explicit_size := []smgui.Form{{kind = .Button, label = 3, width = 58, height = 28}}
 	button_hover := []smgui.Form{{kind = .Button, label = 2}}
 	button_pressed := []smgui.Form{{kind = .Button, label = 2}}
+	button_disabled := []smgui.Form{{kind = .Button, flags = {.Disabled}, label = 2}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -40,6 +41,8 @@ main :: proc() {
 		forms = button_hover
 	case "button-pressed":
 		forms = button_pressed
+	case "button-disabled":
+		forms = button_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)

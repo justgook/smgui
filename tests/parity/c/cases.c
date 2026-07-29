@@ -42,6 +42,10 @@ int main(int argc, char **argv)
         { .type = UI_BUTTON, .label = BUTTON_TEXT },
         { .type = UI_END }
     };
+    ui_form_t button_disabled[] = {
+        { .type = UI_BUTTON, .flags = UI_DISABLED, .label = BUTTON_TEXT },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -69,6 +73,8 @@ int main(int argc, char **argv)
         forms = button_hover;
     } else if (!strcmp(argv[1], "button-pressed")) {
         forms = button_pressed;
+    } else if (!strcmp(argv[1], "button-disabled")) {
+        forms = button_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
