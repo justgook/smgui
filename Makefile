@@ -35,8 +35,12 @@ PARITY_C_BIN := $(BUILD_DIR)/parity-case-c
 PARITY_ODIN_BIN := $(BUILD_DIR)/parity-case-odin
 PARITY_CASES := empty
 CASE ?= empty
-PARITY_C_PNG = $(PARITY_ACTUAL_DIR)/$(CASE)-c.png
-PARITY_ODIN_PNG = $(PARITY_ACTUAL_DIR)/$(CASE)-odin.png
+WIDTH ?= 64
+HEIGHT ?= 48
+FUZZ_SEED ?= 1
+FUZZ_CASES ?= 20
+PARITY_C_PNG = $(PARITY_ACTUAL_DIR)/$(CASE)-$(WIDTH)x$(HEIGHT)-c.png
+PARITY_ODIN_PNG = $(PARITY_ACTUAL_DIR)/$(CASE)-$(WIDTH)x$(HEIGHT)-odin.png
 PKG_CONFIG ?= pkg-config
 C_REFERENCE_CC := $(CC)
 C_REFERENCE_GLFW_CFLAGS := $(shell $(PKG_CONFIG) --cflags glfw3 2>/dev/null)
@@ -74,6 +78,7 @@ help:
 	  'Framebuffer parity:' \
 	  '  parity-case CASE=name  Compare one small deterministic fixture' \
 	  '  parity                 Compare every completed fixture' \
+	  '  parity-fuzz            Run seeded bounded cases (FUZZ_SEED=1 FUZZ_CASES=20)' \
 	  '' \
 	  'Reference C targets:' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
@@ -130,7 +135,7 @@ c-build: reference-c-init
 c-run run-c: c-build
 	$(Q)"$(C_BIN)"
 
-$(SMOKE_C_BIN): $(SMOKE_C_SOURCE) reference-c-init | $(BUILD_DIR)
+$(SMOKE_C_BIN): $(SMOKE_C_SOURCE) | $(BUILD_DIR) reference-c-init
 	$(Q)$(PKG_CONFIG) --exists glfw3 || { echo "GLFW development files not found; enter the direnv/Nix shell first" >&2; exit 2; }
 	$(Q)$(C_REFERENCE_CC) $(C_REFERENCE_CPPFLAGS) \
 		-std=c99 -Wall -Wextra -Wno-pragmas -O2 \
@@ -143,7 +148,7 @@ smoke-c-build: $(SMOKE_C_BIN)
 smoke-c: smoke-c-build
 	$(Q)"$(SMOKE_C_BIN)"
 
-$(SMOKE_C_IMAGE_BIN): $(SMOKE_C_SOURCE) tests/parity/c/ui_image_backend.h tests/vendor/stb_image_write.h reference-c-init | $(BUILD_DIR)
+$(SMOKE_C_IMAGE_BIN): $(SMOKE_C_SOURCE) tests/parity/c/ui_image_backend.h tests/vendor/stb_image_write.h | $(BUILD_DIR) reference-c-init
 	$(Q)$(C_REFERENCE_CC) -DSMOKE_IMAGE_BACKEND \
 		-std=c99 -Wall -Wextra -Wno-pragmas -O2 \
 		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods \
@@ -168,7 +173,7 @@ smoke-images: $(SMOKE_C_IMAGE_BIN) $(SMOKE_ODIN_IMAGE_BIN) | $(PARITY_ACTUAL_DIR
 smoke-compare: smoke-images $(PNG_COMPARE_BIN)
 	$(Q)"$(PNG_COMPARE_BIN)" "$(SMOKE_C_PNG)" "$(SMOKE_ODIN_PNG)"
 
-$(PARITY_C_BIN): tests/parity/c/cases.c tests/parity/c/ui_image_backend.h tests/vendor/stb_image_write.h reference-c-init | $(BUILD_DIR)
+$(PARITY_C_BIN): tests/parity/c/cases.c tests/parity/c/ui_image_backend.h tests/vendor/stb_image_write.h | $(BUILD_DIR) reference-c-init
 	$(Q)$(C_REFERENCE_CC) -std=c99 -Wall -Wextra -Wno-pragmas -O2 \
 		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods \
 		tests/parity/c/cases.c -o "$@" -lm
@@ -178,8 +183,8 @@ $(PARITY_ODIN_BIN): tests/parity/cases/main.odin smgui/ui.odin smgui/image/image
 
 .PHONY: parity-case
 parity-case: $(PARITY_C_BIN) $(PARITY_ODIN_BIN) $(PNG_COMPARE_BIN) | $(PARITY_ACTUAL_DIR)
-	$(Q)"$(PARITY_C_BIN)" "$(CASE)" "$(PARITY_C_PNG)"
-	$(Q)"$(PARITY_ODIN_BIN)" "$(CASE)" "$(PARITY_ODIN_PNG)"
+	$(Q)"$(PARITY_C_BIN)" "$(CASE)" "$(PARITY_C_PNG)" "$(WIDTH)" "$(HEIGHT)"
+	$(Q)"$(PARITY_ODIN_BIN)" "$(CASE)" "$(PARITY_ODIN_PNG)" "$(WIDTH)" "$(HEIGHT)"
 	$(Q)"$(PNG_COMPARE_BIN)" "$(PARITY_C_PNG)" "$(PARITY_ODIN_PNG)"
 
 .PHONY: parity
@@ -187,6 +192,17 @@ parity:
 	$(Q)for parity_case in $(PARITY_CASES); do \
 		echo "Parity $$parity_case"; \
 		$(MAKE) parity-case CASE="$$parity_case"; \
+	done
+
+.PHONY: parity-fuzz
+parity-fuzz:
+	$(Q)tests/parity/fuzz.sh "$(FUZZ_SEED)" "$(FUZZ_CASES)" | \
+	while read -r index width height; do \
+		echo "Fuzz seed=$(FUZZ_SEED) case=$$index empty $${width}x$${height}"; \
+		$(MAKE) parity-case CASE=empty WIDTH="$$width" HEIGHT="$$height" || { \
+			echo "Replay: make parity-case CASE=empty WIDTH=$$width HEIGHT=$$height" >&2; \
+			exit 1; \
+		}; \
 	done
 
 .PHONY: clean

@@ -102,7 +102,8 @@ only their module and must agree with this list.
 - [x] Pass the 64×48 empty-framebuffer tracer fixture.
 - [ ] Pass label rendering and font-position fixtures.
 - [ ] Pass button normal, explicit-size, hover, pressed, and disabled fixtures.
-- [ ] Add reproducible bounded fuzzing for completed element fixtures.
+- [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
+  expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.
 - [ ] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
   and events to fixtures.

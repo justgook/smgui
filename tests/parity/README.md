@@ -39,9 +39,16 @@ position. This is parity work, not image-adapter behavior.
 
 ## Seeded fuzz fixtures
 
-Fuzzing will use the same C/Odin image and comparison path. Generation is
-bounded and deterministic: a run accepts a seed and case count, prints both,
-and preserves the generated case on failure. Only Form kinds and states with
-passing small fixtures enter the fuzz pool. A discovered mismatch is replayed
-by seed, minimized, and promoted to a named deterministic fixture before the
-underlying behavior is changed.
+```sh
+make parity-fuzz                         # seed 1, 20 cases
+make parity-fuzz FUZZ_SEED=123 FUZZ_CASES=10
+```
+
+Fuzzing uses the same C/Odin image and comparison path. Generation is bounded
+and deterministic: every run prints its seed, case number, dimensions, and an
+exact replay command on failure. The initial pool varies framebuffer dimensions
+from 32–256 by 24–192 for the completed empty fixture. Form kinds and states
+enter the pool only after their small fixtures pass.
+
+A discovered mismatch is replayed, minimized, and promoted to a named
+deterministic fixture before the underlying behavior is changed.

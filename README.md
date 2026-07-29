@@ -59,6 +59,7 @@ Run completed small framebuffer fixtures, or generate the large smoke fixture:
 ```sh
 make parity                        # expected-green element/state fixtures
 make parity-case CASE=empty
+make parity-fuzz FUZZ_SEED=1 FUZZ_CASES=20
 make smoke-images
 make smoke-compare                 # non-zero until smoke parity is reached
 ```
