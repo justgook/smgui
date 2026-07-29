@@ -38,7 +38,8 @@ BEGIN {
     fixtures[7] = "checkbox-normal"
     fixtures[8] = "checkbox-checked"
     fixtures[9] = "checkbox-hover"
-    fixture_count = 10
+    fixtures[10] = "checkbox-pressed"
+    fixture_count = 11
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

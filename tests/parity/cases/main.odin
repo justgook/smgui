@@ -34,6 +34,10 @@ main :: proc() {
 		{kind = .Checkbox, label = 4, binding = smgui.bind(&checked_value)},
 	}
 	checkbox_hover := []smgui.Form{{kind = .Checkbox, label = 4, binding = smgui.bind(&checked)}}
+	pressed_value := false
+	checkbox_pressed := []smgui.Form {
+		{kind = .Checkbox, label = 4, binding = smgui.bind(&pressed_value)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -56,6 +60,8 @@ main :: proc() {
 		forms = checkbox_checked
 	case "checkbox-hover":
 		forms = checkbox_hover
+	case "checkbox-pressed":
+		forms = checkbox_pressed
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -65,7 +71,8 @@ main :: proc() {
 	interaction_case :=
 		os.args[1] == "button-hover" ||
 		os.args[1] == "button-pressed" ||
-		os.args[1] == "checkbox-hover"
+		os.args[1] == "checkbox-hover" ||
+		os.args[1] == "checkbox-pressed"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
@@ -104,11 +111,9 @@ main :: proc() {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
-	if os.args[1] == "button-hover" ||
-	   os.args[1] == "button-pressed" ||
-	   os.args[1] == "checkbox-hover" {
+	if interaction_case {
 		buttons: smgui.Input_Buttons
-		if os.args[1] == "button-pressed" {
+		if os.args[1] == "button-pressed" || os.args[1] == "checkbox-pressed" {
 			buttons += {.Mouse_Left}
 		}
 		if error := smgui.push_event(&ctx, {kind = .Mouse, buttons = buttons, x = 10, y = 10});
@@ -126,6 +131,10 @@ main :: proc() {
 		if state == .Closed {
 			break
 		}
+	}
+	if os.args[1] == "checkbox-pressed" && !pressed_value {
+		fmt.eprintln("checkbox press did not update its bound value")
+		os.exit(1)
 	}
 	if !image_state.succeeded {
 		fmt.eprintf("failed to write %s\n", os.args[2])

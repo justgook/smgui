@@ -21,6 +21,7 @@ int main(int argc, char **argv)
     char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check" };
     int checked = 0;
     int checked_value = 1;
+    int pressed_value = 0;
     ui_form_t empty[] = {
         { .type = UI_END }
     };
@@ -60,6 +61,10 @@ int main(int argc, char **argv)
         { .type = UI_CHECK, .label = CHECKBOX_TEXT, .ptr = &checked },
         { .type = UI_END }
     };
+    ui_form_t checkbox_pressed[] = {
+        { .type = UI_CHECK, .label = CHECKBOX_TEXT, .ptr = &pressed_value },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -95,6 +100,8 @@ int main(int argc, char **argv)
         forms = checkbox_checked;
     } else if (!strcmp(argv[1], "checkbox-hover")) {
         forms = checkbox_hover;
+    } else if (!strcmp(argv[1], "checkbox-pressed")) {
+        forms = checkbox_pressed;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -103,7 +110,7 @@ int main(int argc, char **argv)
     ui_image_backend_set_output(argv[2]);
     if (!strcmp(argv[1], "button-hover") || !strcmp(argv[1], "checkbox-hover")) {
         ui_image_backend_set_mouse_event(10, 10, 0);
-    } else if (!strcmp(argv[1], "button-pressed")) {
+    } else if (!strcmp(argv[1], "button-pressed") || !strcmp(argv[1], "checkbox-pressed")) {
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
@@ -117,6 +124,11 @@ int main(int argc, char **argv)
         context.mousey = -1;
     }
     while (ui_event(&context, forms)) { }
+    if (!strcmp(argv[1], "checkbox-pressed") && pressed_value != 1) {
+        fprintf(stderr, "checkbox press did not update its bound value\n");
+        ui_free(&context);
+        return 1;
+    }
     if (!ui_image_backend_succeeded(&context)) {
         fprintf(stderr, "failed to write %s\n", argv[2]);
         ui_free(&context);
