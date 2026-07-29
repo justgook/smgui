@@ -117,7 +117,8 @@ only their module and must agree with this list.
 - [x] Pass the scripted radio-pressed fixture and bound-value mutation.
 - [x] Pass the radio-disabled fixture.
 - [x] Pass the slider-minimum fixture.
-- [ ] Pass slider midpoint, maximum, interaction, and disabled fixtures.
+- [x] Pass the slider-midpoint fixture.
+- [ ] Pass slider maximum, interaction, and disabled fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

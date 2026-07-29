@@ -46,7 +46,8 @@ BEGIN {
     fixtures[15] = "radio-pressed"
     fixtures[16] = "radio-disabled"
     fixtures[17] = "slider-minimum"
-    fixture_count = 18
+    fixtures[18] = "slider-midpoint"
+    fixture_count = 19
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
