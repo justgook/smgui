@@ -142,6 +142,17 @@ main :: proc() {
 			maximum = 100,
 		},
 	}
+	progress_maximum_value := 100
+	progress_maximum := []smgui.Form {
+		{
+			kind = .Progress_Bar,
+			width = 58,
+			height = 20,
+			binding = smgui.bind(&progress_maximum_value),
+			minimum = 0,
+			maximum = 100,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -192,6 +203,8 @@ main :: proc() {
 		forms = progress_minimum
 	case "progress-midpoint":
 		forms = progress_midpoint
+	case "progress-maximum":
+		forms = progress_maximum
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
