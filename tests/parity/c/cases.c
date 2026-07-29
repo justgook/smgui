@@ -23,6 +23,7 @@ int main(int argc, char **argv)
     int radio_value = 0;
     int selected_radio_value = 1;
     int pressed_radio_value = 0;
+    int slider_value = 0;
     int checked_value = 1;
     int pressed_value = 0;
     ui_form_t empty[] = {
@@ -92,6 +93,10 @@ int main(int argc, char **argv)
         { .type = UI_RADIO, .flags = UI_DISABLED, .label = RADIO_TEXT, .ptr = &radio_value, .value = 1 },
         { .type = UI_END }
     };
+    ui_form_t slider_minimum[] = {
+        { .type = UI_SLIDER, .w = 58, .h = 20, .ptr = &slider_value, .min = 0, .max = 100 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -141,6 +146,8 @@ int main(int argc, char **argv)
         forms = radio_pressed;
     } else if (!strcmp(argv[1], "radio-disabled")) {
         forms = radio_disabled;
+    } else if (!strcmp(argv[1], "slider-minimum")) {
+        forms = slider_minimum;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -161,7 +168,8 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "button-normal") || !strcmp(argv[1], "button-explicit-size") ||
         (!strcmp(argv[1], "checkbox-normal") || !strcmp(argv[1], "checkbox-checked")) ||
-        (!strcmp(argv[1], "radio-normal") || !strcmp(argv[1], "radio-selected"))) {
+        (!strcmp(argv[1], "radio-normal") || !strcmp(argv[1], "radio-selected")) ||
+        !strcmp(argv[1], "slider-minimum")) {
         context.mousex = -1;
         context.mousey = -1;
     }

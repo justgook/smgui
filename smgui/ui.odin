@@ -2078,21 +2078,18 @@ draw_slider :: proc(ctx: ^Context, field: ^Form) {
 	width := field.computed_width
 	height := field.computed_height
 	disabled := .Disabled in field.flags
-	track_color := ctx.theme[int(Theme_Color.Scrollbar_Background)]
+	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
 	if disabled {
-		track_color = ctx.theme[int(Theme_Color.Disabled_Background)]
+		dark = ctx.theme[int(Theme_Color.Disabled_Background)]
+		light = dark
+		background = dark
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	}
-	track_y := y + height / 2 - 2
-	draw_beveled_rectangle(
-		ctx,
-		x + 4,
-		track_y,
-		max(width - 8, 1),
-		5,
-		ctx.theme[int(Theme_Color.Input_Dark_Border)],
-		track_color,
-		ctx.theme[int(Theme_Color.Input_Light_Border)],
-	)
+	track_y := y + height / 2 - 3
+	draw_outline_rectangle(ctx, x, track_y, width, 5, dark, background, light)
 	value, valid := bound_integer(field)
 	if !valid {
 		value = int(field.minimum)
@@ -2103,8 +2100,26 @@ draw_slider :: proc(ctx: ^Context, field: ^Form) {
 		maximum = minimum + 1
 	}
 	value = clamp(value, minimum, maximum)
-	knob_x := x + 5 + (width - 11) * (value - minimum) / (maximum - minimum)
-	draw_radio(ctx, knob_x, y + height / 2, true, disabled)
+	position := (value - minimum) * (width - 9) / (maximum - minimum)
+	fill_rectangle(ctx, x + 1, track_y + 1, position + 3, 3, foreground)
+	fill_rectangle(ctx, x + position + 3, track_y + 1, width - 4 - position, 3, background)
+	draw_monochrome_radio(ctx, x + position + 5, y + height / 2, foreground)
+}
+
+@(private = "file")
+draw_monochrome_radio :: proc(ctx: ^Context, x, y: int, color: u32) {
+	base_x, base_y := x - 5, y - 5
+	for row in 0 ..= 8 {
+		start, end := 0, 8
+		if row == 0 || row == 8 {
+			start, end = 2, 6
+		} else if row == 1 || row == 7 {
+			start, end = 1, 7
+		}
+		for column in start ..= end {
+			set_pixel(ctx, base_x + column, base_y + row, color)
+		}
+	}
 }
 
 @(private = "file")

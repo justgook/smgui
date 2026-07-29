@@ -65,6 +65,17 @@ main :: proc() {
 			value = 1,
 		},
 	}
+	slider_value := 0
+	slider_minimum := []smgui.Form {
+		{
+			kind = .Slider,
+			width = 58,
+			height = 20,
+			binding = smgui.bind(&slider_value),
+			minimum = 0,
+			maximum = 100,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -101,6 +112,8 @@ main :: proc() {
 		forms = radio_pressed
 	case "radio-disabled":
 		forms = radio_disabled
+	case "slider-minimum":
+		forms = slider_minimum
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -150,7 +163,8 @@ main :: proc() {
 	   os.args[1] == "checkbox-normal" ||
 	   os.args[1] == "checkbox-checked" ||
 	   os.args[1] == "radio-normal" ||
-	   os.args[1] == "radio-selected" {
+	   os.args[1] == "radio-selected" ||
+	   os.args[1] == "slider-minimum" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
