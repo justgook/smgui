@@ -1,0 +1,14 @@
+# Odin build output
+/build.nosync/
+
+# Editor and operating-system files
+.DS_Store
+*.swp
+*.swo
+
+# Local parity artifacts
+/tests/parity/actual/
+/tests/parity/diff/
+
+# Optional local dependencies
+/tools/

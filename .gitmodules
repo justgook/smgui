@@ -1,0 +1,3 @@
+[submodule "reference-c"]
+	path = reference-c
+	url = https://gitlab.com/bztsrc/smgui.git
