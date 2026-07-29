@@ -68,6 +68,24 @@ A parity slice is done when:
 The project is done when every supported public C operation, form kind, flag,
 and event path has a completed parity slice on every supported adapter.
 
+## Parity test layers
+
+1. **Element fixtures** — small deterministic images for one Form kind, size, or
+   interaction state. `make parity` runs only fixtures already expected to
+   match; a new fixture is added red and fixed before the next one.
+2. **Widget smoke fixture** — one large representative composition that exposes
+   cross-Form layout differences. It may remain red while smaller slices are
+   being completed.
+3. **Seeded fuzz fixtures** — bounded random screen sizes, values, Form order,
+   and supported flags. Fuzzing may use only Form behaviors whose deterministic
+   element fixtures are green. Every failure reports its seed and generated
+   case so it can be replayed exactly and promoted to a deterministic regression
+   fixture.
+
+Fuzz runs are reproducible by default: CI uses recorded seeds and a fixed case
+count. An explicit random-seed mode is for local discovery and must print the
+chosen seed before generating input.
+
 ## Ordered migration checklist
 
 This is the canonical next-work list. Module-local status comments summarize
@@ -81,7 +99,11 @@ only their module and must agree with this list.
   bounded event queue.
 - [x] Add paired C/Odin manual smoke examples for currently migrated widgets.
 - [x] Build headless stb image adapters and decoded-RGBA comparison tooling.
-- [ ] Make the first paired smoke framebuffer fixture match reference C.
+- [x] Pass the 64×48 empty-framebuffer tracer fixture.
+- [ ] Pass label rendering and font-position fixtures.
+- [ ] Pass button normal, explicit-size, hover, pressed, and disabled fixtures.
+- [ ] Add reproducible bounded fuzzing for completed element fixtures.
+- [ ] Make the paired widget smoke framebuffer fixture match reference C.
 - [ ] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
   and events to fixtures.
 

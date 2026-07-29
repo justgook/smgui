@@ -31,6 +31,12 @@ PNG_COMPARE_BIN := $(BUILD_DIR)/compare-png
 PARITY_ACTUAL_DIR := tests/parity/actual
 SMOKE_C_PNG := $(PARITY_ACTUAL_DIR)/smoke-c.png
 SMOKE_ODIN_PNG := $(PARITY_ACTUAL_DIR)/smoke-odin.png
+PARITY_C_BIN := $(BUILD_DIR)/parity-case-c
+PARITY_ODIN_BIN := $(BUILD_DIR)/parity-case-odin
+PARITY_CASES := empty
+CASE ?= empty
+PARITY_C_PNG = $(PARITY_ACTUAL_DIR)/$(CASE)-c.png
+PARITY_ODIN_PNG = $(PARITY_ACTUAL_DIR)/$(CASE)-odin.png
 PKG_CONFIG ?= pkg-config
 C_REFERENCE_CC := $(CC)
 C_REFERENCE_GLFW_CFLAGS := $(shell $(PKG_CONFIG) --cflags glfw3 2>/dev/null)
@@ -64,6 +70,10 @@ help:
 	  '  smoke-c       Run the equivalent reference-C smoke test' \
 	  '  smoke-images  Render both smoke tests directly to PNG' \
 	  '  smoke-compare Compare decoded RGBA output (fails on mismatch)' \
+	  '' \
+	  'Framebuffer parity:' \
+	  '  parity-case CASE=name  Compare one small deterministic fixture' \
+	  '  parity                 Compare every completed fixture' \
 	  '' \
 	  'Reference C targets:' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
@@ -133,10 +143,10 @@ smoke-c-build: $(SMOKE_C_BIN)
 smoke-c: smoke-c-build
 	$(Q)"$(SMOKE_C_BIN)"
 
-$(SMOKE_C_IMAGE_BIN): $(SMOKE_C_SOURCE) tests/manual/ui_image_backend.h tests/vendor/stb_image_write.h reference-c-init | $(BUILD_DIR)
+$(SMOKE_C_IMAGE_BIN): $(SMOKE_C_SOURCE) tests/parity/c/ui_image_backend.h tests/vendor/stb_image_write.h reference-c-init | $(BUILD_DIR)
 	$(Q)$(C_REFERENCE_CC) -DSMOKE_IMAGE_BACKEND \
 		-std=c99 -Wall -Wextra -Wno-pragmas -O2 \
-		-Itests/manual -Itests/vendor -Ireference-c -Ireference-c/mods \
+		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods \
 		"$(SMOKE_C_SOURCE)" -o "$@" -lm
 
 $(SMOKE_ODIN_IMAGE_BIN): examples/smoke/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin | $(BUILD_DIR)
@@ -157,6 +167,27 @@ smoke-images: $(SMOKE_C_IMAGE_BIN) $(SMOKE_ODIN_IMAGE_BIN) | $(PARITY_ACTUAL_DIR
 .PHONY: smoke-compare
 smoke-compare: smoke-images $(PNG_COMPARE_BIN)
 	$(Q)"$(PNG_COMPARE_BIN)" "$(SMOKE_C_PNG)" "$(SMOKE_ODIN_PNG)"
+
+$(PARITY_C_BIN): tests/parity/c/cases.c tests/parity/c/ui_image_backend.h tests/vendor/stb_image_write.h reference-c-init | $(BUILD_DIR)
+	$(Q)$(C_REFERENCE_CC) -std=c99 -Wall -Wextra -Wno-pragmas -O2 \
+		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods \
+		tests/parity/c/cases.c -o "$@" -lm
+
+$(PARITY_ODIN_BIN): tests/parity/cases/main.odin smgui/ui.odin smgui/image/image.odin | $(BUILD_DIR)
+	$(Q)$(ODIN) build tests/parity/cases $(ODIN_FLAGS) -out:"$@"
+
+.PHONY: parity-case
+parity-case: $(PARITY_C_BIN) $(PARITY_ODIN_BIN) $(PNG_COMPARE_BIN) | $(PARITY_ACTUAL_DIR)
+	$(Q)"$(PARITY_C_BIN)" "$(CASE)" "$(PARITY_C_PNG)"
+	$(Q)"$(PARITY_ODIN_BIN)" "$(CASE)" "$(PARITY_ODIN_PNG)"
+	$(Q)"$(PNG_COMPARE_BIN)" "$(PARITY_C_PNG)" "$(PARITY_ODIN_PNG)"
+
+.PHONY: parity
+parity:
+	$(Q)for parity_case in $(PARITY_CASES); do \
+		echo "Parity $$parity_case"; \
+		$(MAKE) parity-case CASE="$$parity_case"; \
+	done
 
 .PHONY: clean
 clean:

@@ -54,11 +54,13 @@ make smoke-c
 make smoke-odin
 ```
 
-Generate and compare the same fixture without opening windows:
+Run completed small framebuffer fixtures, or generate the large smoke fixture:
 
 ```sh
+make parity                        # expected-green element/state fixtures
+make parity-case CASE=empty
 make smoke-images
-make smoke-compare                 # non-zero until framebuffer parity is reached
+make smoke-compare                 # non-zero until smoke parity is reached
 ```
 
 See `tests/manual/README.md` for covered controls and the comparison procedure.
