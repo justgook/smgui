@@ -177,6 +177,11 @@ draw_glyph :: proc(
 	x, y, pitch: int,
 	crop_x0, crop_y0, crop_x1, crop_y1: int,
 ) {
+	// Match the reference PSF2 hook: a glyph beginning outside the crop is
+	// discarded rather than partially rendered from its left or top edge.
+	if x < crop_x0 || y < crop_y0 || x >= crop_x1 || y >= crop_y1 {
+		return
+	}
 	bytes_per_line := (font.width + 7) / 8
 	glyph_offset := font.header_size + codepoint * font.bytes_per_glyph
 

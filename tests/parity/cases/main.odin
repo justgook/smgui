@@ -199,6 +199,14 @@ main :: proc() {
 	float_magnitude := []smgui.Form {
 		{kind = .Decimal_Float, binding = smgui.bind(&float_magnitude_value)},
 	}
+	float_explicit_size := []smgui.Form {
+		{
+			kind = .Decimal_Float,
+			width = 76,
+			height = 28,
+			binding = smgui.bind(&float_magnitude_value),
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -273,6 +281,8 @@ main :: proc() {
 		forms = float_normal
 	case "float-magnitude":
 		forms = float_magnitude
+	case "float-explicit-size":
+		forms = float_explicit_size
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
