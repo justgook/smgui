@@ -87,6 +87,17 @@ main :: proc() {
 			maximum = 100,
 		},
 	}
+	slider_maximum_value := 100
+	slider_maximum := []smgui.Form {
+		{
+			kind = .Slider,
+			width = 58,
+			height = 20,
+			binding = smgui.bind(&slider_maximum_value),
+			minimum = 0,
+			maximum = 100,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -127,6 +138,8 @@ main :: proc() {
 		forms = slider_minimum
 	case "slider-midpoint":
 		forms = slider_midpoint
+	case "slider-maximum":
+		forms = slider_maximum
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -178,7 +191,8 @@ main :: proc() {
 	   os.args[1] == "radio-normal" ||
 	   os.args[1] == "radio-selected" ||
 	   os.args[1] == "slider-minimum" ||
-	   os.args[1] == "slider-midpoint" {
+	   os.args[1] == "slider-midpoint" ||
+	   os.args[1] == "slider-maximum" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}

@@ -25,6 +25,7 @@ int main(int argc, char **argv)
     int pressed_radio_value = 0;
     int slider_value = 0;
     int slider_midpoint_value = 50;
+    int slider_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
     ui_form_t empty[] = {
@@ -102,6 +103,10 @@ int main(int argc, char **argv)
         { .type = UI_SLIDER, .w = 58, .h = 20, .ptr = &slider_midpoint_value, .min = 0, .max = 100 },
         { .type = UI_END }
     };
+    ui_form_t slider_maximum[] = {
+        { .type = UI_SLIDER, .w = 58, .h = 20, .ptr = &slider_maximum_value, .min = 0, .max = 100 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -155,6 +160,8 @@ int main(int argc, char **argv)
         forms = slider_minimum;
     } else if (!strcmp(argv[1], "slider-midpoint")) {
         forms = slider_midpoint;
+    } else if (!strcmp(argv[1], "slider-maximum")) {
+        forms = slider_maximum;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -176,7 +183,8 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "button-normal") || !strcmp(argv[1], "button-explicit-size") ||
         (!strcmp(argv[1], "checkbox-normal") || !strcmp(argv[1], "checkbox-checked")) ||
         (!strcmp(argv[1], "radio-normal") || !strcmp(argv[1], "radio-selected")) ||
-        (!strcmp(argv[1], "slider-minimum") || !strcmp(argv[1], "slider-midpoint"))) {
+        (!strcmp(argv[1], "slider-minimum") || !strcmp(argv[1], "slider-midpoint") ||
+         !strcmp(argv[1], "slider-maximum"))) {
         context.mousex = -1;
         context.mousey = -1;
     }

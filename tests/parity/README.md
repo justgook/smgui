@@ -23,7 +23,8 @@ cases are `empty`, `label-normal`, `button-normal`, and
 `button-explicit-size`, `button-hover`, `button-pressed`, `button-disabled`, and
 `checkbox-normal`, `checkbox-checked`, `checkbox-hover`, `checkbox-pressed`, and
 `checkbox-disabled`, `radio-normal`, `radio-selected`, `radio-hover`, and
-`radio-pressed`, `radio-disabled`, `slider-minimum`, and `slider-midpoint`.
+`radio-pressed`, `radio-disabled`, `slider-minimum`, `slider-midpoint`, and
+`slider-maximum`.
 
 ## Widget smoke fixture
 
@@ -56,7 +57,7 @@ from 32–256 by 24–192 across the completed `empty`, `label-normal`,
 `button-disabled`, `checkbox-normal`, `checkbox-checked`, `checkbox-hover`, and
 `checkbox-pressed`, `checkbox-disabled`, `radio-normal`, `radio-selected`, and
 `radio-hover`, `radio-pressed`, `radio-disabled`, `slider-minimum`, and
-`slider-midpoint` fixtures.
+`slider-midpoint`, and `slider-maximum` fixtures.
 Form kinds and states enter the pool only after their small fixtures pass.
 
 A discovered mismatch is replayed, minimized, and promoted to a named
