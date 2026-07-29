@@ -195,6 +195,10 @@ main :: proc() {
 	}
 	float_value: f32 = 12.345
 	float_normal := []smgui.Form{{kind = .Decimal_Float, binding = smgui.bind(&float_value)}}
+	float_magnitude_value: f32 = 123456.0
+	float_magnitude := []smgui.Form {
+		{kind = .Decimal_Float, binding = smgui.bind(&float_magnitude_value)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -267,6 +271,8 @@ main :: proc() {
 		forms = hex_disabled
 	case "float-normal":
 		forms = float_normal
+	case "float-magnitude":
+		forms = float_magnitude
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)

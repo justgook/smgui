@@ -34,6 +34,7 @@ int main(int argc, char **argv)
     uint64_t hexadecimal_value = 0x2a;
     uint64_t hexadecimal_zero_value = 0;
     float float_value = 12.345f;
+    float float_magnitude_value = 123456.0f;
     int64_t progress_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
@@ -176,6 +177,10 @@ int main(int argc, char **argv)
         { .type = UI_DEC_FLOAT, .ptr = &float_value },
         { .type = UI_END }
     };
+    ui_form_t float_magnitude[] = {
+        { .type = UI_DEC_FLOAT, .ptr = &float_magnitude_value },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -261,6 +266,8 @@ int main(int argc, char **argv)
         forms = hex_disabled;
     } else if (!strcmp(argv[1], "float-normal")) {
         forms = float_normal;
+    } else if (!strcmp(argv[1], "float-magnitude")) {
+        forms = float_magnitude;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
