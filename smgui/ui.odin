@@ -10,10 +10,12 @@ Status:
   [x] Idiomatic Odin public interface declared
   [x] Typed errors, slices, enums, and bit sets declared
   [x] Backend adapter seam declared
-  [ ] Drawing primitives implemented
-  [ ] Layout implemented
-  [ ] Event processing implemented
-  [ ] Built-in widgets implemented
+  [x] Framebuffer lifecycle and bounded event queue implemented
+  [x] First vertical slice: labels and buttons render
+  [ ] Remaining drawing primitives implemented
+  [ ] Flow/container layout implemented
+  [ ] Widget interaction and remaining event processing implemented
+  [ ] Remaining built-in widgets implemented
 
 Definition of done:
   - `make check` passes
@@ -27,6 +29,7 @@ Error :: enum {
 	Invalid_Input,
 	Backend_Failure,
 	Out_Of_Memory,
+	Event_Queue_Full,
 	Not_Implemented,
 }
 
@@ -477,64 +480,160 @@ Context :: struct {
 	last_mouse_y:   int,
 }
 
+DEFAULT_THEME := [THEME_COLOR_COUNT]u32 {
+	0xffa0a0a0,
+	0xff707070,
+	0xff3f3f3f,
+	0x3f000000,
+	0xffffffff,
+	0xff3f3f3f,
+	0xffffffff,
+	0xff7f7f7f,
+	0xff2f2f2f,
+	0xff373737,
+	0xff101010,
+	0xffc0c0c0,
+	0xff5f5f5f,
+	0xff2f2f2f,
+	0xff1f1f1f,
+	0xffffffff,
+	0xffffffff,
+	0xffffffff,
+	0xff000000,
+	0xff5f5f5f,
+	0xff373737,
+	0xff101010,
+	0xff000000,
+	0xff5f5f5f,
+	0xff373737,
+	0xff001010,
+	0xff5f5f5f,
+	0xff1f1f1f,
+	0xff474747,
+	0xff373737,
+	0xffaf0000,
+	0xff7f0000,
+	0xff5f0000,
+}
+
+relative :: proc(value: int) -> Position {
+	return {mode = .Relative, value = i32(value)}
+}
+
+absolute :: proc(value: int) -> Position {
+	return {mode = .Absolute, value = i32(value)}
+}
+
+percent :: proc(value: int, offset: int = 0) -> Position {
+	return {mode = .Percent, value = i32(value), offset = i32(offset)}
+}
+
 @(require_results, tag = "reference:ui_fonthook")
 set_font_hooks :: proc(ctx: ^Context, bounds: Font_Bounds_Proc, draw: Font_Draw_Proc) -> Error {
-	return .Not_Implemented
+	if ctx == nil || bounds == nil || draw == nil {
+		return .Invalid_Input
+	}
+	ctx.font_bounds = bounds
+	ctx.font_draw = draw
+	return .None
 }
 
 @(require_results, tag = "reference:ui_font")
 set_font :: proc(ctx: ^Context, font: rawptr) -> Error {
-	return .Not_Implemented
+	if ctx == nil || font == nil {
+		return .Invalid_Input
+	}
+	ctx.font = font
+	return .None
 }
 
 @(require_results, tag = "reference:ui_swcursor")
 set_software_cursor :: proc(ctx: ^Context, cursor: ^Image) -> Error {
+	if ctx == nil || cursor == nil {
+		return .Invalid_Input
+	}
 	return .Not_Implemented
 }
 
 @(require_results, tag = "reference:ui_hwcursor")
 use_hardware_cursor :: proc(ctx: ^Context) -> Error {
-	return .Not_Implemented
+	if ctx == nil || ctx.backend.show_cursor == nil {
+		return .Invalid_Input
+	}
+	return ctx.backend.show_cursor(ctx.backend.data)
 }
 
 @(require_results, tag = "reference:ui_theme")
 set_theme :: proc(ctx: ^Context, theme: []u32) -> Error {
-	return .Not_Implemented
+	if ctx == nil || len(theme) != THEME_COLOR_COUNT {
+		return .Invalid_Input
+	}
+	copy(ctx.theme[:], theme)
+	return refresh(ctx)
 }
 
 @(require_results, tag = "reference:ui_skin")
 set_skin :: proc(ctx: ^Context, skin: []Image) -> Error {
-	return .Not_Implemented
+	if ctx == nil || len(skin) != SKIN_IMAGE_COUNT {
+		return .Invalid_Input
+	}
+	copy(ctx.skin[:], skin)
+	return refresh(ctx)
 }
 
 @(require_results, tag = "reference:ui_pngskin")
 set_png_skin :: proc(ctx: ^Context, png: []u8) -> Error {
+	if ctx == nil || len(png) == 0 {
+		return .Invalid_Input
+	}
 	return .Not_Implemented
 }
 
 @(require_results, tag = "reference:ui_refresh")
 refresh :: proc(ctx: ^Context) -> Error {
-	return .Not_Implemented
+	if ctx == nil {
+		return .Invalid_Input
+	}
+	ctx.flags += {.Refresh}
+	return .None
 }
 
 @(require_results, tag = "reference:ui_settxt")
 set_texts :: proc(ctx: ^Context, texts: []string) -> Error {
-	return .Not_Implemented
+	if ctx == nil || len(texts) == 0 {
+		return .Invalid_Input
+	}
+	ctx.texts = texts
+	if ctx.backend.set_title != nil {
+		if error := ctx.backend.set_title(ctx.backend.data, texts[0]); error != .None {
+			return error
+		}
+	}
+	return refresh(ctx)
 }
 
 @(require_results, tag = "reference:ui_getclipboard")
 clipboard_text :: proc(ctx: ^Context) -> (string, Error) {
-	return "", .Not_Implemented
+	if ctx == nil || ctx.backend.get_clipboard == nil {
+		return "", .Invalid_Input
+	}
+	return ctx.backend.get_clipboard(ctx.backend.data)
 }
 
 @(require_results, tag = "reference:ui_setclipboard")
 set_clipboard_text :: proc(ctx: ^Context, text: string) -> Error {
-	return .Not_Implemented
+	if ctx == nil || len(text) == 0 || ctx.backend.set_clipboard == nil {
+		return .Invalid_Input
+	}
+	return ctx.backend.set_clipboard(ctx.backend.data, text)
 }
 
 @(require_results, tag = "reference:ui_getmouse")
 mouse_position :: proc(ctx: ^Context) -> (x, y: int, error: Error) {
-	return 0, 0, .Not_Implemented
+	if ctx == nil {
+		return 0, 0, .Invalid_Input
+	}
+	return ctx.mouse_x, ctx.mouse_y, .None
 }
 
 @(require_results, tag = "reference:ui_init")
@@ -545,17 +644,45 @@ init :: proc(
 	width, height: int,
 	icon: ^Image = nil,
 ) -> Error {
-	return .Not_Implemented
+	if ctx == nil || width < 1 || height < 1 || len(texts) == 0 || backend.init == nil {
+		return .Invalid_Input
+	}
+	ctx^ = {}
+	ctx.screen.width = width
+	ctx.screen.height = height
+	ctx.screen.pitch = width * 4
+	ctx.screen.pixels = make([]u8, height * ctx.screen.pitch) or_else nil
+	if ctx.screen.pixels == nil {
+		return .Out_Of_Memory
+	}
+	ctx.backend = backend
+	ctx.texts = texts
+	ctx.theme = DEFAULT_THEME
+	ctx.flags = {.Refresh, .Recalculate}
+
+	if error := ctx.backend.init(ctx.backend.data, ctx, texts[0], width, height, icon);
+	   error != .None {
+		delete(ctx.screen.pixels)
+		ctx^ = {}
+		return error
+	}
+	return .None
 }
 
 @(require_results, tag = "reference:ui_fullscreen")
 toggle_fullscreen :: proc(ctx: ^Context) -> Error {
-	return .Not_Implemented
+	if ctx == nil || ctx.backend.fullscreen == nil {
+		return .Invalid_Input
+	}
+	return ctx.backend.fullscreen(ctx.backend.data)
 }
 
 @(require_results, tag = "reference:ui_getwindow")
 native_window :: proc(ctx: ^Context) -> (rawptr, Error) {
-	return nil, .Not_Implemented
+	if ctx == nil || ctx.backend.native_window == nil {
+		return nil, .Invalid_Input
+	}
+	return ctx.backend.native_window(ctx.backend.data), .None
 }
 
 Poll_State :: enum {
@@ -565,22 +692,273 @@ Poll_State :: enum {
 
 @(require_results, tag = "reference:ui_event")
 poll_event :: proc(ctx: ^Context, form: []Form) -> (Event, Poll_State, Error) {
-	return {}, .Running, .Not_Implemented
+	if ctx == nil || ctx.backend.poll == nil || ctx.backend.redraw == nil {
+		return {}, .Closed, .Invalid_Input
+	}
+	closed, error := ctx.backend.poll(ctx.backend.data)
+	if error != .None {
+		return {}, .Closed, error
+	}
+	if closed {
+		return {}, .Closed, .None
+	}
+	ctx.form = form
+	if error = render(ctx, form); error != .None {
+		return {}, .Running, error
+	}
+	if error = ctx.backend.redraw(ctx.backend.data); error != .None {
+		return {}, .Running, error
+	}
+
+	if ctx.event_tail == ctx.event_head {
+		return {}, .Running, .None
+	}
+	event := ctx.events[ctx.event_tail]
+	ctx.event_tail = (ctx.event_tail + 1) % MAX_EVENTS
+	return event, .Running, .None
 }
 
 @(require_results, tag = "reference:ui_free")
 deinit :: proc(ctx: ^Context) -> Error {
-	return .Not_Implemented
+	if ctx == nil {
+		return .Invalid_Input
+	}
+	backend_error := Error.None
+	if ctx.backend.deinit != nil {
+		backend_error = ctx.backend.deinit(ctx.backend.data)
+	}
+	if ctx.screen.pixels != nil {
+		delete(ctx.screen.pixels)
+	}
+	ctx^ = {}
+	return backend_error
+}
+
+@(require_results)
+render :: proc(ctx: ^Context, form: []Form) -> Error {
+	if ctx == nil || len(ctx.screen.pixels) == 0 {
+		return .Invalid_Input
+	}
+	fill_rectangle(
+		ctx,
+		0,
+		0,
+		ctx.screen.width,
+		ctx.screen.height,
+		ctx.theme[int(Theme_Color.Background)],
+	)
+	for &field in form {
+		if field.kind == .End {
+			break
+		}
+		if .Hidden in field.flags {
+			continue
+		}
+		#partial switch field.kind {
+		case .Label:
+			if error := draw_label(ctx, &field); error != .None {
+				return error
+			}
+		case .Button:
+			if error := draw_button(ctx, &field); error != .None {
+				return error
+			}
+		}
+	}
+	ctx.flags -= {.Refresh, .Recalculate}
+	return .None
 }
 
 // Adapter-facing operations. These form the seam between the core module and
 // platform adapters; they are not intended for application-level UI code.
 @(require_results, tag = "reference:_ui_evtslot")
 push_event :: proc(ctx: ^Context, event: Event) -> Error {
-	return .Not_Implemented
+	if ctx == nil {
+		return .Invalid_Input
+	}
+	next_head := (ctx.event_head + 1) % MAX_EVENTS
+	if next_head == ctx.event_tail {
+		return .Event_Queue_Full
+	}
+	ctx.events[ctx.event_head] = event
+	ctx.event_head = next_head
+	return .None
 }
 
 @(require_results, tag = "reference:_ui_resize")
 resize :: proc(ctx: ^Context, width, height: int) -> Error {
-	return .Not_Implemented
+	if ctx == nil || width < 1 || height < 1 {
+		return .Invalid_Input
+	}
+	pixels := make([]u8, width * height * 4) or_else nil
+	if pixels == nil {
+		return .Out_Of_Memory
+	}
+	if ctx.screen.pixels != nil {
+		delete(ctx.screen.pixels)
+	}
+	ctx.screen = Image {
+		width  = width,
+		height = height,
+		pitch  = width * 4,
+		pixels = pixels,
+	}
+	ctx.flags += {.Refresh, .Recalculate}
+	return .None
+}
+
+@(private = "file")
+resolve_position :: proc(position: Position, extent: int) -> int {
+	switch position.mode {
+	case .Percent, .Percent_Plus:
+		return extent * int(position.value) / 100 + int(position.offset)
+	case .Absolute_From_End:
+		return extent - int(position.value)
+	case .Relative, .Absolute:
+		return int(position.value) + int(position.offset)
+	}
+	return int(position.value)
+}
+
+@(private = "file")
+draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if field.label < 0 ||
+	   field.label >= len(ctx.texts) ||
+	   ctx.font == nil ||
+	   ctx.font_bounds == nil ||
+	   ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	text := ctx.texts[field.label]
+	width, height, left, top: int
+	if error := ctx.font_bounds(ctx.font, text, &width, &height, &left, &top); error != .None {
+		return error
+	}
+	x := resolve_position(field.x, ctx.screen.width)
+	y := resolve_position(field.y, ctx.screen.height)
+	switch field.horizontal_alignment {
+	case .Center:
+		x -= width / 2
+	case .Right:
+		x -= width
+	case .Left:
+	}
+	switch field.vertical_alignment {
+	case .Middle:
+		y -= height / 2
+	case .Bottom:
+		y -= height
+	case .Top:
+	}
+	field.computed_x = x
+	field.computed_y = y
+	field.computed_width = width
+	field.computed_height = height
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		ctx.theme[int(Theme_Color.Foreground)],
+		x,
+		y,
+		left,
+		top,
+		ctx.screen.pitch,
+		0,
+		0,
+		ctx.screen.width,
+		ctx.screen.height,
+	)
+}
+
+@(private = "file")
+draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if field.label < 0 ||
+	   field.label >= len(ctx.texts) ||
+	   ctx.font == nil ||
+	   ctx.font_bounds == nil ||
+	   ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	text := ctx.texts[field.label]
+	text_width, text_height, left, top: int
+	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+	   error != .None {
+		return error
+	}
+	width := field.width
+	height := field.height
+	if width < 1 {
+		width = text_width + 20
+	}
+	if height < 1 {
+		height = text_height + 10
+	}
+	x := resolve_position(field.x, ctx.screen.width)
+	y := resolve_position(field.y, ctx.screen.height)
+	if field.horizontal_alignment == .Center {
+		x -= width / 2
+	} else if field.horizontal_alignment == .Right {
+		x -= width
+	}
+	if field.vertical_alignment == .Middle {
+		y -= height / 2
+	} else if field.vertical_alignment == .Bottom {
+		y -= height
+	}
+	field.computed_x = x
+	field.computed_y = y
+	field.computed_width = width
+	field.computed_height = height
+	draw_beveled_rectangle(
+		ctx,
+		x,
+		y,
+		width,
+		height,
+		ctx.theme[int(Theme_Color.Button_Light_Inner_Border)],
+		ctx.theme[int(Theme_Color.Button_Light_Background)],
+		ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)],
+	)
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		ctx.theme[int(Theme_Color.Button_Foreground)],
+		x + (width - text_width) / 2,
+		y + (height - text_height) / 2,
+		left,
+		top,
+		ctx.screen.pitch,
+		0,
+		0,
+		ctx.screen.width,
+		ctx.screen.height,
+	)
+}
+
+@(private = "file")
+draw_beveled_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, color, dark: u32) {
+	fill_rectangle(ctx, x, y, width, height, color)
+	fill_rectangle(ctx, x, y, width, 1, light)
+	fill_rectangle(ctx, x, y, 1, height, light)
+	fill_rectangle(ctx, x, y + height - 1, width, 1, dark)
+	fill_rectangle(ctx, x + width - 1, y, 1, height, dark)
+}
+
+@(private = "file")
+fill_rectangle :: proc(ctx: ^Context, x, y, width, height: int, color: u32) {
+	x0 := clamp(x, 0, ctx.screen.width)
+	y0 := clamp(y, 0, ctx.screen.height)
+	x1 := clamp(x + width, 0, ctx.screen.width)
+	y1 := clamp(y + height, 0, ctx.screen.height)
+	for pixel_y in y0 ..< y1 {
+		for pixel_x in x0 ..< x1 {
+			pixel := pixel_y * ctx.screen.pitch + pixel_x * 4
+			ctx.screen.pixels[pixel + 0] = u8(color)
+			ctx.screen.pixels[pixel + 1] = u8(color >> 8)
+			ctx.screen.pixels[pixel + 2] = u8(color >> 16)
+			ctx.screen.pixels[pixel + 3] = u8(color >> 24)
+		}
+	}
 }

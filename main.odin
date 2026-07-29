@@ -10,8 +10,8 @@ Status:
   [ ] Render the first parity fixture
 
 Definition of done:
-  - Builds through `make build`
-  - Exercises the same basic form as reference-c/examples/helloworld.c
+  - Builds through `odin build .`
+  - Remains backend-free; visual examples live under `examples/`
 */
 
 import "core:fmt"

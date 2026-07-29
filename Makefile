@@ -14,9 +14,12 @@ endif
 
 ODIN ?= odin
 ODIN_FLAGS ?=
+EXAMPLE ?= basic
+BACKEND ?= raylib
+EXAMPLE_DIR := examples/$(EXAMPLE)
 ODIN_CHECK_FLAGS ?= -no-entry-point -strict-style -vet-cast -vet-semicolon -vet-shadowing -vet-style -vet-unused-imports -vet-unused-variables -warnings-as-errors
 BUILD_DIR ?= build.nosync
-ODIN_BIN ?= $(BUILD_DIR)/smgui
+ODIN_BIN ?= $(BUILD_DIR)/$(EXAMPLE)-$(BACKEND)
 C_EXAMPLE ?= helloworld
 C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
@@ -32,8 +35,9 @@ help:
 	  '  all          Check and build the Odin rewrite' \
 	  '  check        Check every Odin package' \
 	  '  test         Run every Odin test package' \
-	  '  build        Build the native smoke executable' \
-	  '  run          Build and run the native smoke executable (default)' \
+	  '  build        Build EXAMPLE with BACKEND' \
+	  '  run          Build and run EXAMPLE (default)' \
+	  '               EXAMPLE=basic BACKEND=raylib' \
 	  '' \
 	  'Reference C targets:' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
@@ -64,7 +68,8 @@ $(BUILD_DIR):
 
 .PHONY: build
 build: | $(BUILD_DIR)
-	$(Q)$(ODIN) build . $(ODIN_FLAGS) -out:"$(ODIN_BIN)"
+	$(Q)test "$(BACKEND)" = raylib || { echo "Backend '$(BACKEND)' is not implemented yet" >&2; exit 2; }
+	$(Q)$(ODIN) build "$(EXAMPLE_DIR)" $(ODIN_FLAGS) -out:"$(ODIN_BIN)"
 
 .PHONY: run
 run: build

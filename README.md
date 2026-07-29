@@ -12,13 +12,14 @@ parity tests.
 ```sh
 git submodule update --init --recursive
 make check
-make build
+make run
 ```
 
 Use `make help` to list Odin and reference-C build targets.
 
 ## Layout
 
+- `examples` — visual/manual migration examples (`make run`)
 - `smgui/ui.odin` — backend-independent interface and implementation target
 - `smgui/{sdl2,sdl3,glfw,raylib,sokol}` — presentation and event adapters
 - `smgui/widgets` — optional custom widgets
@@ -28,3 +29,13 @@ Use `make help` to list Odin and reference-C build targets.
 
 The Odin interface intentionally uses slices, enums, bit sets, and typed errors
 rather than preserving C source compatibility.
+
+The first runnable slice uses Raylib:
+
+```sh
+make run                         # examples/basic with Raylib
+make run EXAMPLE=basic BACKEND=raylib
+```
+
+`BACKEND` is part of the build interface now; additional values will become
+available as their adapters are migrated.
