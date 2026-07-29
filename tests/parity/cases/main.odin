@@ -170,6 +170,9 @@ main :: proc() {
 	decimal_negative := []smgui.Form {
 		{kind = .Decimal_64, binding = smgui.bind(&decimal_negative_value)},
 	}
+	decimal_explicit_size := []smgui.Form {
+		{kind = .Decimal_64, width = 58, height = 28, binding = smgui.bind(&decimal_value)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -228,6 +231,8 @@ main :: proc() {
 		forms = decimal_normal
 	case "decimal-negative":
 		forms = decimal_negative
+	case "decimal-explicit-size":
+		forms = decimal_explicit_size
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)

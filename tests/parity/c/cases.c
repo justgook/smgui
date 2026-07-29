@@ -145,6 +145,10 @@ int main(int argc, char **argv)
         { .type = UI_DEC64, .ptr = &decimal_negative_value },
         { .type = UI_END }
     };
+    ui_form_t decimal_explicit_size[] = {
+        { .type = UI_DEC64, .w = 58, .h = 28, .ptr = &decimal_value },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -216,6 +220,8 @@ int main(int argc, char **argv)
         forms = decimal_normal;
     } else if (!strcmp(argv[1], "decimal-negative")) {
         forms = decimal_negative;
+    } else if (!strcmp(argv[1], "decimal-explicit-size")) {
+        forms = decimal_explicit_size;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

@@ -127,7 +127,8 @@ only their module and must agree with this list.
 - [x] Pass the progress-disabled fixture.
 - [x] Pass the normal decimal-value fixture.
 - [x] Pass the negative decimal-value fixture.
-- [ ] Pass decimal explicit-size and disabled fixtures.
+- [x] Pass the explicit-size decimal-value fixture.
+- [ ] Pass the decimal-disabled fixture.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.
