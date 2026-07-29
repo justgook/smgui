@@ -22,7 +22,7 @@ make parity
 cases are `empty`, `label-normal`, `button-normal`, and
 `button-explicit-size`, `button-hover`, `button-pressed`, `button-disabled`, and
 `checkbox-normal`, `checkbox-checked`, `checkbox-hover`, `checkbox-pressed`, and
-`checkbox-disabled`.
+`checkbox-disabled`, and `radio-normal`.
 
 ## Widget smoke fixture
 
@@ -53,7 +53,7 @@ exact replay command on failure. The current pool varies framebuffer dimensions
 from 32–256 by 24–192 across the completed `empty`, `label-normal`,
 `button-normal`, `button-explicit-size`, `button-hover`, `button-pressed`, and
 `button-disabled`, `checkbox-normal`, `checkbox-checked`, `checkbox-hover`, and
-`checkbox-pressed`, and `checkbox-disabled` fixtures.
+`checkbox-pressed`, `checkbox-disabled`, and `radio-normal` fixtures.
 Form kinds and states enter the pool only after their small fixtures pass.
 
 A discovered mismatch is replayed, minimized, and promoted to a named

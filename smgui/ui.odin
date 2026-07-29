@@ -2265,24 +2265,36 @@ draw_radio :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
 		foreground = border
 		background = ctx.theme[int(Theme_Color.Disabled_Background)]
 	}
-	for row in -4 ..= 4 {
-		span := 4
-		if abs(row) == 4 {
-			span = 2
-		} else if abs(row) == 3 {
-			span = 3
+	filled := background
+	if checked || disabled {
+		filled = foreground
+	}
+	base_x, base_y := x - 5, y - 5
+	for column in 2 ..= 6 {
+		set_pixel(ctx, base_x + column, base_y, border)
+		set_pixel(ctx, base_x + column, base_y + 8, light)
+	}
+	set_pixel(ctx, base_x + 1, base_y + 1, border)
+	set_pixel(ctx, base_x + 7, base_y + 1, border)
+	set_pixel(ctx, base_x + 1, base_y + 7, light)
+	set_pixel(ctx, base_x + 7, base_y + 7, light)
+	for column in 2 ..= 6 {
+		set_pixel(ctx, base_x + column, base_y + 1, background)
+		set_pixel(ctx, base_x + column, base_y + 7, background)
+	}
+	for row in 2 ..= 6 {
+		set_pixel(ctx, base_x, base_y + row, border)
+		set_pixel(ctx, base_x + 8, base_y + row, light)
+		set_pixel(ctx, base_x + 1, base_y + row, background)
+		set_pixel(ctx, base_x + 7, base_y + row, background)
+		start, end := 2, 6
+		if row == 2 || row == 6 {
+			set_pixel(ctx, base_x + 2, base_y + row, background)
+			set_pixel(ctx, base_x + 6, base_y + row, background)
+			start, end = 3, 5
 		}
-		for column in -span ..= span {
-			color := background
-			if abs(column) == span {
-				color = border
-			} else if row == 4 {
-				color = light
-			}
-			if checked && abs(row) <= 2 && abs(column) <= 2 {
-				color = foreground
-			}
-			set_pixel(ctx, x + column, y + row, color)
+		for column in start ..= end {
+			set_pixel(ctx, base_x + column, base_y + row, filled)
 		}
 	}
 }

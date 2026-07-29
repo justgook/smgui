@@ -17,9 +17,10 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
 
 int main(int argc, char **argv)
 {
-    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT };
-    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check" };
+    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT, RADIO_TEXT };
+    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check", "Radio" };
     int checked = 0;
+    int radio_value = 0;
     int checked_value = 1;
     int pressed_value = 0;
     ui_form_t empty[] = {
@@ -69,6 +70,10 @@ int main(int argc, char **argv)
         { .type = UI_CHECK, .flags = UI_DISABLED, .label = CHECKBOX_TEXT, .ptr = &checked },
         { .type = UI_END }
     };
+    ui_form_t radio_normal[] = {
+        { .type = UI_RADIO, .label = RADIO_TEXT, .ptr = &radio_value, .value = 1 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -108,6 +113,8 @@ int main(int argc, char **argv)
         forms = checkbox_pressed;
     } else if (!strcmp(argv[1], "checkbox-disabled")) {
         forms = checkbox_disabled;
+    } else if (!strcmp(argv[1], "radio-normal")) {
+        forms = radio_normal;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -125,7 +132,8 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!strcmp(argv[1], "button-normal") || !strcmp(argv[1], "button-explicit-size") ||
-        (!strcmp(argv[1], "checkbox-normal") || !strcmp(argv[1], "checkbox-checked"))) {
+        (!strcmp(argv[1], "checkbox-normal") || !strcmp(argv[1], "checkbox-checked")) ||
+        !strcmp(argv[1], "radio-normal")) {
         context.mousex = -1;
         context.mousey = -1;
     }
