@@ -28,11 +28,16 @@ function next_random() {
     return seed
 }
 BEGIN {
+    fixtures[0] = "empty"
+    fixtures[1] = "label-normal"
+    fixtures[2] = "button-normal"
+    fixtures[3] = "button-explicit-size"
+    fixtures[4] = "button-hover"
+    fixture_count = 5
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
-        fixture_number = next_random() % 4
-        fixture = fixture_number == 0 ? "empty" : (fixture_number == 1 ? "label-normal" : (fixture_number == 2 ? "button-normal" : "button-explicit-size"))
+        fixture = fixtures[next_random() % fixture_count]
         printf "%d %s %d %d\n", case_number, fixture, width, height
     }
 }

@@ -34,6 +34,10 @@ int main(int argc, char **argv)
         { .type = UI_BUTTON, .label = BUTTON_SHORT_TEXT, .w = 58, .h = 28 },
         { .type = UI_END }
     };
+    ui_form_t button_hover[] = {
+        { .type = UI_BUTTON, .label = BUTTON_TEXT },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -57,12 +61,17 @@ int main(int argc, char **argv)
         forms = button_normal;
     } else if (!strcmp(argv[1], "button-explicit-size")) {
         forms = button_explicit_size;
+    } else if (!strcmp(argv[1], "button-hover")) {
+        forms = button_hover;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
     }
 
     ui_image_backend_set_output(argv[2]);
+    if (!strcmp(argv[1], "button-hover")) {
+        ui_image_backend_set_mouse_event(10, 10, 0);
+    }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
         fprintf(stderr, "ui_init failed: %d\n", result);

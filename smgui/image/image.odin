@@ -16,13 +16,17 @@ State :: struct {
 	ctx:         ^smgui.Context,
 	output_path: string,
 	c_path:      cstring,
-	finished:    bool,
-	succeeded:   bool,
+	finished:                bool,
+	succeeded:               bool,
+	redraws_before_capture:  int,
 }
 
-create :: proc(state: ^State, output_path: string) -> smgui.Backend {
+create :: proc(state: ^State, output_path: string, redraws_before_capture: int = 0) -> smgui.Backend {
 	if state != nil {
-		state^ = {output_path = output_path}
+		state^ = {
+			output_path = output_path,
+			redraws_before_capture = max(redraws_before_capture, 0),
+		}
 	}
 	return {
 		data   = state,
@@ -88,6 +92,10 @@ backend_redraw :: proc(data: rawptr) -> smgui.Error {
 	state := (^State)(data)
 	if state.ctx == nil || state.c_path == nil || len(state.ctx.screen.pixels) == 0 {
 		return .Backend_Failure
+	}
+	if state.redraws_before_capture > 0 {
+		state.redraws_before_capture -= 1
+		return .None
 	}
 	screen := &state.ctx.screen
 	result := stbi.write_png(

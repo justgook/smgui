@@ -17,13 +17,26 @@ typedef struct ui_backend_s {
     const char *output_path;
     int finished;
     int succeeded;
+    int event_sent;
 } ui_backend_t;
 
 static const char *ui_image_backend_output_path;
+static ui_event_t ui_image_backend_scripted_event;
+static int ui_image_backend_has_scripted_event;
 
 static void ui_image_backend_set_output(const char *output_path)
 {
     ui_image_backend_output_path = output_path;
+}
+
+static void ui_image_backend_set_mouse_event(int x, int y, int buttons)
+{
+    memset(&ui_image_backend_scripted_event, 0, sizeof(ui_image_backend_scripted_event));
+    ui_image_backend_scripted_event.type = UI_EVT_MOUSE;
+    ui_image_backend_scripted_event.btn = buttons;
+    ui_image_backend_scripted_event.x = x;
+    ui_image_backend_scripted_event.y = y;
+    ui_image_backend_has_scripted_event = 1;
 }
 
 static int ui_image_backend_succeeded(ui_t *ctx)
@@ -99,7 +112,17 @@ void *ui_backend_getwindow(ui_backend_t *backend)
 
 int ui_backend_event(ui_backend_t *backend)
 {
-    return !backend || backend->finished;
+    ui_event_t *event;
+    if (!backend || backend->finished) return 1;
+    if (ui_image_backend_has_scripted_event && !backend->event_sent) {
+        event = _ui_evtslot(backend->ctx);
+        if (!event) return 1;
+        *event = ui_image_backend_scripted_event;
+        backend->ctx->mousex = event->x;
+        backend->ctx->mousey = event->y;
+        backend->event_sent = 1;
+    }
+    return 0;
 }
 
 int ui_backend_redraw(ui_backend_t *backend)

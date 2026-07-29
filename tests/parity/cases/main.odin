@@ -24,6 +24,7 @@ main :: proc() {
 	label_normal := []smgui.Form{{kind = .Label, label = 1}}
 	button_normal := []smgui.Form{{kind = .Button, label = 2}}
 	button_explicit_size := []smgui.Form{{kind = .Button, label = 3, width = 58, height = 28}}
+	button_hover := []smgui.Form{{kind = .Button, label = 2}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -34,17 +35,24 @@ main :: proc() {
 		forms = button_normal
 	case "button-explicit-size":
 		forms = button_explicit_size
+	case "button-hover":
+		forms = button_hover
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
 	}
 
 	texts := []string{"Parity fixture", "Label", "Button", "Btn"}
+	interaction_case := os.args[1] == "button-hover"
+	capture_delay := 0
+	if interaction_case {
+		capture_delay = 1
+	}
 	image_state: image_backend.State
 	ctx: smgui.Context
 	if error := smgui.init(
 		&ctx,
-		image_backend.create(&image_state, os.args[2]),
+		image_backend.create(&image_state, os.args[2], capture_delay),
 		texts,
 		width,
 		height,
@@ -70,6 +78,12 @@ main :: proc() {
 	if os.args[1] == "button-normal" || os.args[1] == "button-explicit-size" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
+	}
+	if os.args[1] == "button-hover" {
+		if error := smgui.push_event(&ctx, {kind = .Mouse, x = 10, y = 10}); error != .None {
+			fmt.eprintf("event injection failed: %v\n", error)
+			os.exit(1)
+		}
 	}
 	for {
 		_, state, error := smgui.poll_event(&ctx, forms)
