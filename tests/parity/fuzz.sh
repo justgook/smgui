@@ -31,7 +31,8 @@ BEGIN {
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
-        printf "%d %d %d\n", case_number, width, height
+        fixture = next_random() % 2 == 0 ? "empty" : "label-normal"
+        printf "%d %s %d %d\n", case_number, fixture, width, height
     }
 }
 '

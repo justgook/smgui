@@ -100,7 +100,7 @@ only their module and must agree with this list.
 - [x] Add paired C/Odin manual smoke examples for currently migrated widgets.
 - [x] Build headless stb image adapters and decoded-RGBA comparison tooling.
 - [x] Pass the 64×48 empty-framebuffer tracer fixture.
-- [ ] Pass label rendering and font-position fixtures.
+- [x] Pass the normal-label glyph, baseline, and intrinsic-size fixture.
 - [ ] Pass button normal, explicit-size, hover, pressed, and disabled fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.

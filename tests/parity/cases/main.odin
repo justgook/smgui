@@ -2,6 +2,7 @@ package main
 
 /* Small deterministic Odin framebuffer parity fixtures. */
 
+import psf2 "../../../psf2"
 import smgui "../../../smgui"
 import image_backend "../../../smgui/image"
 import "core:fmt"
@@ -20,16 +21,19 @@ main :: proc() {
 		os.exit(2)
 	}
 
+	label_normal := []smgui.Form{{kind = .Label, label = 1}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
 		forms = nil
+	case "label-normal":
+		forms = label_normal
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
 	}
 
-	texts := []string{"Parity fixture"}
+	texts := []string{"Parity fixture", "Label"}
 	image_state: image_backend.State
 	ctx: smgui.Context
 	if error := smgui.init(
@@ -46,6 +50,15 @@ main :: proc() {
 		if error := smgui.deinit(&ctx); error != .None {
 			fmt.eprintf("deinit failed: %v\n", error)
 		}
+	}
+	font, font_error := psf2.default_font()
+	if font_error != .None {
+		fmt.eprintf("font load failed: %v\n", font_error)
+		os.exit(1)
+	}
+	if error := psf2.configure(&ctx, &font); error != .None {
+		fmt.eprintf("font configuration failed: %v\n", error)
+		os.exit(1)
 	}
 
 	for {

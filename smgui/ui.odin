@@ -1067,7 +1067,7 @@ measure_form :: proc(
 			width = text_width
 		}
 		if height < 1 {
-			height = text_height
+			height = text_height + 4
 		}
 	case .Toggle:
 		text_width, text_height, _, _, error := measure_label(ctx, field)
@@ -1583,7 +1583,7 @@ draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
 		ctx.screen.pixels,
 		foreground,
 		field.computed_x,
-		field.computed_y,
+		field.computed_y + 2,
 		left,
 		top,
 		ctx.screen.pitch,

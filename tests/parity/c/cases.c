@@ -17,8 +17,13 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
 
 int main(int argc, char **argv)
 {
-    char *texts[] = { "Parity fixture" };
+    enum { WINDOW_TITLE, LABEL_TEXT };
+    char *texts[] = { "Parity fixture", "Label" };
     ui_form_t empty[] = {
+        { .type = UI_END }
+    };
+    ui_form_t label_normal[] = {
+        { .type = UI_LABEL, .label = LABEL_TEXT },
         { .type = UI_END }
     };
     ui_form_t *forms;
@@ -38,13 +43,15 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "empty")) {
         forms = empty;
+    } else if (!strcmp(argv[1], "label-normal")) {
+        forms = label_normal;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
     }
 
     ui_image_backend_set_output(argv[2]);
-    result = ui_init(&context, 1, texts, width, height, NULL);
+    result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
         fprintf(stderr, "ui_init failed: %d\n", result);
         return 1;

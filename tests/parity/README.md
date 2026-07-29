@@ -18,8 +18,8 @@ make parity
 ```
 
 `parity-case` renders one named C/Odin case and compares decoded RGBA pixels.
-`parity` runs the registry of completed, expected-green cases. The first tracer
-is a 64×48 empty framebuffer; label positioning is next.
+`parity` runs the registry of completed, expected-green cases. Current green
+cases are `empty` and `label-normal`; button rendering is next.
 
 ## Widget smoke fixture
 
@@ -46,9 +46,9 @@ make parity-fuzz FUZZ_SEED=123 FUZZ_CASES=10
 
 Fuzzing uses the same C/Odin image and comparison path. Generation is bounded
 and deterministic: every run prints its seed, case number, dimensions, and an
-exact replay command on failure. The initial pool varies framebuffer dimensions
-from 32–256 by 24–192 for the completed empty fixture. Form kinds and states
-enter the pool only after their small fixtures pass.
+exact replay command on failure. The current pool varies framebuffer dimensions
+from 32–256 by 24–192 across the completed `empty` and `label-normal` fixtures.
+Form kinds and states enter the pool only after their small fixtures pass.
 
 A discovered mismatch is replayed, minimized, and promoted to a named
 deterministic fixture before the underlying behavior is changed.

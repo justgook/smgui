@@ -33,7 +33,7 @@ SMOKE_C_PNG := $(PARITY_ACTUAL_DIR)/smoke-c.png
 SMOKE_ODIN_PNG := $(PARITY_ACTUAL_DIR)/smoke-odin.png
 PARITY_C_BIN := $(BUILD_DIR)/parity-case-c
 PARITY_ODIN_BIN := $(BUILD_DIR)/parity-case-odin
-PARITY_CASES := empty
+PARITY_CASES := empty label-normal
 CASE ?= empty
 WIDTH ?= 64
 HEIGHT ?= 48
@@ -178,7 +178,7 @@ $(PARITY_C_BIN): tests/parity/c/cases.c tests/parity/c/ui_image_backend.h tests/
 		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods \
 		tests/parity/c/cases.c -o "$@" -lm
 
-$(PARITY_ODIN_BIN): tests/parity/cases/main.odin smgui/ui.odin smgui/image/image.odin | $(BUILD_DIR)
+$(PARITY_ODIN_BIN): tests/parity/cases/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin | $(BUILD_DIR)
 	$(Q)$(ODIN) build tests/parity/cases $(ODIN_FLAGS) -out:"$@"
 
 .PHONY: parity-case
@@ -197,10 +197,10 @@ parity:
 .PHONY: parity-fuzz
 parity-fuzz:
 	$(Q)tests/parity/fuzz.sh "$(FUZZ_SEED)" "$(FUZZ_CASES)" | \
-	while read -r index width height; do \
-		echo "Fuzz seed=$(FUZZ_SEED) case=$$index empty $${width}x$${height}"; \
-		$(MAKE) parity-case CASE=empty WIDTH="$$width" HEIGHT="$$height" || { \
-			echo "Replay: make parity-case CASE=empty WIDTH=$$width HEIGHT=$$height" >&2; \
+	while read -r index parity_case width height; do \
+		echo "Fuzz seed=$(FUZZ_SEED) case=$$index $$parity_case $${width}x$${height}"; \
+		$(MAKE) parity-case CASE="$$parity_case" WIDTH="$$width" HEIGHT="$$height" || { \
+			echo "Replay: make parity-case CASE=$$parity_case WIDTH=$$width HEIGHT=$$height" >&2; \
 			exit 1; \
 		}; \
 	done
