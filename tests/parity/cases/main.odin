@@ -33,6 +33,7 @@ main :: proc() {
 	checkbox_checked := []smgui.Form {
 		{kind = .Checkbox, label = 4, binding = smgui.bind(&checked_value)},
 	}
+	checkbox_hover := []smgui.Form{{kind = .Checkbox, label = 4, binding = smgui.bind(&checked)}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -53,13 +54,18 @@ main :: proc() {
 		forms = checkbox_normal
 	case "checkbox-checked":
 		forms = checkbox_checked
+	case "checkbox-hover":
+		forms = checkbox_hover
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
 	}
 
 	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check"}
-	interaction_case := os.args[1] == "button-hover" || os.args[1] == "button-pressed"
+	interaction_case :=
+		os.args[1] == "button-hover" ||
+		os.args[1] == "button-pressed" ||
+		os.args[1] == "checkbox-hover"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
@@ -98,7 +104,9 @@ main :: proc() {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
-	if os.args[1] == "button-hover" || os.args[1] == "button-pressed" {
+	if os.args[1] == "button-hover" ||
+	   os.args[1] == "button-pressed" ||
+	   os.args[1] == "checkbox-hover" {
 		buttons: smgui.Input_Buttons
 		if os.args[1] == "button-pressed" {
 			buttons += {.Mouse_Left}

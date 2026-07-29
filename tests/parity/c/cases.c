@@ -56,6 +56,10 @@ int main(int argc, char **argv)
         { .type = UI_CHECK, .label = CHECKBOX_TEXT, .ptr = &checked_value },
         { .type = UI_END }
     };
+    ui_form_t checkbox_hover[] = {
+        { .type = UI_CHECK, .label = CHECKBOX_TEXT, .ptr = &checked },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -89,13 +93,15 @@ int main(int argc, char **argv)
         forms = checkbox_normal;
     } else if (!strcmp(argv[1], "checkbox-checked")) {
         forms = checkbox_checked;
+    } else if (!strcmp(argv[1], "checkbox-hover")) {
+        forms = checkbox_hover;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
     }
 
     ui_image_backend_set_output(argv[2]);
-    if (!strcmp(argv[1], "button-hover")) {
+    if (!strcmp(argv[1], "button-hover") || !strcmp(argv[1], "checkbox-hover")) {
         ui_image_backend_set_mouse_event(10, 10, 0);
     } else if (!strcmp(argv[1], "button-pressed")) {
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
