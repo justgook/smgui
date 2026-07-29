@@ -88,6 +88,10 @@ int main(int argc, char **argv)
         { .type = UI_RADIO, .label = RADIO_TEXT, .ptr = &pressed_radio_value, .value = 1 },
         { .type = UI_END }
     };
+    ui_form_t radio_disabled[] = {
+        { .type = UI_RADIO, .flags = UI_DISABLED, .label = RADIO_TEXT, .ptr = &radio_value, .value = 1 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -135,6 +139,8 @@ int main(int argc, char **argv)
         forms = radio_hover;
     } else if (!strcmp(argv[1], "radio-pressed")) {
         forms = radio_pressed;
+    } else if (!strcmp(argv[1], "radio-disabled")) {
+        forms = radio_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

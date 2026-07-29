@@ -115,7 +115,7 @@ only their module and must agree with this list.
 - [x] Pass the selected radio fixture.
 - [x] Pass the scripted radio-hover fixture.
 - [x] Pass the scripted radio-pressed fixture and bound-value mutation.
-- [ ] Pass the radio-disabled fixture.
+- [x] Pass the radio-disabled fixture.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

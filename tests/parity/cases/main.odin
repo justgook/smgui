@@ -56,6 +56,15 @@ main :: proc() {
 	radio_pressed := []smgui.Form {
 		{kind = .Radio, label = 5, binding = smgui.bind(&pressed_radio_value), value = 1},
 	}
+	radio_disabled := []smgui.Form {
+		{
+			kind = .Radio,
+			flags = {.Disabled},
+			label = 5,
+			binding = smgui.bind(&radio_value),
+			value = 1,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -90,6 +99,8 @@ main :: proc() {
 		forms = radio_hover
 	case "radio-pressed":
 		forms = radio_pressed
+	case "radio-disabled":
+		forms = radio_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
