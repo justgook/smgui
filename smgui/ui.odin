@@ -1086,10 +1086,10 @@ measure_form :: proc(
 			return 0, 0, error
 		}
 		if width < 1 {
-			width = text_width + 20
+			width = text_width + 8
 		}
 		if height < 1 {
-			height = text_height + 10
+			height = text_height + 4
 		}
 	case .Checkbox, .Radio:
 		text_width, text_height, _, _, error := measure_label(ctx, field)
@@ -1615,39 +1615,60 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	y := field.computed_y
 	disabled := .Disabled in field.flags
 	pressed := ctx.pressed == field
+	hovered := ctx.hovered == field
+	outer := ctx.theme[int(Theme_Color.Button_Normal_Border)]
+	if disabled {
+		outer = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+	} else if hovered {
+		outer = ctx.theme[int(Theme_Color.Button_Selected_Border)]
+	}
+	draw_outline_rectangle(ctx, x - 1, y - 1, width + 1, height + 2, outer, outer, outer)
+	for border_y in y ..< y + height {
+		blend_pixel(ctx, x + width, border_y, outer)
+	}
+	if disabled {
+		fill_rectangle(ctx, x, y, width, height, ctx.theme[int(Theme_Color.Disabled_Background)])
+	} else {
+		light := ctx.theme[int(Theme_Color.Button_Light_Inner_Border)]
+		dark := ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)]
+		light_background := ctx.theme[int(Theme_Color.Button_Light_Background)]
+		dark_background := ctx.theme[int(Theme_Color.Button_Dark_Background)]
+		if pressed {
+			draw_outline_rectangle(ctx, x, y, width, height, dark, dark_background, light)
+			fill_rectangle(ctx, x + 1, y + 1, width - 2, height - height * 5 / 8 - 1, dark_background)
+			fill_rectangle(ctx, x + 1, y + height - height * 5 / 8 - 1, width - 2, height * 5 / 8, light_background)
+		} else {
+			draw_outline_rectangle(ctx, x, y, width, height, light, light_background, dark)
+			fill_rectangle(ctx, x + 1, y + 1, width - 2, height * 5 / 8, light_background)
+			fill_rectangle(ctx, x + 1, y + height * 5 / 8, width - 2, height - height * 5 / 8 - 1, dark_background)
+		}
+	}
+	text_x := x + (width - text_width) / 2
+	text_y := y + (height - text_height) / 2
+	if pressed && !disabled {
+		text_y += 1
+	}
+	if !disabled {
+		dark_shadow := ctx.theme[int(Theme_Color.Button_Dark_Shadow)]
+		light_shadow := ctx.theme[int(Theme_Color.Button_Light_Shadow)]
+		if hovered {
+			dark_shadow = ctx.theme[int(Theme_Color.Button_Selected_Dark_Shadow)]
+			light_shadow = ctx.theme[int(Theme_Color.Button_Selected_Light_Shadow)]
+		}
+		if error := ctx.font_draw(ctx.font, text, ctx.screen.pixels, dark_shadow, text_x - 1 - left, text_y - 1, left, top, ctx.screen.pitch, 1, 1, ctx.screen.width - 1, ctx.screen.height - 1); error != .None {
+			return error
+		}
+		if error := ctx.font_draw(ctx.font, text, ctx.screen.pixels, light_shadow, text_x + 1 - left, text_y + 1, left, top, ctx.screen.pitch, 1, 1, ctx.screen.width - 1, ctx.screen.height - 1); error != .None {
+			return error
+		}
+	}
 	foreground := ctx.theme[int(Theme_Color.Button_Foreground)]
-	light := ctx.theme[int(Theme_Color.Button_Light_Inner_Border)]
-	background := ctx.theme[int(Theme_Color.Button_Light_Background)]
-	dark := ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)]
 	if disabled {
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
-		background = ctx.theme[int(Theme_Color.Disabled_Background)]
-	} else if pressed {
-		light, dark = dark, light
-		background = ctx.theme[int(Theme_Color.Button_Dark_Background)]
-	} else if ctx.hovered == field {
-		light = ctx.theme[int(Theme_Color.Button_Selected_Border)]
+	} else if hovered {
+		foreground = ctx.theme[int(Theme_Color.Button_Selected_Foreground)]
 	}
-	draw_beveled_rectangle(ctx, x, y, width, height, light, background, dark)
-	text_offset := 0
-	if pressed {
-		text_offset = 1
-	}
-	return ctx.font_draw(
-		ctx.font,
-		text,
-		ctx.screen.pixels,
-		foreground,
-		x + (width - text_width) / 2 + text_offset,
-		y + (height - text_height) / 2 + text_offset,
-		left,
-		top,
-		ctx.screen.pitch,
-		0,
-		0,
-		ctx.screen.width,
-		ctx.screen.height,
-	)
+	return ctx.font_draw(ctx.font, text, ctx.screen.pixels, foreground, text_x - left, text_y, left, top, ctx.screen.pitch, 1, 1, ctx.screen.width - 1, ctx.screen.height - 1)
 }
 
 @(private = "file")
@@ -2935,6 +2956,23 @@ point_inside :: proc(field: ^Form, x, y: int) -> bool {
 }
 
 @(private = "file")
+draw_outline_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, color, dark: u32) {
+	if width < 2 || height < 2 {
+		return
+	}
+	for offset in 0 ..< width - 1 {
+		blend_pixel(ctx, x + offset, y, light)
+		blend_pixel(ctx, x + offset + 1, y + height - 1, dark)
+	}
+	blend_pixel(ctx, x + width - 1, y, color)
+	blend_pixel(ctx, x, y + height - 1, color)
+	for offset in 1 ..< height - 1 {
+		blend_pixel(ctx, x, y + offset, light)
+		blend_pixel(ctx, x + width - 1, y + offset, dark)
+	}
+}
+
+@(private = "file")
 draw_beveled_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, color, dark: u32) {
 	fill_rectangle(ctx, x, y, width, height, color)
 	fill_rectangle(ctx, x, y, width, 1, light)
@@ -2956,6 +2994,21 @@ set_pixel :: proc(ctx: ^Context, x, y: int, color: u32) {
 }
 
 @(private = "file")
+blend_pixel :: proc(ctx: ^Context, x, y: int, color: u32) {
+	alpha := u32(u8(color >> 24))
+	if alpha == 0 || x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
+		return
+	}
+	inverse := 255 - alpha
+	pixel := y * ctx.screen.pitch + x * 4
+	for channel in 0 ..< 4 {
+		source := u32(u8(color >> u32(channel * 8)))
+		destination := u32(ctx.screen.pixels[pixel + channel])
+		ctx.screen.pixels[pixel + channel] = u8((source * alpha + inverse * destination) >> 8)
+	}
+}
+
+@(private = "file")
 fill_rectangle :: proc(ctx: ^Context, x, y, width, height: int, color: u32) {
 	x0 := clamp(x, 0, ctx.screen.width)
 	y0 := clamp(y, 0, ctx.screen.height)
@@ -2963,11 +3016,7 @@ fill_rectangle :: proc(ctx: ^Context, x, y, width, height: int, color: u32) {
 	y1 := clamp(y + height, 0, ctx.screen.height)
 	for pixel_y in y0 ..< y1 {
 		for pixel_x in x0 ..< x1 {
-			pixel := pixel_y * ctx.screen.pitch + pixel_x * 4
-			ctx.screen.pixels[pixel + 0] = u8(color)
-			ctx.screen.pixels[pixel + 1] = u8(color >> 8)
-			ctx.screen.pixels[pixel + 2] = u8(color >> 16)
-			ctx.screen.pixels[pixel + 3] = u8(color >> 24)
+			blend_pixel(ctx, pixel_x, pixel_y, color)
 		}
 	}
 }

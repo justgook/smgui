@@ -152,7 +152,7 @@ flow_layout_positions_children_inside_divisions :: proc(t: ^testing.T) {
 	testing.expect_value(t, children[1].computed_x, 32)
 	testing.expect_value(t, children[1].computed_y, 15)
 	testing.expect_value(t, children[2].computed_x, 15)
-	testing.expect_value(t, children[2].computed_y, 49)
+	testing.expect_value(t, children[2].computed_y, 43)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Mouse_Left})
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Released})

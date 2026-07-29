@@ -22,18 +22,21 @@ main :: proc() {
 	}
 
 	label_normal := []smgui.Form{{kind = .Label, label = 1}}
+	button_normal := []smgui.Form{{kind = .Button, label = 2}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
 		forms = nil
 	case "label-normal":
 		forms = label_normal
+	case "button-normal":
+		forms = button_normal
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
 	}
 
-	texts := []string{"Parity fixture", "Label"}
+	texts := []string{"Parity fixture", "Label", "Button"}
 	image_state: image_backend.State
 	ctx: smgui.Context
 	if error := smgui.init(
@@ -61,6 +64,10 @@ main :: proc() {
 		os.exit(1)
 	}
 
+	if os.args[1] == "button-normal" {
+		ctx.mouse_x = -1
+		ctx.mouse_y = -1
+	}
 	for {
 		_, state, error := smgui.poll_event(&ctx, forms)
 		if error != .None {

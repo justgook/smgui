@@ -17,13 +17,17 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
 
 int main(int argc, char **argv)
 {
-    enum { WINDOW_TITLE, LABEL_TEXT };
-    char *texts[] = { "Parity fixture", "Label" };
+    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT };
+    char *texts[] = { "Parity fixture", "Label", "Button" };
     ui_form_t empty[] = {
         { .type = UI_END }
     };
     ui_form_t label_normal[] = {
         { .type = UI_LABEL, .label = LABEL_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t button_normal[] = {
+        { .type = UI_BUTTON, .label = BUTTON_TEXT },
         { .type = UI_END }
     };
     ui_form_t *forms;
@@ -45,6 +49,8 @@ int main(int argc, char **argv)
         forms = empty;
     } else if (!strcmp(argv[1], "label-normal")) {
         forms = label_normal;
+    } else if (!strcmp(argv[1], "button-normal")) {
+        forms = button_normal;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -55,6 +61,10 @@ int main(int argc, char **argv)
     if (result != UI_OK) {
         fprintf(stderr, "ui_init failed: %d\n", result);
         return 1;
+    }
+    if (!strcmp(argv[1], "button-normal")) {
+        context.mousex = -1;
+        context.mousey = -1;
     }
     while (ui_event(&context, forms)) { }
     if (!ui_image_backend_succeeded(&context)) {
