@@ -25,6 +25,7 @@ main :: proc() {
 	button_normal := []smgui.Form{{kind = .Button, label = 2}}
 	button_explicit_size := []smgui.Form{{kind = .Button, label = 3, width = 58, height = 28}}
 	button_hover := []smgui.Form{{kind = .Button, label = 2}}
+	button_pressed := []smgui.Form{{kind = .Button, label = 2}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -37,13 +38,15 @@ main :: proc() {
 		forms = button_explicit_size
 	case "button-hover":
 		forms = button_hover
+	case "button-pressed":
+		forms = button_pressed
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
 	}
 
 	texts := []string{"Parity fixture", "Label", "Button", "Btn"}
-	interaction_case := os.args[1] == "button-hover"
+	interaction_case := os.args[1] == "button-hover" || os.args[1] == "button-pressed"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
@@ -79,8 +82,13 @@ main :: proc() {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
-	if os.args[1] == "button-hover" {
-		if error := smgui.push_event(&ctx, {kind = .Mouse, x = 10, y = 10}); error != .None {
+	if os.args[1] == "button-hover" || os.args[1] == "button-pressed" {
+		buttons: smgui.Input_Buttons
+		if os.args[1] == "button-pressed" {
+			buttons += {.Mouse_Left}
+		}
+		if error := smgui.push_event(&ctx, {kind = .Mouse, buttons = buttons, x = 10, y = 10});
+		   error != .None {
 			fmt.eprintf("event injection failed: %v\n", error)
 			os.exit(1)
 		}

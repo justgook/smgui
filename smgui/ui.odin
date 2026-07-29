@@ -1619,7 +1619,7 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	outer := ctx.theme[int(Theme_Color.Button_Normal_Border)]
 	if disabled {
 		outer = ctx.theme[int(Theme_Color.Disabled_Foreground)]
-	} else if hovered {
+	} else if hovered && !pressed {
 		outer = ctx.theme[int(Theme_Color.Button_Selected_Border)]
 	}
 	for border_x in x - 1 ..< min(x + width, ctx.screen.width - 1) {

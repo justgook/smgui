@@ -129,6 +129,10 @@ int ui_backend_redraw(ui_backend_t *backend)
 {
     ui_image_t *screen;
     if (!backend || !backend->ctx || !backend->output_path) return UI_ERR_BADINP;
+    if (ui_image_backend_has_scripted_event && backend->event_sent &&
+        backend->ctx->tail != backend->ctx->head) {
+        return UI_OK;
+    }
     screen = &backend->ctx->screen;
     backend->succeeded = stbi_write_png(
         backend->output_path,

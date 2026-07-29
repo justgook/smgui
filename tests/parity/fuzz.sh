@@ -33,7 +33,8 @@ BEGIN {
     fixtures[2] = "button-normal"
     fixtures[3] = "button-explicit-size"
     fixtures[4] = "button-hover"
-    fixture_count = 5
+    fixtures[5] = "button-pressed"
+    fixture_count = 6
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

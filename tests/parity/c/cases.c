@@ -38,6 +38,10 @@ int main(int argc, char **argv)
         { .type = UI_BUTTON, .label = BUTTON_TEXT },
         { .type = UI_END }
     };
+    ui_form_t button_pressed[] = {
+        { .type = UI_BUTTON, .label = BUTTON_TEXT },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -63,6 +67,8 @@ int main(int argc, char **argv)
         forms = button_explicit_size;
     } else if (!strcmp(argv[1], "button-hover")) {
         forms = button_hover;
+    } else if (!strcmp(argv[1], "button-pressed")) {
+        forms = button_pressed;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -71,6 +77,8 @@ int main(int argc, char **argv)
     ui_image_backend_set_output(argv[2]);
     if (!strcmp(argv[1], "button-hover")) {
         ui_image_backend_set_mouse_event(10, 10, 0);
+    } else if (!strcmp(argv[1], "button-pressed")) {
+        ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
