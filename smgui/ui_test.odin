@@ -241,6 +241,74 @@ text_input_edits_utf8_at_the_cursor :: proc(t: ^testing.T) {
 	testing.expect(t, ctx.text_field == nil)
 }
 
+@(test)
+numeric_inputs_commit_text_and_step_with_buttons :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 200, 120); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+	}
+
+	integer_value := 10
+	float_value: f32 = 1.5
+	forms := []Form {
+		{
+			kind = .Integer_64,
+			x = absolute(10),
+			y = absolute(10),
+			width = 120,
+			binding = bind(&integer_value),
+			minimum = 0,
+			maximum = 100,
+			increment = 1,
+		},
+		{
+			kind = .Float_Input,
+			x = absolute(10),
+			y = absolute(45),
+			width = 120,
+			binding = bind(&float_value),
+			float_minimum = 0,
+			float_maximum = 10,
+			float_increment = 0.25,
+		},
+	}
+	poll_for_test(t, &ctx, forms)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 70, 15, {.Mouse_Left})
+	send_key_for_test(t, &ctx, &backend_state, forms, "Home")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Delete")
+	send_key_for_test(t, &ctx, &backend_state, forms, "5")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Enter")
+	testing.expect_value(t, integer_value, 50)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 120, 15, {.Mouse_Left})
+	testing.expect_value(t, integer_value, 51)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 15, 15, {.Mouse_Left})
+	testing.expect_value(t, integer_value, 50)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 70, 50, {.Mouse_Left})
+	send_key_for_test(t, &ctx, &backend_state, forms, "End")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Backspace")
+	send_key_for_test(t, &ctx, &backend_state, forms, "75")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Enter")
+	testing.expect_value(t, float_value, f32(1.75))
+}
+
 @(private = "file")
 poll_for_test :: proc(t: ^testing.T, ctx: ^Context, forms: []Form) {
 	_, state, error := poll_event(ctx, forms)

@@ -15,6 +15,7 @@ Status:
   [x] Division containers use automatic flow layout
   [x] Integer display, slider, and progress bar represented
   [x] Editable UTF-8 text input represented
+  [x] Integer and floating-point inputs represented
   [ ] Remaining built-in controls represented
   [ ] Optional font and widget modules represented
   [ ] Backend can be selected through `BACKEND=<name>`
@@ -47,11 +48,15 @@ main :: proc() {
 		"Volume",
 		"Progress",
 		"Player name",
+		"Target value",
+		"Scale",
 	}
 
 	shadows_enabled := true
 	difficulty := 0
 	volume := 42
+	target_value := 26
+	scale: f32 = 3.141
 	apply_requested := false
 	player_name: smgui.Text_Buffer
 	if error := smgui.text_buffer_init(&player_name, "Player One", 32); error != .None {
@@ -76,6 +81,22 @@ main :: proc() {
 		{kind = .Progress_Bar, binding = smgui.bind(&volume), minimum = 0, maximum = 100},
 		{kind = .Label, flags = {.No_Break}, label = 12},
 		{kind = .Text_Input, width = 220, binding = smgui.bind(&player_name), max_length = 32},
+		{kind = .Label, flags = {.No_Break}, label = 13},
+		{
+			kind = .Integer_64,
+			binding = smgui.bind(&target_value),
+			minimum = 0,
+			maximum = 100,
+			increment = 1,
+		},
+		{kind = .Label, flags = {.No_Break}, label = 14},
+		{
+			kind = .Float_Input,
+			binding = smgui.bind(&scale),
+			float_minimum = 0,
+			float_maximum = 10,
+			float_increment = 0.1,
+		},
 		{kind = .Button, label = 6, binding = smgui.bind(&apply_requested)},
 	}
 	inactive_controls := []smgui.Form {
@@ -101,14 +122,14 @@ main :: proc() {
 			x = smgui.absolute(50),
 			y = smgui.absolute(85),
 			width = 620,
-			height = 235,
+			height = 335,
 			margin = 16,
 			children = active_controls,
 		},
 		{
 			kind = .Division,
 			x = smgui.absolute(50),
-			y = smgui.absolute(345),
+			y = smgui.absolute(445),
 			width = 620,
 			height = 110,
 			margin = 16,
@@ -118,14 +139,14 @@ main :: proc() {
 			kind = .Label,
 			horizontal_alignment = .Center,
 			x = smgui.percent(50),
-			y = smgui.absolute(510),
+			y = smgui.absolute(600),
 			label = 9,
 		},
 	}
 
 	backend_state: raylib_backend.State
 	ctx: smgui.Context
-	if error := smgui.init(&ctx, raylib_backend.create(&backend_state), texts, 720, 560);
+	if error := smgui.init(&ctx, raylib_backend.create(&backend_state), texts, 720, 650);
 	   error != .None {
 		fail("initializing SMGUI", error)
 	}
@@ -153,11 +174,13 @@ main :: proc() {
 		}
 		if apply_requested {
 			fmt.printf(
-				"Applied settings: shadows=%v difficulty=%d volume=%d player=%s\n",
+				"Applied settings: shadows=%v difficulty=%d volume=%d player=%s target=%d scale=%g\n",
 				shadows_enabled,
 				difficulty,
 				volume,
 				smgui.text_buffer_string(&player_name),
+				target_value,
+				scale,
 			)
 			apply_requested = false
 			if refresh_error := smgui.refresh(&ctx); refresh_error != .None {

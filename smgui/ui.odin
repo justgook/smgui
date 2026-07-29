@@ -15,6 +15,7 @@ Status:
   [x] Buttons, checkboxes, radio buttons, and sliders mutate bound state
   [x] Integer/float displays, sliders, and progress bars render
   [x] UTF-8 text input, cursor editing, and input filters implemented
+  [x] Integer and floating-point text/stepper inputs implemented
   [ ] Remaining drawing primitives implemented
   [x] Relative flow layout and division containers implemented
   [ ] Popup/menu layout, scrolling, and advanced alignment implemented
@@ -29,6 +30,7 @@ Definition of done:
 */
 
 import "core:fmt"
+import "core:strconv"
 import "core:strings"
 
 Error :: enum {
@@ -240,6 +242,8 @@ Text_Filter :: enum u8 {
 	Variable,
 	Expression,
 	Hexadecimal,
+	Integer,
+	Decimal,
 	Password,
 }
 
@@ -537,6 +541,7 @@ Context :: struct {
 	horizontal_bar: ^Form,
 	text_field:     ^Form,
 	text_cursor:    int,
+	edit_buffer:    Text_Buffer,
 	popup:          ^Form,
 	drag_x:         int,
 	drag_y:         int,
@@ -752,6 +757,11 @@ init :: proc(
 	if ctx.screen.pixels == nil {
 		return .Out_Of_Memory
 	}
+	if error := text_buffer_init(&ctx.edit_buffer, "", 128); error != .None {
+		delete(ctx.screen.pixels)
+		ctx^ = {}
+		return error
+	}
 	ctx.backend = backend
 	ctx.texts = texts
 	ctx.theme = DEFAULT_THEME
@@ -760,6 +770,7 @@ init :: proc(
 	if error := ctx.backend.init(ctx.backend.data, ctx, texts[0], width, height, icon);
 	   error != .None {
 		delete(ctx.screen.pixels)
+		text_buffer_deinit(&ctx.edit_buffer)
 		ctx^ = {}
 		return error
 	}
@@ -831,6 +842,7 @@ deinit :: proc(ctx: ^Context) -> Error {
 	if ctx.screen.pixels != nil {
 		delete(ctx.screen.pixels)
 	}
+	text_buffer_deinit(&ctx.edit_buffer)
 	ctx^ = {}
 	return backend_error
 }
@@ -1074,6 +1086,29 @@ measure_form :: proc(
 		if height < 1 {
 			height = text_height + 8
 		}
+	case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
+		if field.binding.data == nil || ctx.font == nil || ctx.font_bounds == nil {
+			return 0, 0, .Invalid_Input
+		}
+		text_width, text_height, left, top: int
+		if bounds_error := ctx.font_bounds(
+			ctx.font,
+			"-100.000",
+			&text_width,
+			&text_height,
+			&left,
+			&top,
+		); bounds_error != .None {
+			return 0, 0, bounds_error
+		}
+		field.left = left
+		field.top = top
+		if width < 1 {
+			width = max(text_width + (text_height + 8) * 2, 120)
+		}
+		if height < 1 {
+			height = text_height + 8
+		}
 	case .Slider, .Progress_Bar:
 		if width < 1 {
 			width = min(max(available_width, 100), 180)
@@ -1174,6 +1209,10 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			}
 		case .Text_Input:
 			if error := draw_text_input(ctx, &field); error != .None {
+				return error
+			}
+		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
+			if error := draw_numeric_input(ctx, &field); error != .None {
 				return error
 			}
 		case .Slider:
@@ -1407,6 +1446,130 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		)
 	}
 	return .None
+}
+
+@(private = "file")
+draw_numeric_input :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if ctx.font == nil || ctx.font_bounds == nil || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	text, valid := numeric_input_text(ctx, field)
+	if !valid {
+		return .Invalid_Input
+	}
+	x := field.computed_x
+	y := field.computed_y
+	width := field.computed_width
+	height := field.computed_height
+	disabled := .Disabled in field.flags
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	if disabled {
+		background = ctx.theme[int(Theme_Color.Disabled_Background)]
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		dark = foreground
+		light = foreground
+	}
+	draw_beveled_rectangle(ctx, x, y, width, height, dark, background, light)
+	draw_beveled_rectangle(ctx, x, y, height, height, light, background, dark)
+	draw_beveled_rectangle(ctx, x + width - height, y, height, height, light, background, dark)
+	text_width, text_height, left, top: int
+	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+	   error != .None {
+		return error
+	}
+	if error := ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		foreground,
+		x + height + (width - height * 2 - text_width) / 2,
+		y + (height - text_height) / 2,
+		left,
+		top,
+		ctx.screen.pitch,
+		x + height,
+		y + 1,
+		x + width - height,
+		y + height - 1,
+	); error != .None {
+		return error
+	}
+	if error := draw_symbol(ctx, "-", x, y, height, height, foreground); error != .None {
+		return error
+	}
+	if error := draw_symbol(ctx, "+", x + width - height, y, height, height, foreground);
+	   error != .None {
+		return error
+	}
+	if ctx.text_field == field && !disabled {
+		cursor := clamp(ctx.text_cursor, 0, len(text))
+		cursor_width, cursor_height, cursor_left, cursor_top: int
+		if error := ctx.font_bounds(
+			ctx.font,
+			text[:cursor],
+			&cursor_width,
+			&cursor_height,
+			&cursor_left,
+			&cursor_top,
+		); error != .None {
+			return error
+		}
+		cursor_x := x + height + (width - height * 2 - text_width) / 2 + cursor_width
+		fill_rectangle(
+			ctx,
+			cursor_x,
+			y + 3,
+			1,
+			height - 6,
+			ctx.theme[int(Theme_Color.Input_Cursor)],
+		)
+	}
+	return .None
+}
+
+@(private = "file")
+draw_symbol :: proc(ctx: ^Context, symbol: string, x, y, width, height: int, color: u32) -> Error {
+	text_width, text_height, left, top: int
+	if error := ctx.font_bounds(ctx.font, symbol, &text_width, &text_height, &left, &top);
+	   error != .None {
+		return error
+	}
+	return ctx.font_draw(
+		ctx.font,
+		symbol,
+		ctx.screen.pixels,
+		color,
+		x + (width - text_width) / 2,
+		y + (height - text_height) / 2,
+		left,
+		top,
+		ctx.screen.pitch,
+		x,
+		y,
+		x + width,
+		y + height,
+	)
+}
+
+@(private = "file")
+numeric_input_text :: proc(ctx: ^Context, field: ^Form) -> (string, bool) {
+	if ctx.text_field == field {
+		return text_buffer_string(&ctx.edit_buffer), true
+	}
+	if field.kind == .Float_Input {
+		if field.binding.kind != .Float || field.binding.data == nil {
+			return "", false
+		}
+		return fmt.tprintf("%g", ((^f32)(field.binding.data))^), true
+	}
+	value, valid := bound_integer(field)
+	if !valid {
+		return "", false
+	}
+	return fmt.tprintf("%d", value), true
 }
 
 @(private = "file")
@@ -1694,11 +1857,11 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 	}
 	if .Mouse_Left in event.buttons {
 		if ctx.hovered == nil || .Disabled in ctx.hovered.flags {
-			deactivate_text_input(ctx)
+			deactivate_text_input(ctx, true)
 			return .None
 		}
-		if ctx.hovered.kind != .Text_Input {
-			deactivate_text_input(ctx)
+		if ctx.hovered.kind != .Text_Input && !is_numeric_input_kind(ctx.hovered.kind) {
+			deactivate_text_input(ctx, true)
 		}
 		#partial switch ctx.hovered.kind {
 		case .Button:
@@ -1712,6 +1875,17 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			update_slider(ctx.hovered, event.x)
 		case .Text_Input:
 			activate_text_input(ctx, ctx.hovered)
+		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
+			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
+				deactivate_text_input(ctx, true)
+				step_numeric_input(ctx.hovered, -1)
+			} else if event.x >=
+			   ctx.hovered.computed_x + ctx.hovered.computed_width - ctx.hovered.computed_height {
+				deactivate_text_input(ctx, true)
+				step_numeric_input(ctx.hovered, 1)
+			} else if error := activate_numeric_input(ctx, ctx.hovered); error != .None {
+				return error
+			}
 		case:
 		}
 		ctx.flags += {.Refresh}
@@ -1739,12 +1913,129 @@ activate_text_input :: proc(ctx: ^Context, field: ^Form) {
 }
 
 @(private = "file")
-deactivate_text_input :: proc(ctx: ^Context) {
+activate_numeric_input :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if ctx.text_field != nil && ctx.text_field != field {
+		deactivate_text_input(ctx, true)
+	}
+	if error := reset_numeric_edit_buffer(ctx, field); error != .None {
+		return error
+	}
+	ctx.text_field = field
+	ctx.text_cursor = len(ctx.edit_buffer.data)
+	if ctx.backend.show_keyboard != nil {
+		_ = ctx.backend.show_keyboard(ctx.backend.data)
+	}
+	return .None
+}
+
+@(private = "file")
+reset_numeric_edit_buffer :: proc(ctx: ^Context, field: ^Form) -> Error {
+	was_active := ctx.text_field == field
+	if was_active {
+		ctx.text_field = nil
+	}
+	text, valid := numeric_input_text(ctx, field)
+	if was_active {
+		ctx.text_field = field
+	}
+	if !valid {
+		return .Invalid_Input
+	}
+	resize(&ctx.edit_buffer.data, 0)
+	if (append(&ctx.edit_buffer.data, text) or_else -1) < 0 {
+		return .Out_Of_Memory
+	}
+	ctx.text_cursor = len(ctx.edit_buffer.data)
+	return .None
+}
+
+@(private = "file")
+active_text_buffer :: proc(ctx: ^Context, field: ^Form) -> (^Text_Buffer, bool) {
+	if is_numeric_input_kind(field.kind) {
+		return &ctx.edit_buffer, true
+	}
+	return bound_text_buffer(field)
+}
+
+@(private = "file")
+is_numeric_input_kind :: proc(kind: Field_Kind) -> bool {
+	return(
+		kind == .Integer_8 ||
+		kind == .Integer_16 ||
+		kind == .Integer_32 ||
+		kind == .Integer_64 ||
+		kind == .Float_Input \
+	)
+}
+
+@(private = "file")
+step_numeric_input :: proc(field: ^Form, direction: int) {
+	if field.kind == .Float_Input {
+		if field.binding.kind != .Float || field.binding.data == nil {
+			return
+		}
+		increment := field.float_increment
+		if increment == 0 {
+			increment = 1
+		}
+		value := (^f32)(field.binding.data)
+		value^ += f32(direction) * increment
+		if field.float_maximum > field.float_minimum {
+			value^ = clamp(value^, field.float_minimum, field.float_maximum)
+		}
+		return
+	}
+	value, valid := bound_integer(field)
+	if !valid {
+		return
+	}
+	increment := int(field.increment)
+	if increment == 0 {
+		increment = 1
+	}
+	value += direction * increment
+	if field.maximum > field.minimum {
+		value = clamp(value, int(field.minimum), int(field.maximum))
+	}
+	((^int)(field.binding.data))^ = value
+}
+
+@(private = "file")
+commit_numeric_input :: proc(field: ^Form, text: string) {
+	if field.kind == .Float_Input {
+		if field.binding.kind != .Float || field.binding.data == nil {
+			return
+		}
+		if value, ok := strconv.parse_f32(text); ok {
+			if field.float_maximum > field.float_minimum {
+				value = clamp(value, field.float_minimum, field.float_maximum)
+			}
+			((^f32)(field.binding.data))^ = value
+		}
+		return
+	}
+	if field.binding.kind != .Integer || field.binding.data == nil {
+		return
+	}
+	if value, ok := strconv.parse_int(text, 10); ok {
+		if field.maximum > field.minimum {
+			value = clamp(value, int(field.minimum), int(field.maximum))
+		}
+		((^int)(field.binding.data))^ = value
+	}
+}
+
+@(private = "file")
+deactivate_text_input :: proc(ctx: ^Context, commit: bool) {
 	if ctx.text_field == nil {
 		return
 	}
+	if commit && is_numeric_input_kind(ctx.text_field.kind) {
+		commit_numeric_input(ctx.text_field, text_buffer_string(&ctx.edit_buffer))
+	}
 	ctx.text_field = nil
 	ctx.text_cursor = 0
+	resize(&ctx.edit_buffer.data, 0)
 	if ctx.backend.hide_keyboard != nil {
 		_ = ctx.backend.hide_keyboard(ctx.backend.data)
 	}
@@ -1753,14 +2044,16 @@ deactivate_text_input :: proc(ctx: ^Context) {
 @(private = "file")
 process_text_key :: proc(ctx: ^Context, event: ^Event) -> Error {
 	field := ctx.text_field
-	buffer, valid := bound_text_buffer(field)
+	buffer, valid := active_text_buffer(ctx, field)
 	if !valid {
 		return .Invalid_Input
 	}
 	text := key_text(&event.key)
 	switch text {
-	case "Escape", "Enter":
-		deactivate_text_input(ctx)
+	case "Escape":
+		deactivate_text_input(ctx, false)
+	case "Enter":
+		deactivate_text_input(ctx, true)
 	case "Home":
 		ctx.text_cursor = 0
 	case "End":
@@ -1769,6 +2062,20 @@ process_text_key :: proc(ctx: ^Context, event: ^Event) -> Error {
 		ctx.text_cursor = previous_codepoint(buffer.data[:], ctx.text_cursor)
 	case "Right":
 		ctx.text_cursor = next_codepoint(buffer.data[:], ctx.text_cursor)
+	case "Up":
+		if is_numeric_input_kind(field.kind) {
+			step_numeric_input(field, 1)
+			if error := reset_numeric_edit_buffer(ctx, field); error != .None {
+				return error
+			}
+		}
+	case "Down":
+		if is_numeric_input_kind(field.kind) {
+			step_numeric_input(field, -1)
+			if error := reset_numeric_edit_buffer(ctx, field); error != .None {
+				return error
+			}
+		}
 	case "Backspace":
 		if ctx.text_cursor > 0 {
 			start := previous_codepoint(buffer.data[:], ctx.text_cursor)
@@ -1781,7 +2088,14 @@ process_text_key :: proc(ctx: ^Context, event: ^Event) -> Error {
 			remove_text_range(buffer, ctx.text_cursor, end)
 		}
 	case:
-		if len(text) > 0 && text_allowed(field.filter, buffer.data[:], text) {
+		filter := field.filter
+		if is_numeric_input_kind(field.kind) {
+			filter = .Integer
+			if field.kind == .Float_Input {
+				filter = .Decimal
+			}
+		}
+		if len(text) > 0 && text_allowed(filter, buffer.data[:], text) {
 			limit := buffer.max_length
 			if field.max_length > 0 {
 				limit = min(limit, field.max_length)
@@ -1861,6 +2175,17 @@ text_allowed :: proc(filter: Text_Filter, existing: []u8, text: string) -> bool 
 			character >= '0' && character <= '9' ||
 			character >= 'a' && character <= 'f' ||
 			character >= 'A' && character <= 'F' \
+		)
+	case .Integer:
+		return character >= '0' && character <= '9' || len(existing) == 0 && character == '-'
+	case .Decimal:
+		return(
+			character >= '0' && character <= '9' ||
+			len(existing) == 0 && character == '-' ||
+			character == '.' && !strings.contains(string(existing), ".") ||
+			character == 'e' ||
+			character == 'E' ||
+			character == '+' \
 		)
 	case .Expression:
 		return(
