@@ -29,6 +29,10 @@ main :: proc() {
 	button_disabled := []smgui.Form{{kind = .Button, flags = {.Disabled}, label = 2}}
 	checked := false
 	checkbox_normal := []smgui.Form{{kind = .Checkbox, label = 4, binding = smgui.bind(&checked)}}
+	checked_value := true
+	checkbox_checked := []smgui.Form {
+		{kind = .Checkbox, label = 4, binding = smgui.bind(&checked_value)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -47,6 +51,8 @@ main :: proc() {
 		forms = button_disabled
 	case "checkbox-normal":
 		forms = checkbox_normal
+	case "checkbox-checked":
+		forms = checkbox_checked
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -87,7 +93,8 @@ main :: proc() {
 
 	if os.args[1] == "button-normal" ||
 	   os.args[1] == "button-explicit-size" ||
-	   os.args[1] == "checkbox-normal" {
+	   os.args[1] == "checkbox-normal" ||
+	   os.args[1] == "checkbox-checked" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}

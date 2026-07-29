@@ -36,7 +36,8 @@ BEGIN {
     fixtures[5] = "button-pressed"
     fixtures[6] = "button-disabled"
     fixtures[7] = "checkbox-normal"
-    fixture_count = 8
+    fixtures[8] = "checkbox-checked"
+    fixture_count = 9
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

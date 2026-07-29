@@ -20,6 +20,7 @@ int main(int argc, char **argv)
     enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT };
     char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check" };
     int checked = 0;
+    int checked_value = 1;
     ui_form_t empty[] = {
         { .type = UI_END }
     };
@@ -49,6 +50,10 @@ int main(int argc, char **argv)
     };
     ui_form_t checkbox_normal[] = {
         { .type = UI_CHECK, .label = CHECKBOX_TEXT, .ptr = &checked },
+        { .type = UI_END }
+    };
+    ui_form_t checkbox_checked[] = {
+        { .type = UI_CHECK, .label = CHECKBOX_TEXT, .ptr = &checked_value },
         { .type = UI_END }
     };
     ui_form_t *forms;
@@ -82,6 +87,8 @@ int main(int argc, char **argv)
         forms = button_disabled;
     } else if (!strcmp(argv[1], "checkbox-normal")) {
         forms = checkbox_normal;
+    } else if (!strcmp(argv[1], "checkbox-checked")) {
+        forms = checkbox_checked;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -99,7 +106,7 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!strcmp(argv[1], "button-normal") || !strcmp(argv[1], "button-explicit-size") ||
-        !strcmp(argv[1], "checkbox-normal")) {
+        (!strcmp(argv[1], "checkbox-normal") || !strcmp(argv[1], "checkbox-checked"))) {
         context.mousex = -1;
         context.mousey = -1;
     }
