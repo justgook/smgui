@@ -185,6 +185,10 @@ int main(int argc, char **argv)
         { .type = UI_DEC_FLOAT, .w = 76, .h = 28, .ptr = &float_magnitude_value },
         { .type = UI_END }
     };
+    ui_form_t float_disabled[] = {
+        { .type = UI_DEC_FLOAT, .flags = UI_DISABLED, .ptr = &float_value },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -274,6 +278,8 @@ int main(int argc, char **argv)
         forms = float_magnitude;
     } else if (!strcmp(argv[1], "float-explicit-size")) {
         forms = float_explicit_size;
+    } else if (!strcmp(argv[1], "float-disabled")) {
+        forms = float_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

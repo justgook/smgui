@@ -65,7 +65,8 @@ BEGIN {
     fixtures[34] = "float-normal"
     fixtures[35] = "float-magnitude"
     fixtures[36] = "float-explicit-size"
-    fixture_count = 37
+    fixtures[37] = "float-disabled"
+    fixture_count = 38
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
