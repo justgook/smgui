@@ -17,6 +17,7 @@ Status:
   [x] Editable UTF-8 text input represented
   [x] Integer and floating-point inputs represented
   [x] Active and disabled select/option controls represented
+  [x] Toggle-driven menu and titled popup represented
   [ ] Remaining built-in controls represented
   [ ] Optional font and widget modules represented
   [ ] Backend can be selected through `BACKEND=<name>`
@@ -52,6 +53,12 @@ main :: proc() {
 		"Target value",
 		"Scale",
 		"Language",
+		"Menu",
+		"Show popup",
+		"Popup settings",
+		"Choose a showcase action",
+		"Compact",
+		"Spacious",
 	}
 
 	shadows_enabled := true
@@ -67,6 +74,28 @@ main :: proc() {
 		fail("initializing player-name buffer", error)
 	}
 	defer smgui.text_buffer_deinit(&player_name)
+	menu_mode := 0
+	menu_children := []smgui.Form {
+		{kind = .Toggle, flags = {.No_Bullet}, label = 17},
+		{
+			kind = .Radio,
+			flags = {.No_Bullet},
+			label = 20,
+			binding = smgui.bind(&menu_mode),
+			value = 0,
+		},
+		{
+			kind = .Radio,
+			flags = {.No_Bullet},
+			label = 21,
+			binding = smgui.bind(&menu_mode),
+			value = 1,
+		},
+	}
+	popup_children := []smgui.Form {
+		{kind = .Label, label = 19},
+		{kind = .Button, label = 6, binding = smgui.bind(&apply_requested)},
+	}
 	active_controls := []smgui.Form {
 		{kind = .Label, label = 2},
 		{kind = .Label, flags = {.No_Break}, label = 15},
@@ -138,6 +167,27 @@ main :: proc() {
 	}
 	forms := []smgui.Form {
 		{
+			kind = .Toggle,
+			flags = {.No_Bullet},
+			x = smgui.absolute(20),
+			y = smgui.absolute(15),
+			label = 16,
+		},
+		{kind = .Menu, flags = {.Hidden}, width = 150, margin = 6, children = menu_children},
+		{
+			kind = .Popup,
+			flags = {.Hidden},
+			horizontal_alignment = .Center,
+			vertical_alignment = .Middle,
+			x = smgui.percent(50),
+			y = smgui.percent(50),
+			width = 280,
+			height = 130,
+			margin = 12,
+			label = 18,
+			children = popup_children,
+		},
+		{
 			kind = .Label,
 			horizontal_alignment = .Center,
 			x = smgui.percent(50),
@@ -170,6 +220,8 @@ main :: proc() {
 			label = 9,
 		},
 	}
+	forms[0].binding = smgui.bind(&forms[1])
+	menu_children[0].binding = smgui.bind(&forms[2])
 
 	backend_state: raylib_backend.State
 	ctx: smgui.Context

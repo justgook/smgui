@@ -19,7 +19,8 @@ Status:
   [x] Select dropdowns and option steppers implemented
   [ ] Remaining drawing primitives implemented
   [x] Relative flow layout and division containers implemented
-  [ ] Popup/menu layout, scrolling, and advanced alignment implemented
+  [x] Popup/menu overlay layout, toggles, and event routing implemented
+  [ ] Scrolling, dragging, resizing, and advanced alignment implemented
   [ ] Remaining widget interaction and event processing implemented
   [ ] Remaining built-in widgets implemented
 
@@ -534,6 +535,7 @@ Context :: struct {
 	font_draw:      Font_Draw_Proc,
 	form:           []Form,
 	menu:           ^Form,
+	menu_anchor:    ^Form,
 	hovered:        ^Form,
 	dragged:        ^Form,
 	resized:        ^Form,
@@ -613,6 +615,7 @@ bind :: proc {
 	bind_integer,
 	bind_float,
 	bind_text,
+	bind_form,
 }
 
 bind_boolean :: proc(value: ^bool) -> Binding {
@@ -629,6 +632,10 @@ bind_float :: proc(value: ^f32) -> Binding {
 
 bind_text :: proc(value: ^Text_Buffer) -> Binding {
 	return {kind = .Text, data = value}
+}
+
+bind_form :: proc(value: ^Form) -> Binding {
+	return {kind = .Forms, data = value}
 }
 
 @(require_results, tag = "reference:ui_fonthook")
@@ -865,7 +872,13 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 	   error != .None {
 		return error
 	}
+	if error := position_open_menu(ctx); error != .None {
+		return error
+	}
 	if error := draw_forms(ctx, form); error != .None {
+		return error
+	}
+	if error := draw_overlay_containers(ctx, form); error != .None {
 		return error
 	}
 	if ctx.popup != nil && ctx.popup.kind == .Select {
@@ -954,7 +967,8 @@ layout_forms :: proc(
 		if measure_error != .None {
 			return 0, 0, measure_error
 		}
-		is_flow := field.x.mode == .Relative && field.y.mode == .Relative
+		is_overlay := field.kind == .Popup || field.kind == .Menu
+		is_flow := field.x.mode == .Relative && field.y.mode == .Relative && !is_overlay
 		field_x, field_y: int
 		if is_flow {
 			field_x = cursor_x + int(field.x.value) + int(field.x.offset)
@@ -991,12 +1005,20 @@ layout_forms :: proc(
 		field.computed_width = field_width
 		field.computed_height = field_height
 
-		if field.kind == .Division {
+		if field.kind == .Division || field.kind == .Popup || field.kind == .Menu {
 			inner_margin := max(field.margin, 1)
+			title_height := 0
+			if field.kind == .Popup && field.label >= 0 && field.label < len(ctx.texts) {
+				_, text_height, _, _, label_error := measure_label(ctx, &field)
+				if label_error != .None {
+					return 0, 0, label_error
+				}
+				title_height = text_height + 8
+			}
 			inner_x := field_x + inner_margin
-			inner_y := field_y + inner_margin
+			inner_y := field_y + inner_margin + title_height
 			inner_width := max(field_width - inner_margin * 2, 0)
-			inner_height := max(field_height - inner_margin * 2, 0)
+			inner_height := max(field_height - inner_margin * 2 - title_height, 0)
 			if _, _, child_error := layout_forms(
 				ctx,
 				field.children,
@@ -1050,6 +1072,17 @@ measure_form :: proc(
 		if height < 1 {
 			height = text_height
 		}
+	case .Toggle:
+		text_width, text_height, _, _, error := measure_label(ctx, field)
+		if error != .None {
+			return 0, 0, error
+		}
+		if height < 1 {
+			height = max(text_height, 12)
+		}
+		if width < 1 {
+			width = text_width + 14
+		}
 	case .Button:
 		text_width, text_height, _, _, error := measure_label(ctx, field)
 		if error != .None {
@@ -1071,6 +1104,9 @@ measure_form :: proc(
 		}
 		if width < 1 {
 			width = text_width + height
+			if .No_Bullet in field.flags {
+				width = text_width + 8
+			}
 		}
 	case .Text_Input:
 		if field.binding.kind != .Text ||
@@ -1186,6 +1222,31 @@ measure_form :: proc(
 		if height < 1 {
 			height = text_height
 		}
+	case .Popup, .Menu:
+		content_width, content_height, content_error := measure_container_content(
+			ctx,
+			field.children,
+			available_width,
+			available_height,
+		)
+		if content_error != .None {
+			return 0, 0, content_error
+		}
+		margin := max(field.margin, 4)
+		title_height := 0
+		if field.kind == .Popup && field.label >= 0 && field.label < len(ctx.texts) {
+			_, text_height, _, _, label_error := measure_label(ctx, field)
+			if label_error != .None {
+				return 0, 0, label_error
+			}
+			title_height = text_height + 8
+		}
+		if width < 1 {
+			width = content_width + margin * 2
+		}
+		if height < 1 {
+			height = content_height + margin * 2 + title_height
+		}
 	case .Division:
 		if width < 1 {
 			width = available_width
@@ -1195,6 +1256,53 @@ measure_form :: proc(
 		}
 	}
 	return max(width, 0), max(height, 0), .None
+}
+
+@(private = "file")
+measure_container_content :: proc(
+	ctx: ^Context,
+	children: []Form,
+	available_width, available_height: int,
+) -> (
+	width, height: int,
+	error: Error,
+) {
+	row_width, row_height := 0, 0
+	gap := 8
+	for &child in children {
+		if child.kind == .End {
+			break
+		}
+		if .Hidden in child.flags {
+			continue
+		}
+		child_width, child_height, child_error := measure_form(
+			ctx,
+			&child,
+			available_width,
+			available_height,
+		)
+		if child_error != .None {
+			return 0, 0, child_error
+		}
+		row_width += child_width
+		row_height = max(row_height, child_height)
+		if .No_Break in child.flags && .Force_Break not_in child.flags {
+			row_width += gap
+		} else {
+			width = max(width, row_width)
+			height += row_height + gap
+			row_width = 0
+			row_height = 0
+		}
+	}
+	if row_width > 0 || row_height > 0 {
+		width = max(width, row_width)
+		height += row_height
+	} else if height > 0 {
+		height -= gap
+	}
+	return width, height, .None
 }
 
 @(private = "file")
@@ -1213,6 +1321,114 @@ measure_label :: proc(
 	}
 	error = ctx.font_bounds(ctx.font, ctx.texts[field.label], &width, &height, &left, &top)
 	return
+}
+
+@(private = "file")
+position_open_menu :: proc(ctx: ^Context) -> Error {
+	if ctx.menu == nil || ctx.menu_anchor == nil || .Hidden in ctx.menu.flags {
+		return .None
+	}
+	menu := ctx.menu
+	menu.computed_x = clamp(
+		ctx.menu_anchor.computed_x,
+		0,
+		max(ctx.screen.width - menu.computed_width, 0),
+	)
+	menu.computed_y = ctx.menu_anchor.computed_y + ctx.menu_anchor.computed_height
+	if menu.computed_y + menu.computed_height > ctx.screen.height {
+		menu.computed_y = max(ctx.menu_anchor.computed_y - menu.computed_height, 0)
+	}
+	margin := max(menu.margin, 1)
+	inner_width := max(menu.computed_width - margin * 2, 0)
+	if _, _, error := layout_forms(
+		ctx,
+		menu.children,
+		menu.computed_x + margin,
+		menu.computed_y + margin,
+		inner_width,
+		max(menu.computed_height - margin * 2, 0),
+		8,
+	); error != .None {
+		return error
+	}
+	for &child in menu.children {
+		if child.kind == .End {
+			break
+		}
+		if child.width < 1 {
+			child.computed_width = inner_width
+		}
+	}
+	return .None
+}
+
+@(private = "file")
+draw_overlay_containers :: proc(ctx: ^Context, forms: []Form) -> Error {
+	for &field in forms {
+		if field.kind == .End {
+			break
+		}
+		if field.kind != .Popup || .Hidden in field.flags {
+			continue
+		}
+		if error := draw_container(ctx, &field); error != .None {
+			return error
+		}
+	}
+	if ctx.menu != nil && .Hidden not_in ctx.menu.flags {
+		if error := draw_container(ctx, ctx.menu); error != .None {
+			return error
+		}
+	}
+	return .None
+}
+
+@(private = "file")
+draw_container :: proc(ctx: ^Context, field: ^Form) -> Error {
+	x, y := field.computed_x, field.computed_y
+	width, height := field.computed_width, field.computed_height
+	background := ctx.theme[int(Theme_Color.Button_Dark_Background)]
+	light := ctx.theme[int(Theme_Color.Button_Light_Shadow)]
+	dark := ctx.theme[int(Theme_Color.Button_Dark_Shadow)]
+	draw_beveled_rectangle(ctx, x, y, width, height, light, background, dark)
+	if field.kind == .Popup && field.label >= 0 && field.label < len(ctx.texts) {
+		_, text_height, _, _, error := measure_label(ctx, field)
+		if error != .None {
+			return error
+		}
+		title_height := text_height + 8
+		fill_rectangle(
+			ctx,
+			x + 2,
+			y + 2,
+			width - 4,
+			title_height - 2,
+			ctx.theme[int(Theme_Color.Title)],
+		)
+		if error = draw_clipped_text(
+			ctx,
+			ctx.texts[field.label],
+			x + 6,
+			y + 2,
+			max(width - title_height - 10, 0),
+			title_height - 2,
+			ctx.theme[int(Theme_Color.Foreground)],
+		); error != .None {
+			return error
+		}
+		if error = draw_symbol(
+			ctx,
+			"x",
+			x + width - title_height,
+			y + 2,
+			title_height - 2,
+			title_height - 2,
+			ctx.theme[int(Theme_Color.Foreground)],
+		); error != .None {
+			return error
+		}
+	}
+	return draw_forms(ctx, field.children)
 }
 
 @(private = "file")
@@ -1237,6 +1453,10 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 				ctx.theme[int(Theme_Color.Input_Dark_Border)],
 			)
 			if error := draw_forms(ctx, field.children); error != .None {
+				return error
+			}
+		case .Toggle:
+			if error := draw_toggle(ctx, &field); error != .None {
 				return error
 			}
 		case .Label:
@@ -1284,6 +1504,62 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 		}
 	}
 	return .None
+}
+
+@(private = "file")
+draw_toggle :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if field.label < 0 || field.label >= len(ctx.texts) || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	foreground := ctx.theme[int(Theme_Color.Foreground)]
+	if .Disabled in field.flags {
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+	} else if .No_Bullet in field.flags && ctx.menu != nil && ctx.hovered == field {
+		fill_rectangle(
+			ctx,
+			field.computed_x,
+			field.computed_y,
+			field.computed_width,
+			field.computed_height,
+			ctx.theme[int(Theme_Color.Highlight_Background)],
+		)
+		foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
+	}
+	open := false
+	if field.binding.kind == .Forms && field.binding.data != nil {
+		target := (^Form)(field.binding.data)
+		open = .Hidden not_in target.flags
+	}
+	symbol := ">"
+	if open {
+		symbol = "v"
+	}
+	if .No_Bullet not_in field.flags {
+		if error := draw_symbol(
+			ctx,
+			symbol,
+			field.computed_x,
+			field.computed_y,
+			12,
+			field.computed_height,
+			foreground,
+		); error != .None {
+			return error
+		}
+	}
+	text_x := field.computed_x
+	if .No_Bullet not_in field.flags {
+		text_x += 14
+	}
+	return draw_clipped_text(
+		ctx,
+		ctx.texts[field.label],
+		text_x,
+		field.computed_y,
+		max(field.computed_width - (text_x - field.computed_x), 0),
+		field.computed_height,
+		foreground,
+	)
 }
 
 @(private = "file")
@@ -1396,14 +1672,30 @@ draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
 	y := field.computed_y
 	disabled := .Disabled in field.flags
 	selected := binding_selected(field)
-	center_x := x + height / 2
-	center_y := y + height / 2
-	if field.kind == .Checkbox {
-		draw_checkbox(ctx, center_x, center_y, selected, disabled)
-	} else {
-		draw_radio(ctx, center_x, center_y, selected, disabled)
+	text_x := x
+	if .No_Bullet not_in field.flags {
+		center_x := x + height / 2
+		center_y := y + height / 2
+		if field.kind == .Checkbox {
+			draw_checkbox(ctx, center_x, center_y, selected, disabled)
+		} else {
+			draw_radio(ctx, center_x, center_y, selected, disabled)
+		}
+		text_x += height
+	} else if ctx.menu != nil && ctx.hovered == field {
+		fill_rectangle(
+			ctx,
+			x,
+			y,
+			field.computed_width,
+			height,
+			ctx.theme[int(Theme_Color.Highlight_Background)],
+		)
 	}
 	foreground := ctx.theme[int(Theme_Color.Foreground)]
+	if .No_Bullet in field.flags && ctx.menu != nil && ctx.hovered == field {
+		foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
+	}
 	if disabled {
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	}
@@ -1412,7 +1704,7 @@ draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
 		text,
 		ctx.screen.pixels,
 		foreground,
-		x + height,
+		text_x,
 		y + (height - text_height) / 2,
 		left,
 		top,
@@ -1996,6 +2288,23 @@ binding_selected :: proc(field: ^Form) -> bool {
 @(private = "file")
 update_hover :: proc(ctx: ^Context, form: []Form) {
 	ctx.hovered = hovered_form_at(form, ctx.mouse_x, ctx.mouse_y)
+	for &field in form {
+		if field.kind == .End {
+			break
+		}
+		if field.kind == .Popup && .Hidden not_in field.flags {
+			if candidate := hovered_container_at(&field, ctx.mouse_x, ctx.mouse_y);
+			   candidate != nil {
+				ctx.hovered = candidate
+			}
+		}
+	}
+	if ctx.menu != nil && .Hidden not_in ctx.menu.flags {
+		if candidate := hovered_container_at(ctx.menu, ctx.mouse_x, ctx.mouse_y);
+		   candidate != nil {
+			ctx.hovered = candidate
+		}
+	}
 }
 
 @(private = "file")
@@ -2005,7 +2314,10 @@ hovered_form_at :: proc(forms: []Form, x, y: int) -> ^Form {
 		if field.kind == .End {
 			break
 		}
-		if .Hidden in field.flags || !point_inside(&field, x, y) {
+		if .Hidden in field.flags ||
+		   field.kind == .Popup ||
+		   field.kind == .Menu ||
+		   !point_inside(&field, x, y) {
 			continue
 		}
 		candidate = &field
@@ -2019,11 +2331,26 @@ hovered_form_at :: proc(forms: []Form, x, y: int) -> ^Form {
 }
 
 @(private = "file")
+hovered_container_at :: proc(container: ^Form, x, y: int) -> ^Form {
+	if container == nil || .Hidden in container.flags || !point_inside(container, x, y) {
+		return nil
+	}
+	if child := hovered_form_at(container.children, x, y); child != nil {
+		return child
+	}
+	return container
+}
+
+@(private = "file")
 process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 	if ctx.popup != nil && ctx.popup.kind == .Select {
 		return process_select_popup_event(ctx, event)
 	}
 	if event.kind == .Key {
+		if key_text(&event.key) == "Escape" && ctx.menu != nil {
+			close_menu(ctx)
+			return .None
+		}
 		if ctx.text_field != nil {
 			return process_text_key(ctx, event)
 		}
@@ -2031,6 +2358,29 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 	}
 	if event.kind != .Mouse {
 		return .None
+	}
+	if .Mouse_Left in event.buttons {
+		if ctx.menu != nil && !point_inside(ctx.menu, event.x, event.y) {
+			close_menu(ctx)
+			return .None
+		}
+		for &field in form {
+			if field.kind == .End {
+				break
+			}
+			if field.kind == .Popup &&
+			   .Hidden not_in field.flags &&
+			   field.label >= 0 &&
+			   field.label < len(ctx.texts) &&
+			   event.x >= field.computed_x + field.computed_width - 24 &&
+			   event.x < field.computed_x + field.computed_width &&
+			   event.y >= field.computed_y &&
+			   event.y < field.computed_y + 24 {
+				field.flags += {.Hidden}
+				ctx.flags += {.Refresh}
+				return .None
+			}
+		}
 	}
 	update_hover(ctx, form)
 	if ctx.horizontal_bar != nil {
@@ -2049,7 +2399,13 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		if ctx.hovered.kind != .Text_Input && !is_numeric_input_kind(ctx.hovered.kind) {
 			deactivate_text_input(ctx, true)
 		}
+		clicked_menu_item :=
+			ctx.menu != nil &&
+			ctx.hovered != ctx.menu &&
+			form_contains(ctx.menu.children, ctx.hovered)
 		#partial switch ctx.hovered.kind {
+		case .Toggle:
+			toggle_bound_container(ctx, ctx.hovered)
 		case .Button:
 			ctx.pressed = ctx.hovered
 		case .Checkbox:
@@ -2085,6 +2441,9 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			}
 		case:
 		}
+		if clicked_menu_item {
+			close_menu(ctx)
+		}
 		ctx.flags += {.Refresh}
 	} else if .Released in event.buttons {
 		if ctx.pressed != nil && ctx.pressed == ctx.hovered && ctx.pressed.kind == .Button {
@@ -2094,6 +2453,64 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.flags += {.Refresh}
 	}
 	return .None
+}
+
+@(private = "file")
+toggle_bound_container :: proc(ctx: ^Context, trigger: ^Form) {
+	if trigger.binding.kind != .Forms || trigger.binding.data == nil {
+		return
+	}
+	target := (^Form)(trigger.binding.data)
+	if target.kind != .Popup && target.kind != .Menu && target.kind != .Division {
+		return
+	}
+	if target.kind == .Menu {
+		if ctx.menu == target && .Hidden not_in target.flags {
+			close_menu(ctx)
+			return
+		}
+		close_menu(ctx)
+		target.flags -= {.Hidden}
+		ctx.menu = target
+		ctx.menu_anchor = trigger
+		return
+	}
+	if .Hidden in target.flags {
+		target.flags -= {.Hidden}
+	} else {
+		target.flags += {.Hidden}
+	}
+	if target.kind == .Division {
+		ctx.flags += {.Recalculate}
+	}
+}
+
+@(private = "file")
+close_menu :: proc(ctx: ^Context) {
+	if ctx.menu != nil {
+		ctx.menu.flags += {.Hidden}
+	}
+	ctx.menu = nil
+	ctx.menu_anchor = nil
+}
+
+@(private = "file")
+form_contains :: proc(forms: []Form, target: ^Form) -> bool {
+	if target == nil {
+		return false
+	}
+	for &field in forms {
+		if field.kind == .End {
+			break
+		}
+		if &field == target {
+			return true
+		}
+		if len(field.children) > 0 && form_contains(field.children, target) {
+			return true
+		}
+	}
+	return false
 }
 
 @(private = "file")

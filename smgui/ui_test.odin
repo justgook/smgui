@@ -381,6 +381,97 @@ select_and_option_controls_choose_bound_values :: proc(t: ^testing.T) {
 	testing.expect_value(t, selected, 1)
 }
 
+@(test)
+menu_toggle_opens_and_popup_closes_from_title :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test", "Menu", "Show popup", "Popup", "First", "Second"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 240, 180); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+	}
+
+	choice := 0
+	popup_children := []Form{{kind = .Label, label = 2}}
+	menu_children := []Form {
+		{kind = .Toggle, flags = {.No_Bullet}, label = 2},
+		{kind = .Radio, flags = {.No_Bullet}, label = 4, binding = bind(&choice), value = 1},
+		{kind = .Radio, flags = {.No_Bullet}, label = 5, binding = bind(&choice), value = 2},
+	}
+	forms := []Form {
+		{kind = .Toggle, flags = {.No_Bullet}, x = absolute(10), y = absolute(10), label = 1},
+		{kind = .Menu, flags = {.Hidden}, width = 120, margin = 4, children = menu_children},
+		{
+			kind = .Popup,
+			flags = {.Hidden},
+			x = absolute(50),
+			y = absolute(40),
+			width = 140,
+			height = 90,
+			margin = 8,
+			label = 3,
+			children = popup_children,
+		},
+	}
+	forms[0].binding = bind(&forms[1])
+	menu_children[0].binding = bind(&forms[2])
+	poll_for_test(t, &ctx, forms)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 20, 15, {.Mouse_Left})
+	testing.expect(t, .Hidden not_in forms[1].flags)
+	testing.expect(t, ctx.menu == &forms[1])
+	poll_for_test(t, &ctx, forms)
+	send_mouse_for_test(
+		t,
+		&ctx,
+		&backend_state,
+		forms,
+		menu_children[0].computed_x + 5,
+		menu_children[0].computed_y + 5,
+		{.Mouse_Left},
+	)
+	testing.expect(t, .Hidden not_in forms[2].flags)
+	testing.expect(t, .Hidden in forms[1].flags)
+
+	poll_for_test(t, &ctx, forms)
+	send_mouse_for_test(
+		t,
+		&ctx,
+		&backend_state,
+		forms,
+		forms[2].computed_x + forms[2].computed_width - 8,
+		forms[2].computed_y + 8,
+		{.Mouse_Left},
+	)
+	testing.expect(t, .Hidden in forms[2].flags)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 20, 15, {.Mouse_Left})
+	poll_for_test(t, &ctx, forms)
+	send_mouse_for_test(
+		t,
+		&ctx,
+		&backend_state,
+		forms,
+		menu_children[1].computed_x + 5,
+		menu_children[1].computed_y + 5,
+		{.Mouse_Left},
+	)
+	testing.expect_value(t, choice, 1)
+	testing.expect(t, ctx.menu == nil)
+}
+
 @(private = "file")
 poll_for_test :: proc(t: ^testing.T, ctx: ^Context, forms: []Form) {
 	_, state, error := poll_event(ctx, forms)
