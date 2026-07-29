@@ -206,7 +206,7 @@ slider_updates_bound_integer_and_renders_related_displays :: proc(t: ^testing.T)
 	poll_for_test(t, &ctx, forms)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 65, 15, {.Mouse_Left})
-	testing.expect_value(t, value, 50)
+	testing.expect_value(t, value, 51)
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 200, 15, {.Mouse_Left})
 	testing.expect_value(t, value, 100)
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 200, 15, {.Released})

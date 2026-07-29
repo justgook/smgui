@@ -112,6 +112,10 @@ int main(int argc, char **argv)
         { .type = UI_SLIDER, .w = 58, .h = 20, .ptr = &slider_interaction_value, .min = 0, .max = 100 },
         { .type = UI_END }
     };
+    ui_form_t slider_disabled[] = {
+        { .type = UI_SLIDER, .flags = UI_DISABLED, .w = 58, .h = 20, .ptr = &slider_midpoint_value, .min = 0, .max = 100 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -169,6 +173,8 @@ int main(int argc, char **argv)
         forms = slider_maximum;
     } else if (!strcmp(argv[1], "slider-interaction")) {
         forms = slider_interaction;
+    } else if (!strcmp(argv[1], "slider-disabled")) {
+        forms = slider_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

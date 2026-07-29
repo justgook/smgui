@@ -109,6 +109,17 @@ main :: proc() {
 			maximum = 100,
 		},
 	}
+	slider_disabled := []smgui.Form {
+		{
+			kind = .Slider,
+			flags = {.Disabled},
+			width = 58,
+			height = 20,
+			binding = smgui.bind(&slider_midpoint_value),
+			minimum = 0,
+			maximum = 100,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -153,6 +164,8 @@ main :: proc() {
 		forms = slider_maximum
 	case "slider-interaction":
 		forms = slider_interaction
+	case "slider-disabled":
+		forms = slider_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
