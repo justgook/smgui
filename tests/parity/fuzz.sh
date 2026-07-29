@@ -51,7 +51,8 @@ BEGIN {
     fixtures[20] = "slider-interaction"
     fixtures[21] = "slider-disabled"
     fixtures[22] = "progress-minimum"
-    fixture_count = 23
+    fixtures[23] = "progress-midpoint"
+    fixture_count = 24
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

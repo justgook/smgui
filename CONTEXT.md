@@ -122,7 +122,8 @@ only their module and must agree with this list.
 - [x] Pass the scripted slider-interaction fixture and bound-value mutation.
 - [x] Pass the slider-disabled fixture.
 - [x] Pass the progress-minimum fixture.
-- [ ] Pass progress midpoint, maximum, and disabled fixtures.
+- [x] Pass the progress-midpoint fixture.
+- [ ] Pass progress maximum and disabled fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.
