@@ -1112,18 +1112,20 @@ measure_form :: proc(
 		   ctx.font_bounds == nil {
 			return 0, 0, .Invalid_Input
 		}
+		buffer := (^Text_Buffer)(field.binding.data)
+		text := text_buffer_string(buffer)
 		text_width, text_height, left, top: int
-		if bounds_error := ctx.font_bounds(ctx.font, "Ag", &text_width, &text_height, &left, &top);
+		if bounds_error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
 		   bounds_error != .None {
 			return 0, 0, bounds_error
 		}
 		field.left = left
 		field.top = top
 		if width < 1 {
-			width = min(max(available_width, 120), 240)
+			width = text_width
 		}
 		if height < 1 {
-			height = text_height + 8
+			height = text_height + 4
 		}
 	case .Select, .Option:
 		if field.binding.kind != .Integer ||
@@ -1819,7 +1821,7 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		dark = foreground
 		light = foreground
 	}
-	draw_beveled_rectangle(
+	draw_outline_rectangle(
 		ctx,
 		field.computed_x,
 		field.computed_y,
@@ -1829,22 +1831,29 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		background,
 		light,
 	)
+	fill_rectangle(
+		ctx,
+		field.computed_x + 1,
+		field.computed_y + 1,
+		field.computed_width - 2,
+		field.computed_height - 2,
+		background,
+	)
 	text := text_buffer_string(buffer)
-	text_height := max(field.computed_height - 8, 1)
 	if error := ctx.font_draw(
 		ctx.font,
 		text,
 		ctx.screen.pixels,
 		foreground,
-		field.computed_x + 4,
-		field.computed_y + (field.computed_height - text_height) / 2,
+		field.computed_x + 3 - field.left,
+		field.computed_y + 2,
 		field.left,
 		field.top,
 		ctx.screen.pitch,
-		field.computed_x + 2,
-		field.computed_y + 1,
-		field.computed_x + field.computed_width - 2,
-		field.computed_y + field.computed_height - 1,
+		field.computed_x + 3,
+		field.computed_y + 2,
+		field.computed_x + field.computed_width - 3,
+		field.computed_y + field.computed_height - 2,
 	); error != .None {
 		return error
 	}

@@ -210,6 +210,15 @@ main :: proc() {
 	float_disabled := []smgui.Form {
 		{kind = .Decimal_Float, flags = {.Disabled}, binding = smgui.bind(&float_value)},
 	}
+	text_input_value: smgui.Text_Buffer
+	if error := smgui.text_buffer_init(&text_input_value, "Hello", 15); error != .None {
+		fmt.eprintln("failed to initialize text input buffer")
+		os.exit(1)
+	}
+	defer smgui.text_buffer_deinit(&text_input_value)
+	text_input_normal := []smgui.Form {
+		{kind = .Text_Input, binding = smgui.bind_text(&text_input_value)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -288,6 +297,8 @@ main :: proc() {
 		forms = float_explicit_size
 	case "float-disabled":
 		forms = float_disabled
+	case "text-input-normal":
+		forms = text_input_normal
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
