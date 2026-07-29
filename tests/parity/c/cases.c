@@ -65,6 +65,10 @@ int main(int argc, char **argv)
         { .type = UI_CHECK, .label = CHECKBOX_TEXT, .ptr = &pressed_value },
         { .type = UI_END }
     };
+    ui_form_t checkbox_disabled[] = {
+        { .type = UI_CHECK, .flags = UI_DISABLED, .label = CHECKBOX_TEXT, .ptr = &checked },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -102,6 +106,8 @@ int main(int argc, char **argv)
         forms = checkbox_hover;
     } else if (!strcmp(argv[1], "checkbox-pressed")) {
         forms = checkbox_pressed;
+    } else if (!strcmp(argv[1], "checkbox-disabled")) {
+        forms = checkbox_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

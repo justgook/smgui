@@ -38,6 +38,9 @@ main :: proc() {
 	checkbox_pressed := []smgui.Form {
 		{kind = .Checkbox, label = 4, binding = smgui.bind(&pressed_value)},
 	}
+	checkbox_disabled := []smgui.Form {
+		{kind = .Checkbox, flags = {.Disabled}, label = 4, binding = smgui.bind(&checked)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -62,6 +65,8 @@ main :: proc() {
 		forms = checkbox_hover
 	case "checkbox-pressed":
 		forms = checkbox_pressed
+	case "checkbox-disabled":
+		forms = checkbox_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)

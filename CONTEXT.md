@@ -110,7 +110,7 @@ only their module and must agree with this list.
 - [x] Pass the checked checkbox fixture.
 - [x] Pass the scripted checkbox-hover fixture.
 - [x] Pass the scripted checkbox-pressed fixture and bound-value mutation.
-- [ ] Pass the checkbox-disabled fixture.
+- [x] Pass the checkbox-disabled fixture.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

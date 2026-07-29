@@ -2245,7 +2245,7 @@ draw_checkbox :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
 	}
 	draw_outline_rectangle(ctx, x - 5, y - 5, 9, 9, border_dark, background, border_light)
 	fill_rectangle(ctx, x - 4, y - 4, 7, 7, background)
-	if checked {
+	if checked || disabled {
 		for offset in 0 ..< 5 {
 			set_pixel(ctx, x - 3 + offset, y - 3 + offset, foreground)
 			set_pixel(ctx, x + 1 - offset, y - 3 + offset, foreground)
