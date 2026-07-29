@@ -45,6 +45,10 @@ main :: proc() {
 	radio_normal := []smgui.Form {
 		{kind = .Radio, label = 5, binding = smgui.bind(&radio_value), value = 1},
 	}
+	selected_radio_value := 1
+	radio_selected := []smgui.Form {
+		{kind = .Radio, label = 5, binding = smgui.bind(&selected_radio_value), value = 1},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -73,6 +77,8 @@ main :: proc() {
 		forms = checkbox_disabled
 	case "radio-normal":
 		forms = radio_normal
+	case "radio-selected":
+		forms = radio_selected
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -119,7 +125,8 @@ main :: proc() {
 	   os.args[1] == "button-explicit-size" ||
 	   os.args[1] == "checkbox-normal" ||
 	   os.args[1] == "checkbox-checked" ||
-	   os.args[1] == "radio-normal" {
+	   os.args[1] == "radio-normal" ||
+	   os.args[1] == "radio-selected" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
