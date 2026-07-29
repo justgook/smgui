@@ -1641,12 +1641,33 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 		dark_background := ctx.theme[int(Theme_Color.Button_Dark_Background)]
 		if pressed {
 			draw_outline_rectangle(ctx, x, y, width, height, dark, dark_background, light)
-			fill_rectangle(ctx, x + 1, y + 1, width - 2, height - height * 5 / 8 - 1, dark_background)
-			fill_rectangle(ctx, x + 1, y + height - height * 5 / 8 - 1, width - 2, height * 5 / 8, light_background)
+			fill_rectangle(
+				ctx,
+				x + 1,
+				y + 1,
+				width - 2,
+				height - height * 5 / 8 - 1,
+				dark_background,
+			)
+			fill_rectangle(
+				ctx,
+				x + 1,
+				y + height - height * 5 / 8 - 1,
+				width - 2,
+				height * 5 / 8,
+				light_background,
+			)
 		} else {
 			draw_outline_rectangle(ctx, x, y, width, height, light, light_background, dark)
 			fill_rectangle(ctx, x + 1, y + 1, width - 2, height * 5 / 8, light_background)
-			fill_rectangle(ctx, x + 1, y + height * 5 / 8, width - 2, height - height * 5 / 8 - 1, dark_background)
+			fill_rectangle(
+				ctx,
+				x + 1,
+				y + height * 5 / 8,
+				width - 2,
+				height - height * 5 / 8 - 1,
+				dark_background,
+			)
 		}
 	}
 	text_x := x + (width - text_width) / 2
@@ -1661,10 +1682,38 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 			dark_shadow = ctx.theme[int(Theme_Color.Button_Selected_Dark_Shadow)]
 			light_shadow = ctx.theme[int(Theme_Color.Button_Selected_Light_Shadow)]
 		}
-		if error := ctx.font_draw(ctx.font, text, ctx.screen.pixels, dark_shadow, text_x - 1 - left, text_y - 1, left, top, ctx.screen.pitch, 1, 1, ctx.screen.width - 1, ctx.screen.height - 1); error != .None {
+		if error := ctx.font_draw(
+			ctx.font,
+			text,
+			ctx.screen.pixels,
+			dark_shadow,
+			text_x - 1 - left,
+			text_y - 1,
+			left,
+			top,
+			ctx.screen.pitch,
+			1,
+			1,
+			ctx.screen.width - 1,
+			ctx.screen.height - 1,
+		); error != .None {
 			return error
 		}
-		if error := ctx.font_draw(ctx.font, text, ctx.screen.pixels, light_shadow, text_x + 1 - left, text_y + 1, left, top, ctx.screen.pitch, 1, 1, ctx.screen.width - 1, ctx.screen.height - 1); error != .None {
+		if error := ctx.font_draw(
+			ctx.font,
+			text,
+			ctx.screen.pixels,
+			light_shadow,
+			text_x + 1 - left,
+			text_y + 1,
+			left,
+			top,
+			ctx.screen.pitch,
+			1,
+			1,
+			ctx.screen.width - 1,
+			ctx.screen.height - 1,
+		); error != .None {
 			return error
 		}
 	}
@@ -1674,7 +1723,21 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else if hovered {
 		foreground = ctx.theme[int(Theme_Color.Button_Selected_Foreground)]
 	}
-	return ctx.font_draw(ctx.font, text, ctx.screen.pixels, foreground, text_x - left, text_y, left, top, ctx.screen.pitch, 1, 1, ctx.screen.width - 1, ctx.screen.height - 1)
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		foreground,
+		text_x - left,
+		text_y,
+		left,
+		top,
+		ctx.screen.pitch,
+		1,
+		1,
+		ctx.screen.width - 1,
+		ctx.screen.height - 1,
+	)
 }
 
 @(private = "file")
@@ -2169,14 +2232,22 @@ draw_progress_bar :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else {
 		fill_rectangle(ctx, x, y, filled, height, progress_background)
 	}
-	fill_rectangle(ctx, x + filled, y, width - filled, height, ctx.theme[int(Theme_Color.Input_Background)])
+	fill_rectangle(
+		ctx,
+		x + filled,
+		y,
+		width - filled,
+		height,
+		ctx.theme[int(Theme_Color.Input_Background)],
+	)
 	permille := (value - minimum) * 1000 / (maximum - minimum)
 	text := fmt.tprintf("%d.%d%%", permille / 10, permille % 10)
 	text_width, text_height, left, top: int
-	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top); error != .None {
+	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+	   error != .None {
 		return error
 	}
-	return ctx.font_draw(
+	error := ctx.font_draw(
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -2188,9 +2259,10 @@ draw_progress_bar :: proc(ctx: ^Context, field: ^Form) -> Error {
 		ctx.screen.pitch,
 		x + 1,
 		y + 1,
-		x + width - 2,
-		y + height - 2,
+		min(x + width - 2, ctx.screen.width),
+		min(y + height - 2, ctx.screen.height),
 	)
+	return error
 }
 
 @(private = "file")

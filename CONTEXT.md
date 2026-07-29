@@ -124,7 +124,7 @@ only their module and must agree with this list.
 - [x] Pass the progress-minimum fixture.
 - [x] Pass the progress-midpoint fixture.
 - [x] Pass the progress-maximum fixture.
-- [ ] Pass the progress-disabled fixture.
+- [x] Pass the progress-disabled fixture.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

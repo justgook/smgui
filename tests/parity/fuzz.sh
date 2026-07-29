@@ -53,7 +53,8 @@ BEGIN {
     fixtures[22] = "progress-minimum"
     fixtures[23] = "progress-midpoint"
     fixtures[24] = "progress-maximum"
-    fixture_count = 25
+    fixtures[25] = "progress-disabled"
+    fixture_count = 26
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

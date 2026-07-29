@@ -131,6 +131,10 @@ int main(int argc, char **argv)
         { .type = UI_PBAR, .w = 58, .h = 20, .ptr = &progress_maximum_value, .min = 0, .max = 100 },
         { .type = UI_END }
     };
+    ui_form_t progress_disabled[] = {
+        { .type = UI_PBAR, .flags = UI_DISABLED, .w = 58, .h = 20, .ptr = &progress_midpoint_value, .min = 0, .max = 100 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -196,6 +200,8 @@ int main(int argc, char **argv)
         forms = progress_midpoint;
     } else if (!strcmp(argv[1], "progress-maximum")) {
         forms = progress_maximum;
+    } else if (!strcmp(argv[1], "progress-disabled")) {
+        forms = progress_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
