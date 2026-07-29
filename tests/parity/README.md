@@ -26,7 +26,7 @@ cases are `empty`, `label-normal`, `button-normal`, and
 `radio-pressed`, `radio-disabled`, `slider-minimum`, `slider-midpoint`, and
 `slider-maximum`, `slider-interaction`, `slider-disabled`, `progress-minimum`, `progress-midpoint`, and
 `progress-maximum`, `progress-disabled`, `decimal-normal`, `decimal-negative`, and
-`decimal-explicit-size`, `decimal-disabled`, and `hex-normal`.
+`decimal-explicit-size`, `decimal-disabled`, `hex-normal`, and `hex-zero`.
 
 ## Widget smoke fixture
 
@@ -60,8 +60,7 @@ from 32–256 by 24–192 across the completed `empty`, `label-normal`,
 `checkbox-pressed`, `checkbox-disabled`, `radio-normal`, `radio-selected`, and
 `radio-hover`, `radio-pressed`, `radio-disabled`, `slider-minimum`, and
 `slider-midpoint`, `slider-maximum`, `slider-interaction`, and `slider-disabled`, `progress-minimum`, `progress-midpoint`, and
-`progress-maximum`, `progress-disabled`, `decimal-normal`, and `decimal-negative`, `decimal-explicit-size`, `decimal-disabled`, and `hex-normal`
-fixtures.
+`progress-maximum`, `progress-disabled`, `decimal-normal`, and `decimal-negative`, `decimal-explicit-size`, `decimal-disabled`, `hex-normal`, and `hex-zero` fixtures.
 Form kinds and states enter the pool only after their small fixtures pass.
 
 A discovered mismatch is replayed, minimized, and promoted to a named

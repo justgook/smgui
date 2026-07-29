@@ -59,7 +59,8 @@ BEGIN {
     fixtures[28] = "decimal-explicit-size"
     fixtures[29] = "decimal-disabled"
     fixtures[30] = "hex-normal"
-    fixture_count = 31
+    fixtures[31] = "hex-zero"
+    fixture_count = 32
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

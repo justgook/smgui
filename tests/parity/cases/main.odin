@@ -178,6 +178,10 @@ main :: proc() {
 	}
 	hexadecimal_value := 0x2a
 	hex_normal := []smgui.Form{{kind = .Hexadecimal_64, binding = smgui.bind(&hexadecimal_value)}}
+	hexadecimal_zero_value := 0
+	hex_zero := []smgui.Form {
+		{kind = .Hexadecimal_64, binding = smgui.bind(&hexadecimal_zero_value)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -242,6 +246,8 @@ main :: proc() {
 		forms = decimal_disabled
 	case "hex-normal":
 		forms = hex_normal
+	case "hex-zero":
+		forms = hex_zero
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
