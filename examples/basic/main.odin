@@ -16,6 +16,7 @@ Status:
   [x] Integer display, slider, and progress bar represented
   [x] Editable UTF-8 text input represented
   [x] Integer and floating-point inputs represented
+  [x] Active and disabled select/option controls represented
   [ ] Remaining built-in controls represented
   [ ] Optional font and widget modules represented
   [ ] Backend can be selected through `BACKEND=<name>`
@@ -50,6 +51,7 @@ main :: proc() {
 		"Player name",
 		"Target value",
 		"Scale",
+		"Language",
 	}
 
 	shadows_enabled := true
@@ -57,6 +59,8 @@ main :: proc() {
 	volume := 42
 	target_value := 26
 	scale: f32 = 3.141
+	language := 0
+	languages := []string{"Odin", "C", "Assembly"}
 	apply_requested := false
 	player_name: smgui.Text_Buffer
 	if error := smgui.text_buffer_init(&player_name, "Player One", 32); error != .None {
@@ -65,6 +69,15 @@ main :: proc() {
 	defer smgui.text_buffer_deinit(&player_name)
 	active_controls := []smgui.Form {
 		{kind = .Label, label = 2},
+		{kind = .Label, flags = {.No_Break}, label = 15},
+		{
+			kind = .Select,
+			flags = {.No_Break},
+			width = 120,
+			binding = smgui.bind(&language),
+			options = languages,
+		},
+		{kind = .Option, width = 140, binding = smgui.bind(&language), options = languages},
 		{kind = .Checkbox, label = 3, binding = smgui.bind(&shadows_enabled)},
 		{
 			kind = .Radio,
@@ -108,6 +121,20 @@ main :: proc() {
 			binding = smgui.bind(&shadows_enabled),
 		},
 		{kind = .Button, flags = {.Disabled}, label = 6},
+		{
+			kind = .Select,
+			flags = {.Disabled, .No_Break},
+			width = 120,
+			binding = smgui.bind(&language),
+			options = languages,
+		},
+		{
+			kind = .Option,
+			flags = {.Disabled},
+			width = 140,
+			binding = smgui.bind(&language),
+			options = languages,
+		},
 	}
 	forms := []smgui.Form {
 		{
@@ -131,7 +158,7 @@ main :: proc() {
 			x = smgui.absolute(50),
 			y = smgui.absolute(445),
 			width = 620,
-			height = 110,
+			height = 130,
 			margin = 16,
 			children = inactive_controls,
 		},
@@ -174,13 +201,14 @@ main :: proc() {
 		}
 		if apply_requested {
 			fmt.printf(
-				"Applied settings: shadows=%v difficulty=%d volume=%d player=%s target=%d scale=%g\n",
+				"Applied settings: shadows=%v difficulty=%d volume=%d player=%s target=%d scale=%g language=%s\n",
 				shadows_enabled,
 				difficulty,
 				volume,
 				smgui.text_buffer_string(&player_name),
 				target_value,
 				scale,
+				languages[language],
 			)
 			apply_requested = false
 			if refresh_error := smgui.refresh(&ctx); refresh_error != .None {

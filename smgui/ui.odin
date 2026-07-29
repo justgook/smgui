@@ -16,6 +16,7 @@ Status:
   [x] Integer/float displays, sliders, and progress bars render
   [x] UTF-8 text input, cursor editing, and input filters implemented
   [x] Integer and floating-point text/stepper inputs implemented
+  [x] Select dropdowns and option steppers implemented
   [ ] Remaining drawing primitives implemented
   [x] Relative flow layout and division containers implemented
   [ ] Popup/menu layout, scrolling, and advanced alignment implemented
@@ -867,6 +868,11 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 	if error := draw_forms(ctx, form); error != .None {
 		return error
 	}
+	if ctx.popup != nil && ctx.popup.kind == .Select {
+		if error := draw_select_popup(ctx, ctx.popup); error != .None {
+			return error
+		}
+	}
 	ctx.flags -= {.Refresh, .Recalculate}
 	return .None
 }
@@ -1086,6 +1092,44 @@ measure_form :: proc(
 		if height < 1 {
 			height = text_height + 8
 		}
+	case .Select, .Option:
+		if field.binding.kind != .Integer ||
+		   field.binding.data == nil ||
+		   len(field.options) == 0 ||
+		   ctx.font == nil ||
+		   ctx.font_bounds == nil {
+			return 0, 0, .Invalid_Input
+		}
+		text_width, text_height, left, top := 0, 0, 0, 0
+		for option in field.options {
+			option_width, option_height, option_left, option_top: int
+			if bounds_error := ctx.font_bounds(
+				ctx.font,
+				option,
+				&option_width,
+				&option_height,
+				&option_left,
+				&option_top,
+			); bounds_error != .None {
+				return 0, 0, bounds_error
+			}
+			text_width = max(text_width, option_width)
+			text_height = max(text_height, option_height)
+			left = max(left, option_left)
+			top = max(top, option_top)
+		}
+		field.left = left
+		field.top = top
+		if height < 1 {
+			height = text_height + 8
+		}
+		if width < 1 {
+			button_count := 1
+			if field.kind == .Option {
+				button_count = 2
+			}
+			width = text_width + height * button_count + 8
+		}
 	case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
 		if field.binding.data == nil || ctx.font == nil || ctx.font_bounds == nil {
 			return 0, 0, .Invalid_Input
@@ -1209,6 +1253,10 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			}
 		case .Text_Input:
 			if error := draw_text_input(ctx, &field); error != .None {
+				return error
+			}
+		case .Select, .Option:
+			if error := draw_choice_input(ctx, &field); error != .None {
 				return error
 			}
 		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
@@ -1446,6 +1494,141 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		)
 	}
 	return .None
+}
+
+@(private = "file")
+draw_choice_input :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if ctx.font == nil ||
+	   ctx.font_bounds == nil ||
+	   ctx.font_draw == nil ||
+	   field.binding.kind != .Integer ||
+	   field.binding.data == nil ||
+	   len(field.options) == 0 {
+		return .Invalid_Input
+	}
+	selected := clamp(((^int)(field.binding.data))^, 0, len(field.options) - 1)
+	x := field.computed_x
+	y := field.computed_y
+	width := field.computed_width
+	height := field.computed_height
+	disabled := .Disabled in field.flags
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	if disabled {
+		background = ctx.theme[int(Theme_Color.Disabled_Background)]
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		dark = foreground
+		light = foreground
+	}
+	draw_beveled_rectangle(ctx, x, y, width, height, dark, background, light)
+	text_x := x + 4
+	text_width := width - height - 8
+	if field.kind == .Option {
+		draw_beveled_rectangle(ctx, x, y, height, height, light, background, dark)
+		if error := draw_symbol(ctx, "<", x, y, height, height, foreground); error != .None {
+			return error
+		}
+		text_x = x + height + 4
+		text_width = width - height * 2 - 8
+	}
+	button_x := x + width - height
+	draw_beveled_rectangle(ctx, button_x, y, height, height, light, background, dark)
+	symbol := "v"
+	if field.kind == .Option {
+		symbol = ">"
+	}
+	if error := draw_symbol(ctx, symbol, button_x, y, height, height, foreground); error != .None {
+		return error
+	}
+	return draw_clipped_text(
+		ctx,
+		field.options[selected],
+		text_x,
+		y,
+		text_width,
+		height,
+		foreground,
+	)
+}
+
+@(private = "file")
+draw_select_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
+	x, y, width, row_height := select_popup_geometry(ctx, field)
+	for option, index in field.options {
+		row_y := y + index * row_height
+		selected := index == field.selected_option
+		hovered :=
+			ctx.mouse_x >= x &&
+			ctx.mouse_x < x + width &&
+			ctx.mouse_y >= row_y &&
+			ctx.mouse_y < row_y + row_height
+		background := ctx.theme[int(Theme_Color.Input_Background)]
+		foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+		border := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+		if selected || hovered {
+			background = ctx.theme[int(Theme_Color.Highlight_Background)]
+			foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
+			border = ctx.theme[int(Theme_Color.Input_Selected_Border)]
+		}
+		fill_rectangle(ctx, x, row_y, width, row_height, border)
+		fill_rectangle(ctx, x + 1, row_y + 1, width - 2, row_height - 2, background)
+		if error := draw_clipped_text(
+			ctx,
+			option,
+			x + 4,
+			row_y,
+			width - 8,
+			row_height,
+			foreground,
+		); error != .None {
+			return error
+		}
+	}
+	return .None
+}
+
+@(private = "file")
+draw_clipped_text :: proc(
+	ctx: ^Context,
+	text: string,
+	x, y, width, height: int,
+	color: u32,
+) -> Error {
+	text_width, text_height, left, top: int
+	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+	   error != .None {
+		return error
+	}
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		color,
+		x,
+		y + (height - text_height) / 2,
+		left,
+		top,
+		ctx.screen.pitch,
+		x,
+		y,
+		x + width,
+		y + height,
+	)
+}
+
+@(private = "file")
+select_popup_geometry :: proc(ctx: ^Context, field: ^Form) -> (x, y, width, row_height: int) {
+	x = field.computed_x
+	width = field.computed_width
+	row_height = field.computed_height
+	height := row_height * len(field.options)
+	y = field.computed_y + row_height
+	if y + height > ctx.screen.height {
+		y = max(field.computed_y - height, 0)
+	}
+	return
 }
 
 @(private = "file")
@@ -1837,6 +2020,9 @@ hovered_form_at :: proc(forms: []Form, x, y: int) -> ^Form {
 
 @(private = "file")
 process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
+	if ctx.popup != nil && ctx.popup.kind == .Select {
+		return process_select_popup_event(ctx, event)
+	}
 	if event.kind == .Key {
 		if ctx.text_field != nil {
 			return process_text_key(ctx, event)
@@ -1875,6 +2061,17 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			update_slider(ctx.hovered, event.x)
 		case .Text_Input:
 			activate_text_input(ctx, ctx.hovered)
+		case .Select:
+			deactivate_text_input(ctx, true)
+			open_select_popup(ctx, ctx.hovered)
+		case .Option:
+			deactivate_text_input(ctx, true)
+			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
+				step_choice_input(ctx.hovered, -1)
+			} else if event.x >=
+			   ctx.hovered.computed_x + ctx.hovered.computed_width - ctx.hovered.computed_height {
+				step_choice_input(ctx.hovered, 1)
+			}
 		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
 			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
 				deactivate_text_input(ctx, true)
@@ -1897,6 +2094,62 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.flags += {.Refresh}
 	}
 	return .None
+}
+
+@(private = "file")
+open_select_popup :: proc(ctx: ^Context, field: ^Form) {
+	if field.binding.kind != .Integer || field.binding.data == nil || len(field.options) == 0 {
+		return
+	}
+	field.selected_option = clamp(((^int)(field.binding.data))^, 0, len(field.options) - 1)
+	ctx.popup = field
+}
+
+@(private = "file")
+process_select_popup_event :: proc(ctx: ^Context, event: ^Event) -> Error {
+	field := ctx.popup
+	if field == nil || field.kind != .Select {
+		ctx.popup = nil
+		return .None
+	}
+	if event.kind == .Key {
+		switch key_text(&event.key) {
+		case "Up":
+			field.selected_option = max(field.selected_option - 1, 0)
+		case "Down":
+			field.selected_option = min(field.selected_option + 1, len(field.options) - 1)
+		case "Enter":
+			((^int)(field.binding.data))^ = field.selected_option
+			ctx.popup = nil
+		case "Escape":
+			ctx.popup = nil
+		case:
+		}
+		return .None
+	}
+	if event.kind != .Mouse || .Mouse_Left not_in event.buttons {
+		return .None
+	}
+	x, y, width, row_height := select_popup_geometry(ctx, field)
+	if event.x >= x &&
+	   event.x < x + width &&
+	   event.y >= y &&
+	   event.y < y + row_height * len(field.options) {
+		selected := (event.y - y) / row_height
+		field.selected_option = clamp(selected, 0, len(field.options) - 1)
+		((^int)(field.binding.data))^ = field.selected_option
+	}
+	ctx.popup = nil
+	return .None
+}
+
+@(private = "file")
+step_choice_input :: proc(field: ^Form, direction: int) {
+	if field.binding.kind != .Integer || field.binding.data == nil || len(field.options) == 0 {
+		return
+	}
+	value := (^int)(field.binding.data)
+	value^ = clamp(value^ + direction, 0, len(field.options) - 1)
 }
 
 @(private = "file")

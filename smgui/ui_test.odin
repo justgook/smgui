@@ -309,6 +309,78 @@ numeric_inputs_commit_text_and_step_with_buttons :: proc(t: ^testing.T) {
 	testing.expect_value(t, float_value, f32(1.75))
 }
 
+@(test)
+select_and_option_controls_choose_bound_values :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 200, 140); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+	}
+
+	selected := 0
+	options := []string{"one", "two", "three"}
+	forms := []Form {
+		{
+			kind = .Select,
+			x = absolute(10),
+			y = absolute(10),
+			width = 120,
+			binding = bind(&selected),
+			options = options,
+		},
+		{
+			kind = .Option,
+			x = absolute(10),
+			y = absolute(90),
+			width = 120,
+			binding = bind(&selected),
+			options = options,
+		},
+	}
+	poll_for_test(t, &ctx, forms)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 30, 15, {.Mouse_Left})
+	testing.expect(t, ctx.popup == &forms[0])
+	popup_x := forms[0].computed_x
+	popup_y := forms[0].computed_y + forms[0].computed_height
+	row_height := forms[0].computed_height
+	send_mouse_for_test(
+		t,
+		&ctx,
+		&backend_state,
+		forms,
+		popup_x + 5,
+		popup_y + row_height * 2 + 5,
+		{.Mouse_Left},
+	)
+	testing.expect_value(t, selected, 2)
+	testing.expect(t, ctx.popup == nil)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 30, 15, {.Mouse_Left})
+	send_key_for_test(t, &ctx, &backend_state, forms, "Up")
+	send_key_for_test(t, &ctx, &backend_state, forms, "Enter")
+	testing.expect_value(t, selected, 1)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 120, 95, {.Mouse_Left})
+	testing.expect_value(t, selected, 2)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 15, 95, {.Mouse_Left})
+	testing.expect_value(t, selected, 1)
+}
+
 @(private = "file")
 poll_for_test :: proc(t: ^testing.T, ctx: ^Context, forms: []Form) {
 	_, state, error := poll_event(ctx, forms)
