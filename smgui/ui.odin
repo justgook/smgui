@@ -11,10 +11,11 @@ Status:
   [x] Typed errors, slices, enums, and bit sets declared
   [x] Backend adapter seam declared
   [x] Framebuffer lifecycle and bounded event queue implemented
-  [x] First vertical slice: labels and buttons render
+  [x] Labels, buttons, checkboxes, and radio buttons render
+  [x] Buttons, checkboxes, and radio buttons mutate bound state
   [ ] Remaining drawing primitives implemented
   [ ] Flow/container layout implemented
-  [ ] Widget interaction and remaining event processing implemented
+  [ ] Remaining widget interaction and event processing implemented
   [ ] Remaining built-in widgets implemented
 
 Definition of done:
@@ -528,6 +529,19 @@ percent :: proc(value: int, offset: int = 0) -> Position {
 	return {mode = .Percent, value = i32(value), offset = i32(offset)}
 }
 
+bind :: proc {
+	bind_boolean,
+	bind_integer,
+}
+
+bind_boolean :: proc(value: ^bool) -> Binding {
+	return {kind = .Boolean, data = value}
+}
+
+bind_integer :: proc(value: ^int) -> Binding {
+	return {kind = .Integer, data = value}
+}
+
 @(require_results, tag = "reference:ui_fonthook")
 set_font_hooks :: proc(ctx: ^Context, bounds: Font_Bounds_Proc, draw: Font_Draw_Proc) -> Error {
 	if ctx == nil || bounds == nil || draw == nil {
@@ -711,10 +725,12 @@ poll_event :: proc(ctx: ^Context, form: []Form) -> (Event, Poll_State, Error) {
 	}
 
 	if ctx.event_tail == ctx.event_head {
+		update_hover(ctx, form)
 		return {}, .Running, .None
 	}
 	event := ctx.events[ctx.event_tail]
 	ctx.event_tail = (ctx.event_tail + 1) % MAX_EVENTS
+	process_event(ctx, form, event)
 	return event, .Running, .None
 }
 
@@ -761,6 +777,10 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 			}
 		case .Button:
 			if error := draw_button(ctx, &field); error != .None {
+				return error
+			}
+		case .Checkbox, .Radio:
+			if error := draw_choice(ctx, &field); error != .None {
 				return error
 			}
 		}
@@ -910,22 +930,85 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	field.computed_y = y
 	field.computed_width = width
 	field.computed_height = height
-	draw_beveled_rectangle(
-		ctx,
-		x,
-		y,
-		width,
-		height,
-		ctx.theme[int(Theme_Color.Button_Light_Inner_Border)],
-		ctx.theme[int(Theme_Color.Button_Light_Background)],
-		ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)],
-	)
+	disabled := .Disabled in field.flags
+	pressed := ctx.pressed == field
+	foreground := ctx.theme[int(Theme_Color.Button_Foreground)]
+	light := ctx.theme[int(Theme_Color.Button_Light_Inner_Border)]
+	background := ctx.theme[int(Theme_Color.Button_Light_Background)]
+	dark := ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)]
+	if disabled {
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		background = ctx.theme[int(Theme_Color.Disabled_Background)]
+	} else if pressed {
+		light, dark = dark, light
+		background = ctx.theme[int(Theme_Color.Button_Dark_Background)]
+	} else if ctx.hovered == field {
+		light = ctx.theme[int(Theme_Color.Button_Selected_Border)]
+	}
+	draw_beveled_rectangle(ctx, x, y, width, height, light, background, dark)
+	text_offset := 0
+	if pressed {
+		text_offset = 1
+	}
 	return ctx.font_draw(
 		ctx.font,
 		text,
 		ctx.screen.pixels,
-		ctx.theme[int(Theme_Color.Button_Foreground)],
-		x + (width - text_width) / 2,
+		foreground,
+		x + (width - text_width) / 2 + text_offset,
+		y + (height - text_height) / 2 + text_offset,
+		left,
+		top,
+		ctx.screen.pitch,
+		0,
+		0,
+		ctx.screen.width,
+		ctx.screen.height,
+	)
+}
+
+@(private = "file")
+draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if field.label < 0 ||
+	   field.label >= len(ctx.texts) ||
+	   ctx.font == nil ||
+	   ctx.font_bounds == nil ||
+	   ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	text := ctx.texts[field.label]
+	text_width, text_height, left, top: int
+	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+	   error != .None {
+		return error
+	}
+	height := max(text_height + 4, 11)
+	width := text_width + height
+	x := resolve_position(field.x, ctx.screen.width)
+	y := resolve_position(field.y, ctx.screen.height)
+	field.computed_x = x
+	field.computed_y = y
+	field.computed_width = width
+	field.computed_height = height
+	disabled := .Disabled in field.flags
+	selected := binding_selected(field)
+	center_x := x + height / 2
+	center_y := y + height / 2
+	if field.kind == .Checkbox {
+		draw_checkbox(ctx, center_x, center_y, selected, disabled)
+	} else {
+		draw_radio(ctx, center_x, center_y, selected, disabled)
+	}
+	foreground := ctx.theme[int(Theme_Color.Foreground)]
+	if disabled {
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+	}
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		foreground,
+		x + height,
 		y + (height - text_height) / 2,
 		left,
 		top,
@@ -938,12 +1021,198 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 }
 
 @(private = "file")
+draw_checkbox :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
+	border_dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	border_light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	if disabled {
+		border_dark = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		border_light = border_dark
+		foreground = border_dark
+		background = ctx.theme[int(Theme_Color.Disabled_Background)]
+	}
+	draw_beveled_rectangle(ctx, x - 5, y - 5, 9, 9, border_dark, background, border_light)
+	if checked {
+		for offset in 0 ..< 5 {
+			set_pixel(ctx, x - 3 + offset, y - 3 + offset, foreground)
+			set_pixel(ctx, x + 1 - offset, y - 3 + offset, foreground)
+		}
+	}
+}
+
+@(private = "file")
+draw_radio :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
+	border := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	if disabled {
+		border = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		light = border
+		foreground = border
+		background = ctx.theme[int(Theme_Color.Disabled_Background)]
+	}
+	for row in -4 ..= 4 {
+		span := 4
+		if abs(row) == 4 {
+			span = 2
+		} else if abs(row) == 3 {
+			span = 3
+		}
+		for column in -span ..= span {
+			color := background
+			if abs(column) == span {
+				color = border
+			} else if row == 4 {
+				color = light
+			}
+			if checked && abs(row) <= 2 && abs(column) <= 2 {
+				color = foreground
+			}
+			set_pixel(ctx, x + column, y + row, color)
+		}
+	}
+}
+
+@(private = "file")
+binding_selected :: proc(field: ^Form) -> bool {
+	if field.binding.data == nil {
+		return false
+	}
+	#partial switch field.binding.kind {
+	case .Boolean:
+		return ((^bool)(field.binding.data))^
+	case .Integer:
+		value := ((^int)(field.binding.data))^
+		if field.kind == .Checkbox {
+			mask := field.value
+			if mask == 0 {
+				mask = 1
+			}
+			return value & mask != 0
+		}
+		return value == field.value
+	case:
+		return false
+	}
+}
+
+@(private = "file")
+update_hover :: proc(ctx: ^Context, form: []Form) {
+	ctx.hovered = nil
+	for &field in form {
+		if field.kind == .End {
+			break
+		}
+		if .Hidden in field.flags {
+			continue
+		}
+		if point_inside(&field, ctx.mouse_x, ctx.mouse_y) {
+			ctx.hovered = &field
+		}
+	}
+}
+
+@(private = "file")
+process_event :: proc(ctx: ^Context, form: []Form, event: Event) {
+	if event.kind != .Mouse {
+		return
+	}
+	update_hover(ctx, form)
+	if .Mouse_Left in event.buttons {
+		if ctx.hovered == nil || .Disabled in ctx.hovered.flags {
+			return
+		}
+		#partial switch ctx.hovered.kind {
+		case .Button:
+			ctx.pressed = ctx.hovered
+		case .Checkbox:
+			activate_checkbox(ctx.hovered)
+		case .Radio:
+			activate_radio(ctx.hovered)
+		case:
+		}
+		ctx.flags += {.Refresh}
+	} else if .Released in event.buttons {
+		if ctx.pressed != nil && ctx.pressed == ctx.hovered && ctx.pressed.kind == .Button {
+			activate_button(ctx.pressed)
+		}
+		ctx.pressed = nil
+		ctx.flags += {.Refresh}
+	}
+}
+
+@(private = "file")
+activate_button :: proc(field: ^Form) {
+	if field.binding.data == nil {
+		return
+	}
+	#partial switch field.binding.kind {
+	case .Boolean:
+		((^bool)(field.binding.data))^ = true
+	case .Integer:
+		((^int)(field.binding.data))^ = field.value
+	case:
+	}
+}
+
+@(private = "file")
+activate_checkbox :: proc(field: ^Form) {
+	if field.binding.data == nil {
+		return
+	}
+	#partial switch field.binding.kind {
+	case .Boolean:
+		value := (^bool)(field.binding.data)
+		value^ = !value^
+	case .Integer:
+		value := (^int)(field.binding.data)
+		mask := field.value
+		if mask == 0 {
+			mask = 1
+		}
+		value^ = value^ ~ mask
+	case:
+	}
+}
+
+@(private = "file")
+activate_radio :: proc(field: ^Form) {
+	if field.binding.kind == .Integer && field.binding.data != nil {
+		((^int)(field.binding.data))^ = field.value
+	}
+}
+
+@(private = "file")
+point_inside :: proc(field: ^Form, x, y: int) -> bool {
+	return(
+		x >= field.computed_x &&
+		x < field.computed_x + field.computed_width &&
+		y >= field.computed_y &&
+		y < field.computed_y + field.computed_height \
+	)
+}
+
+@(private = "file")
 draw_beveled_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, color, dark: u32) {
 	fill_rectangle(ctx, x, y, width, height, color)
 	fill_rectangle(ctx, x, y, width, 1, light)
 	fill_rectangle(ctx, x, y, 1, height, light)
 	fill_rectangle(ctx, x, y + height - 1, width, 1, dark)
 	fill_rectangle(ctx, x + width - 1, y, 1, height, dark)
+}
+
+@(private = "file")
+set_pixel :: proc(ctx: ^Context, x, y: int, color: u32) {
+	if x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
+		return
+	}
+	pixel := y * ctx.screen.pitch + x * 4
+	ctx.screen.pixels[pixel + 0] = u8(color)
+	ctx.screen.pixels[pixel + 1] = u8(color >> 8)
+	ctx.screen.pixels[pixel + 2] = u8(color >> 16)
+	ctx.screen.pixels[pixel + 3] = u8(color >> 24)
 }
 
 @(private = "file")

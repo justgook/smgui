@@ -30,7 +30,7 @@ Use `make help` to list Odin and reference-C build targets.
 The Odin interface intentionally uses slices, enums, bit sets, and typed errors
 rather than preserving C source compatibility.
 
-The first runnable slice uses Raylib:
+The growing production-readiness showcase currently uses Raylib:
 
 ```sh
 make run                         # examples/basic with Raylib
