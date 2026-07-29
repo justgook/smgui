@@ -79,6 +79,10 @@ int main(int argc, char **argv)
         { .type = UI_RADIO, .label = RADIO_TEXT, .ptr = &selected_radio_value, .value = 1 },
         { .type = UI_END }
     };
+    ui_form_t radio_hover[] = {
+        { .type = UI_RADIO, .label = RADIO_TEXT, .ptr = &radio_value, .value = 1 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -122,13 +126,16 @@ int main(int argc, char **argv)
         forms = radio_normal;
     } else if (!strcmp(argv[1], "radio-selected")) {
         forms = radio_selected;
+    } else if (!strcmp(argv[1], "radio-hover")) {
+        forms = radio_hover;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
     }
 
     ui_image_backend_set_output(argv[2]);
-    if (!strcmp(argv[1], "button-hover") || !strcmp(argv[1], "checkbox-hover")) {
+    if (!strcmp(argv[1], "button-hover") || !strcmp(argv[1], "checkbox-hover") ||
+        !strcmp(argv[1], "radio-hover")) {
         ui_image_backend_set_mouse_event(10, 10, 0);
     } else if (!strcmp(argv[1], "button-pressed") || !strcmp(argv[1], "checkbox-pressed")) {
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);

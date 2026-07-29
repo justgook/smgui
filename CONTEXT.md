@@ -113,7 +113,8 @@ only their module and must agree with this list.
 - [x] Pass the checkbox-disabled fixture.
 - [x] Pass the normal unselected radio fixture.
 - [x] Pass the selected radio fixture.
-- [ ] Pass radio hover, pressed, and disabled fixtures.
+- [x] Pass the scripted radio-hover fixture.
+- [ ] Pass radio pressed and disabled fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

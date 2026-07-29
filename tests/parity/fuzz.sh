@@ -42,7 +42,8 @@ BEGIN {
     fixtures[11] = "checkbox-disabled"
     fixtures[12] = "radio-normal"
     fixtures[13] = "radio-selected"
-    fixture_count = 14
+    fixtures[14] = "radio-hover"
+    fixture_count = 15
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

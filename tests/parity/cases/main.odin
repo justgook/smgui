@@ -49,6 +49,9 @@ main :: proc() {
 	radio_selected := []smgui.Form {
 		{kind = .Radio, label = 5, binding = smgui.bind(&selected_radio_value), value = 1},
 	}
+	radio_hover := []smgui.Form {
+		{kind = .Radio, label = 5, binding = smgui.bind(&radio_value), value = 1},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -79,6 +82,8 @@ main :: proc() {
 		forms = radio_normal
 	case "radio-selected":
 		forms = radio_selected
+	case "radio-hover":
+		forms = radio_hover
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -89,7 +94,8 @@ main :: proc() {
 		os.args[1] == "button-hover" ||
 		os.args[1] == "button-pressed" ||
 		os.args[1] == "checkbox-hover" ||
-		os.args[1] == "checkbox-pressed"
+		os.args[1] == "checkbox-pressed" ||
+		os.args[1] == "radio-hover"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
