@@ -20,5 +20,23 @@ The fixture currently excludes controls not yet implemented by the Odin port:
 images/icons, color input, scrollbars, toggle/icon buttons, and the custom file
 widget. Add each to **both** smoke examples when its parity slice lands.
 
-This visual check is a development aid. Deterministic headless framebuffer
-fixtures remain the acceptance test for pixel parity.
+Generate deterministic PNGs directly from the two software framebuffers:
+
+```sh
+make smoke-images
+```
+
+This writes ignored local artifacts to:
+
+- `tests/parity/actual/smoke-c.png`
+- `tests/parity/actual/smoke-odin.png`
+
+Compare their decoded RGBA pixels with:
+
+```sh
+make smoke-compare
+```
+
+The compare command exits non-zero and reports the first differing coordinate
+until parity is reached. Window screenshots remain a development aid; these
+headless framebuffer images are the acceptance surface.

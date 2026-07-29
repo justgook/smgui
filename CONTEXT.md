@@ -34,7 +34,8 @@ events, and framebuffer output while using Odin-native types and errors.
    C source compatibility.
 5. Unsupported work returns `Error.Not_Implemented`; no operation reports
    success before performing its documented work.
-6. Tests compare deterministic software framebuffers, not window screenshots.
+6. Tests compare decoded RGBA output from deterministic software framebuffers,
+   not window screenshots or compressed PNG bytes.
 7. Every user-visible parity slice updates both `tests/manual/smoke.c` and
    `examples/smoke/main.odin` so their shared fixture stays equivalent.
 8. A commit contains one coherent parity slice or one prerequisite for parity.
@@ -79,7 +80,8 @@ only their module and must agree with this list.
 - [x] Implement the Odin public types, backend seam, framebuffer lifecycle, and
   bounded event queue.
 - [x] Add paired C/Odin manual smoke examples for currently migrated widgets.
-- [ ] Build the headless parity runner and first C/Odin framebuffer fixture.
+- [x] Build headless stb image adapters and decoded-RGBA comparison tooling.
+- [ ] Make the first paired smoke framebuffer fixture match reference C.
 - [ ] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
   and events to fixtures.
 

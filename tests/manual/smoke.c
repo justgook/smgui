@@ -8,10 +8,14 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifdef SMOKE_IMAGE_BACKEND
+#include "ui_image_backend.h"
+#else
 #define UI_IMPLEMENTATION
 #include <ui.h>
+#endif
 
-int main(void)
+int main(int argc, char **argv)
 {
     enum {
         WINDOW_TITLE,
@@ -150,6 +154,16 @@ int main(void)
     };
 
     ui_t context;
+#ifdef SMOKE_IMAGE_BACKEND
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s OUTPUT.png\n", argv[0]);
+        return 2;
+    }
+    ui_image_backend_set_output(argv[1]);
+#else
+    (void)argc;
+    (void)argv;
+#endif
     ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, 640, 480, NULL);
     while (ui_event(&context, forms)) {
         if (button_option) {
@@ -158,6 +172,13 @@ int main(void)
             ui_refresh(&context);
         }
     }
+#ifdef SMOKE_IMAGE_BACKEND
+    if (!ui_image_backend_succeeded(&context)) {
+        fprintf(stderr, "failed to write %s\n", argv[1]);
+        ui_free(&context);
+        return 1;
+    }
+#endif
     ui_free(&context);
     return 0;
 }

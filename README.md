@@ -54,6 +54,13 @@ make smoke-c
 make smoke-odin
 ```
 
-See `tests/manual/README.md` for the covered controls and comparison procedure.
+Generate and compare the same fixture without opening windows:
+
+```sh
+make smoke-images
+make smoke-compare                 # non-zero until framebuffer parity is reached
+```
+
+See `tests/manual/README.md` for covered controls and the comparison procedure.
 `BACKEND` is part of the build interface now; additional values will become
 available as their adapters are migrated.

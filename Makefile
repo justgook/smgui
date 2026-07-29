@@ -25,6 +25,12 @@ C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
 SMOKE_C_SOURCE := tests/manual/smoke.c
 SMOKE_C_BIN := $(BUILD_DIR)/smoke-c
+SMOKE_C_IMAGE_BIN := $(BUILD_DIR)/smoke-image-c
+SMOKE_ODIN_IMAGE_BIN := $(BUILD_DIR)/smoke-image-odin
+PNG_COMPARE_BIN := $(BUILD_DIR)/compare-png
+PARITY_ACTUAL_DIR := tests/parity/actual
+SMOKE_C_PNG := $(PARITY_ACTUAL_DIR)/smoke-c.png
+SMOKE_ODIN_PNG := $(PARITY_ACTUAL_DIR)/smoke-odin.png
 PKG_CONFIG ?= pkg-config
 C_REFERENCE_CC := $(CC)
 C_REFERENCE_GLFW_CFLAGS := $(shell $(PKG_CONFIG) --cflags glfw3 2>/dev/null)
@@ -54,8 +60,10 @@ help:
 	  '               EXAMPLE=basic BACKEND=raylib' \
 	  '' \
 	  'Paired manual smoke test:' \
-	  '  smoke-odin   Run the Odin widget smoke test' \
-	  '  smoke-c      Run the equivalent reference-C smoke test' \
+	  '  smoke-odin    Run the Odin widget smoke test' \
+	  '  smoke-c       Run the equivalent reference-C smoke test' \
+	  '  smoke-images  Render both smoke tests directly to PNG' \
+	  '  smoke-compare Compare decoded RGBA output (fails on mismatch)' \
 	  '' \
 	  'Reference C targets:' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
@@ -124,6 +132,31 @@ smoke-c-build: $(SMOKE_C_BIN)
 .PHONY: smoke-c
 smoke-c: smoke-c-build
 	$(Q)"$(SMOKE_C_BIN)"
+
+$(SMOKE_C_IMAGE_BIN): $(SMOKE_C_SOURCE) tests/manual/ui_image_backend.h tests/vendor/stb_image_write.h reference-c-init | $(BUILD_DIR)
+	$(Q)$(C_REFERENCE_CC) -DSMOKE_IMAGE_BACKEND \
+		-std=c99 -Wall -Wextra -Wno-pragmas -O2 \
+		-Itests/manual -Itests/vendor -Ireference-c -Ireference-c/mods \
+		"$(SMOKE_C_SOURCE)" -o "$@" -lm
+
+$(SMOKE_ODIN_IMAGE_BIN): examples/smoke/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin | $(BUILD_DIR)
+	$(Q)$(ODIN) build examples/smoke $(ODIN_FLAGS) -out:"$@"
+
+$(PNG_COMPARE_BIN): tests/parity/compare/main.odin | $(BUILD_DIR)
+	$(Q)$(ODIN) build tests/parity/compare $(ODIN_FLAGS) -out:"$@"
+
+$(PARITY_ACTUAL_DIR):
+	$(Q)mkdir -p "$@"
+
+.PHONY: smoke-images
+smoke-images: $(SMOKE_C_IMAGE_BIN) $(SMOKE_ODIN_IMAGE_BIN) | $(PARITY_ACTUAL_DIR)
+	$(Q)"$(SMOKE_C_IMAGE_BIN)" "$(SMOKE_C_PNG)"
+	$(Q)"$(SMOKE_ODIN_IMAGE_BIN)" --output "$(SMOKE_ODIN_PNG)"
+	$(Q)printf 'Wrote %s\nWrote %s\n' "$(SMOKE_C_PNG)" "$(SMOKE_ODIN_PNG)"
+
+.PHONY: smoke-compare
+smoke-compare: smoke-images $(PNG_COMPARE_BIN)
+	$(Q)"$(PNG_COMPARE_BIN)" "$(SMOKE_C_PNG)" "$(SMOKE_ODIN_PNG)"
 
 .PHONY: clean
 clean:

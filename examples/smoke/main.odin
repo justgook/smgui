@@ -10,6 +10,7 @@ both versions; add new controls to both examples as parity slices land.
 
 import psf2 "../../psf2"
 import smgui "../../smgui"
+import image_backend "../../smgui/image"
 import raylib_backend "../../smgui/raylib"
 import "core:fmt"
 import "core:os"
@@ -209,10 +210,22 @@ main :: proc() {
 	button_fields[0].binding = smgui.bind(&button_fields[1])
 	button_fields[2].binding = smgui.bind(&button_fields[3])
 
-	backend_state: raylib_backend.State
+	backend: smgui.Backend
+	raylib_state: raylib_backend.State
+	image_state: image_backend.State
+	writing_image := false
+	if len(os.args) == 1 {
+		backend = raylib_backend.create(&raylib_state)
+	} else if len(os.args) == 3 && os.args[1] == "--output" {
+		writing_image = true
+		backend = image_backend.create(&image_state, os.args[2])
+	} else {
+		fmt.eprintf("usage: %s [--output OUTPUT.png]\n", os.args[0])
+		os.exit(2)
+	}
+
 	ctx: smgui.Context
-	if error := smgui.init(&ctx, raylib_backend.create(&backend_state), texts, 640, 480);
-	   error != .None {
+	if error := smgui.init(&ctx, backend, texts, 640, 480); error != .None {
 		fail("initializing smoke test", error)
 	}
 	defer {
@@ -237,6 +250,10 @@ main :: proc() {
 		if state == .Closed {
 			break
 		}
+	}
+	if writing_image && !image_state.succeeded {
+		fmt.eprintln("Failed to write smoke-test image:", os.args[2])
+		os.exit(1)
 	}
 }
 
