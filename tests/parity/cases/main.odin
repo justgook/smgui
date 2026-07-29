@@ -164,6 +164,8 @@ main :: proc() {
 			maximum = 100,
 		},
 	}
+	decimal_value := 42
+	decimal_normal := []smgui.Form{{kind = .Decimal_64, binding = smgui.bind(&decimal_value)}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -218,6 +220,8 @@ main :: proc() {
 		forms = progress_maximum
 	case "progress-disabled":
 		forms = progress_disabled
+	case "decimal-normal":
+		forms = decimal_normal
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)

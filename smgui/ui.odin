@@ -1202,12 +1202,11 @@ measure_form :: proc(
 	     .Hexadecimal_32,
 	     .Hexadecimal_64,
 	     .Decimal_Float:
-		text, format_error := format_bound_value(field)
-		if format_error != .None || ctx.font == nil || ctx.font_bounds == nil {
+		if field.binding.data == nil || ctx.font == nil || ctx.font_bounds == nil {
 			return 0, 0, .Invalid_Input
 		}
 		text_width, text_height, left, top: int
-		if bounds_error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+		if bounds_error := ctx.font_bounds(ctx.font, "0.000", &text_width, &text_height, &left, &top);
 		   bounds_error != .None {
 			return 0, 0, bounds_error
 		}
@@ -1217,7 +1216,7 @@ measure_form :: proc(
 			width = text_width
 		}
 		if height < 1 {
-			height = text_height
+			height = text_height + 4
 		}
 	case .Popup, .Menu:
 		content_width, content_height, content_error := measure_container_content(
@@ -2275,7 +2274,26 @@ draw_bound_value :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if .Disabled in field.flags {
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	}
-	return draw_text_centered(ctx, text, field, foreground)
+	text_width, text_height, left, top: int
+	if bounds_error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top); bounds_error != .None {
+		return bounds_error
+	}
+	_, _, _ = text_height, left, top
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		foreground,
+		field.computed_x + field.computed_width - text_width - field.left,
+		field.computed_y + 2,
+		field.left,
+		field.top,
+		ctx.screen.pitch,
+		0,
+		0,
+		ctx.screen.width,
+		ctx.screen.height,
+	)
 }
 
 @(private = "file")
