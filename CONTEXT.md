@@ -35,7 +35,9 @@ events, and framebuffer output while using Odin-native types and errors.
 5. Unsupported work returns `Error.Not_Implemented`; no operation reports
    success before performing its documented work.
 6. Tests compare deterministic software framebuffers, not window screenshots.
-7. A commit contains one coherent parity slice or one prerequisite for parity.
+7. Every user-visible parity slice updates both `tests/manual/smoke.c` and
+   `examples/smoke/main.odin` so their shared fixture stays equivalent.
+8. A commit contains one coherent parity slice or one prerequisite for parity.
 
 ## Work loop and definition of done
 
@@ -57,7 +59,8 @@ A parity slice is done when:
 - equivalent C and Odin fixtures cover the public behavior;
 - deterministic geometry/framebuffer output matches where the slice renders;
 - `make check` and `make test` pass;
-- the visual example is updated when the behavior is user-visible;
+- both paired manual smoke examples are updated when the behavior is
+  user-visible;
 - no placeholder success path remains for the slice; and
 - documentation/checklists describe the resulting state.
 
@@ -75,6 +78,7 @@ only their module and must agree with this list.
 - [x] Provide a reproducible Nix/direnv environment for Odin and C.
 - [x] Implement the Odin public types, backend seam, framebuffer lifecycle, and
   bounded event queue.
+- [x] Add paired C/Odin manual smoke examples for currently migrated widgets.
 - [ ] Build the headless parity runner and first C/Odin framebuffer fixture.
 - [ ] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
   and events to fixtures.

@@ -23,6 +23,8 @@ ODIN_BIN ?= $(BUILD_DIR)/$(EXAMPLE)-$(BACKEND)
 C_EXAMPLE ?= helloworld
 C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
+SMOKE_C_SOURCE := tests/manual/smoke.c
+SMOKE_C_BIN := $(BUILD_DIR)/smoke-c
 PKG_CONFIG ?= pkg-config
 C_REFERENCE_CC := $(CC)
 C_REFERENCE_GLFW_CFLAGS := $(shell $(PKG_CONFIG) --cflags glfw3 2>/dev/null)
@@ -50,6 +52,10 @@ help:
 	  '  build        Build EXAMPLE with BACKEND' \
 	  '  run          Build and run EXAMPLE (default)' \
 	  '               EXAMPLE=basic BACKEND=raylib' \
+	  '' \
+	  'Paired manual smoke test:' \
+	  '  smoke-odin   Run the Odin widget smoke test' \
+	  '  smoke-c      Run the equivalent reference-C smoke test' \
 	  '' \
 	  'Reference C targets:' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
@@ -87,6 +93,10 @@ build: | $(BUILD_DIR)
 run: build
 	$(Q)"$(ODIN_BIN)"
 
+.PHONY: smoke-odin
+smoke-odin:
+	$(Q)$(MAKE) run EXAMPLE=smoke
+
 .PHONY: reference-c-init
 reference-c-init:
 	$(Q)git submodule update --init --recursive reference-c
@@ -101,6 +111,19 @@ c-build: reference-c-init
 .PHONY: c-run run-c
 c-run run-c: c-build
 	$(Q)"$(C_BIN)"
+
+$(SMOKE_C_BIN): $(SMOKE_C_SOURCE) reference-c-init | $(BUILD_DIR)
+	$(Q)$(PKG_CONFIG) --exists glfw3 || { echo "GLFW development files not found; enter the direnv/Nix shell first" >&2; exit 2; }
+	$(Q)$(C_REFERENCE_CC) $(C_REFERENCE_CPPFLAGS) \
+		-std=c99 -Wall -Wextra -Wno-pragmas -O2 \
+		-Ireference-c -Ireference-c/mods "$<" -o "$@" $(C_REFERENCE_LIBS)
+
+.PHONY: smoke-c-build
+smoke-c-build: $(SMOKE_C_BIN)
+
+.PHONY: smoke-c
+smoke-c: smoke-c-build
+	$(Q)"$(SMOKE_C_BIN)"
 
 .PHONY: clean
 clean:

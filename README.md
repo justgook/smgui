@@ -47,5 +47,13 @@ make run                         # examples/basic with Raylib
 make run EXAMPLE=basic BACKEND=raylib
 ```
 
+For a manual side-by-side comparison of equivalent C and Odin form trees, run:
+
+```sh
+make smoke-c
+make smoke-odin
+```
+
+See `tests/manual/README.md` for the covered controls and comparison procedure.
 `BACKEND` is part of the build interface now; additional values will become
 available as their adapters are migrated.
