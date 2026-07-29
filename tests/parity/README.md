@@ -21,8 +21,7 @@ Both adapters encode their software framebuffer with the pinned
 `stb_image_write` implementation. `tests/parity/compare` decodes both outputs
 to RGBA before comparison, so parity does not depend on compressed PNG bytes.
 
-The initial fixture deliberately records existing differences. Current first
-mismatch: the C framebuffer leaves untouched background pixels transparent
-black, while the Odin renderer fills them with `Theme_Color.Background`.
-Layout differences follow after that pixel. These are parity work, not image
-adapter behavior.
+The initial fixture deliberately records existing differences. The first run
+identified and fixed Odin's opaque framebuffer clear. The current first
+mismatch is at `(0,2)`, where text/layout pixels begin at a different vertical
+position. This is parity work, not image-adapter behavior.

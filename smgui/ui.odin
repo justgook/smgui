@@ -860,14 +860,11 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 	if ctx == nil || len(ctx.screen.pixels) == 0 {
 		return .Invalid_Input
 	}
-	fill_rectangle(
-		ctx,
-		0,
-		0,
-		ctx.screen.width,
-		ctx.screen.height,
-		ctx.theme[int(Theme_Color.Background)],
-	)
+	// Match reference-c `_ui_redraw`: untouched UI-layer pixels remain
+	// transparent so the presentation adapter may supply the window background.
+	for &pixel in ctx.screen.pixels {
+		pixel = 0
+	}
 	if _, _, error := layout_forms(ctx, form, 0, 0, ctx.screen.width, ctx.screen.height, 8);
 	   error != .None {
 		return error

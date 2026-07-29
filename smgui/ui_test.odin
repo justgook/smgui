@@ -9,6 +9,32 @@ Test_Backend_State :: struct {
 }
 
 @(test)
+render_clears_unpainted_pixels_to_transparent_black :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 4, 3); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	for &pixel in ctx.screen.pixels {
+		pixel = 0xff
+	}
+	if error := render(&ctx, nil); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+		return
+	}
+	for pixel in ctx.screen.pixels {
+		testing.expect_value(t, pixel, u8(0))
+	}
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context
