@@ -23,6 +23,18 @@ ODIN_BIN ?= $(BUILD_DIR)/$(EXAMPLE)-$(BACKEND)
 C_EXAMPLE ?= helloworld
 C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
+PKG_CONFIG ?= pkg-config
+C_REFERENCE_CC := $(CC)
+C_REFERENCE_GLFW_CFLAGS := $(shell $(PKG_CONFIG) --cflags glfw3 2>/dev/null)
+C_REFERENCE_CPPFLAGS := $(C_REFERENCE_GLFW_CFLAGS)
+C_REFERENCE_LIBS := $(shell $(PKG_CONFIG) --libs glfw3 2>/dev/null)
+ifeq ($(shell uname -s),Darwin)
+C_REFERENCE_CC := $(CURDIR)/compat/macos/cc
+C_REFERENCE_CPPFLAGS += -I$(CURDIR)/compat/macos -DGL_SILENCE_DEPRECATION -DUI_GLFW_NOSHADER
+C_REFERENCE_LIBS += -framework OpenGL -framework Cocoa -framework IOKit -framework CoreFoundation -lm
+else
+C_REFERENCE_LIBS += -lGL -lm
+endif
 
 .DEFAULT_GOAL := run
 
@@ -42,7 +54,7 @@ help:
 	  'Reference C targets:' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
 	  '  c-build           Build C_EXAMPLE (default: helloworld)' \
-	  '  c-run             Build and run C_EXAMPLE' \
+	  '  c-run, run-c      Build and run C_EXAMPLE' \
 	  '' \
 	  'Other:' \
 	  '  clean        Remove Odin and C build output' \
@@ -81,10 +93,13 @@ reference-c-init:
 
 .PHONY: c-build
 c-build: reference-c-init
-	$(Q)$(MAKE) -C "$(C_EXAMPLES_DIR)" "$(C_EXAMPLE)"
+	$(Q)$(PKG_CONFIG) --exists glfw3 || { echo "GLFW development files not found; enter the direnv/Nix shell first" >&2; exit 2; }
+	$(Q)$(MAKE) -C "$(C_EXAMPLES_DIR)" "$(C_EXAMPLE)" \
+		CC="$(C_REFERENCE_CC) $(C_REFERENCE_CPPFLAGS)" \
+		LIBS="$(C_REFERENCE_LIBS)"
 
-.PHONY: c-run
-c-run: c-build
+.PHONY: c-run run-c
+c-run run-c: c-build
 	$(Q)"$(C_BIN)"
 
 .PHONY: clean

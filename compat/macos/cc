@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+args=()
+for arg in "$@"; do
+  if [[ "$arg" == "-Wl,--gc-sections" ]]; then
+    args+=("-Wl,-dead_strip")
+  else
+    args+=("$arg")
+  fi
+done
+
+exec clang "${args[@]}"

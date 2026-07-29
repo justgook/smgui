@@ -9,13 +9,23 @@ parity tests.
 
 ## Bootstrap
 
+Install [Nix](https://nixos.org/download/) and
+[direnv](https://direnv.net/), then clone and enter the repository:
+
 ```sh
-git submodule update --init --recursive
+git clone --recurse-submodules <repository-url>
+cd smgui
+direnv allow
 make check
 make run
 ```
 
-Use `make help` to list Odin and reference-C build targets.
+Direnv loads the pinned Nix development shell from `flake.nix`, including
+Odin, the C toolchain, GLFW, and native graphics dependencies. After changing
+`flake.nix` or `flake.lock`, approve it again with `direnv allow`.
+
+Use `make help` to list Odin and reference-C build targets. The pinned C
+reference example can be run with `make run-c`.
 
 ## Layout
 

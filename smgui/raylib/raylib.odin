@@ -1,4 +1,4 @@
-package raylib
+package smgui_raylib
 
 /*
 Reference: new adapter
@@ -24,7 +24,7 @@ Definition of done:
 import smgui ".."
 import "core:strings"
 import "core:unicode/utf8"
-import rl "vendor:raylib/v6"
+import rl "vendor:raylib"
 
 State :: struct {
 	ctx:          ^smgui.Context,
