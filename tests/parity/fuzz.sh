@@ -43,7 +43,8 @@ BEGIN {
     fixtures[12] = "radio-normal"
     fixtures[13] = "radio-selected"
     fixtures[14] = "radio-hover"
-    fixture_count = 15
+    fixtures[15] = "radio-pressed"
+    fixture_count = 16
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

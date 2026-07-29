@@ -22,6 +22,7 @@ int main(int argc, char **argv)
     int checked = 0;
     int radio_value = 0;
     int selected_radio_value = 1;
+    int pressed_radio_value = 0;
     int checked_value = 1;
     int pressed_value = 0;
     ui_form_t empty[] = {
@@ -83,6 +84,10 @@ int main(int argc, char **argv)
         { .type = UI_RADIO, .label = RADIO_TEXT, .ptr = &radio_value, .value = 1 },
         { .type = UI_END }
     };
+    ui_form_t radio_pressed[] = {
+        { .type = UI_RADIO, .label = RADIO_TEXT, .ptr = &pressed_radio_value, .value = 1 },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -128,6 +133,8 @@ int main(int argc, char **argv)
         forms = radio_selected;
     } else if (!strcmp(argv[1], "radio-hover")) {
         forms = radio_hover;
+    } else if (!strcmp(argv[1], "radio-pressed")) {
+        forms = radio_pressed;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -137,7 +144,8 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "button-hover") || !strcmp(argv[1], "checkbox-hover") ||
         !strcmp(argv[1], "radio-hover")) {
         ui_image_backend_set_mouse_event(10, 10, 0);
-    } else if (!strcmp(argv[1], "button-pressed") || !strcmp(argv[1], "checkbox-pressed")) {
+    } else if (!strcmp(argv[1], "button-pressed") || !strcmp(argv[1], "checkbox-pressed") ||
+        !strcmp(argv[1], "radio-pressed")) {
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
@@ -152,6 +160,11 @@ int main(int argc, char **argv)
         context.mousey = -1;
     }
     while (ui_event(&context, forms)) { }
+    if (!strcmp(argv[1], "radio-pressed") && pressed_radio_value != 1) {
+        fprintf(stderr, "radio press did not update its bound value\n");
+        ui_free(&context);
+        return 1;
+    }
     if (!strcmp(argv[1], "checkbox-pressed") && pressed_value != 1) {
         fprintf(stderr, "checkbox press did not update its bound value\n");
         ui_free(&context);

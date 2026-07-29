@@ -52,6 +52,10 @@ main :: proc() {
 	radio_hover := []smgui.Form {
 		{kind = .Radio, label = 5, binding = smgui.bind(&radio_value), value = 1},
 	}
+	pressed_radio_value := 0
+	radio_pressed := []smgui.Form {
+		{kind = .Radio, label = 5, binding = smgui.bind(&pressed_radio_value), value = 1},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -84,6 +88,8 @@ main :: proc() {
 		forms = radio_selected
 	case "radio-hover":
 		forms = radio_hover
+	case "radio-pressed":
+		forms = radio_pressed
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -95,7 +101,8 @@ main :: proc() {
 		os.args[1] == "button-pressed" ||
 		os.args[1] == "checkbox-hover" ||
 		os.args[1] == "checkbox-pressed" ||
-		os.args[1] == "radio-hover"
+		os.args[1] == "radio-hover" ||
+		os.args[1] == "radio-pressed"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
@@ -138,7 +145,9 @@ main :: proc() {
 	}
 	if interaction_case {
 		buttons: smgui.Input_Buttons
-		if os.args[1] == "button-pressed" || os.args[1] == "checkbox-pressed" {
+		if os.args[1] == "button-pressed" ||
+		   os.args[1] == "checkbox-pressed" ||
+		   os.args[1] == "radio-pressed" {
 			buttons += {.Mouse_Left}
 		}
 		if error := smgui.push_event(&ctx, {kind = .Mouse, buttons = buttons, x = 10, y = 10});
@@ -156,6 +165,10 @@ main :: proc() {
 		if state == .Closed {
 			break
 		}
+	}
+	if os.args[1] == "radio-pressed" && pressed_radio_value != 1 {
+		fmt.eprintln("radio press did not update its bound value")
+		os.exit(1)
 	}
 	if os.args[1] == "checkbox-pressed" && !pressed_value {
 		fmt.eprintln("checkbox press did not update its bound value")
