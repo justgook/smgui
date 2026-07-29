@@ -2332,7 +2332,7 @@ format_bound_value :: proc(field: ^Form) -> (string, Error) {
 		if field.binding.kind != .Float {
 			return "", .Invalid_Input
 		}
-		return fmt.tprintf("%.3f", ((^f32)(field.binding.data))^), .None
+		return fmt.tprintf("%.4g", ((^f32)(field.binding.data))^), .None
 	}
 	value, valid := bound_integer(field)
 	if !valid {

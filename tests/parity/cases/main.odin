@@ -193,6 +193,8 @@ main :: proc() {
 	hex_disabled := []smgui.Form {
 		{kind = .Hexadecimal_64, flags = {.Disabled}, binding = smgui.bind(&hexadecimal_value)},
 	}
+	float_value: f32 = 12.345
+	float_normal := []smgui.Form{{kind = .Decimal_Float, binding = smgui.bind(&float_value)}}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -263,6 +265,8 @@ main :: proc() {
 		forms = hex_explicit_size
 	case "hex-disabled":
 		forms = hex_disabled
+	case "float-normal":
+		forms = float_normal
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
