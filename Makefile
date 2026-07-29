@@ -21,7 +21,7 @@ C_EXAMPLE ?= helloworld
 C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
 
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := run
 
 .PHONY: help
 help:
@@ -32,8 +32,8 @@ help:
 	  '  all          Check and build the Odin rewrite' \
 	  '  check        Check every Odin package' \
 	  '  test         Run every Odin test package' \
-	  '  odin-build   Build the native smoke executable' \
-	  '  odin-run     Build and run the native smoke executable' \
+	  '  build        Build the native smoke executable' \
+	  '  run          Build and run the native smoke executable (default)' \
 	  '' \
 	  'Reference C targets:' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
@@ -45,7 +45,7 @@ help:
 	  '  V=1          Show commands'
 
 .PHONY: all
-all: check odin-build
+all: check build
 
 .PHONY: check
 check:
@@ -62,12 +62,12 @@ test:
 $(BUILD_DIR):
 	$(Q)mkdir -p "$@"
 
-.PHONY: odin-build
-odin-build: | $(BUILD_DIR)
+.PHONY: build
+build: | $(BUILD_DIR)
 	$(Q)$(ODIN) build . $(ODIN_FLAGS) -out:"$(ODIN_BIN)"
 
-.PHONY: odin-run
-odin-run: odin-build
+.PHONY: run
+run: build
 	$(Q)"$(ODIN_BIN)"
 
 .PHONY: reference-c-init

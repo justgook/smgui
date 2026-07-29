@@ -10,7 +10,7 @@ Status:
   [ ] Render the first parity fixture
 
 Definition of done:
-  - Builds through `make odin-build`
+  - Builds through `make build`
   - Exercises the same basic form as reference-c/examples/helloworld.c
 */
 

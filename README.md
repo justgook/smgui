@@ -12,7 +12,7 @@ parity tests.
 ```sh
 git submodule update --init --recursive
 make check
-make odin-build
+make build
 ```
 
 Use `make help` to list Odin and reference-C build targets.
