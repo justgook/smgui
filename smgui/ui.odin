@@ -2138,28 +2138,59 @@ draw_progress_bar :: proc(ctx: ^Context, field: ^Form) -> Error {
 		maximum = minimum + 1
 	}
 	value = clamp(value, minimum, maximum)
-	filled := (width - 2) * (value - minimum) / (maximum - minimum)
-	draw_beveled_rectangle(
+	draw_outline_rectangle(
 		ctx,
 		x,
 		y,
 		width,
 		height,
-		ctx.theme[int(Theme_Color.Progress_Light)],
-		ctx.theme[int(Theme_Color.Progress_Background)],
-		ctx.theme[int(Theme_Color.Progress_Dark)],
+		ctx.theme[int(Theme_Color.Input_Dark_Border)],
+		ctx.theme[int(Theme_Color.Input_Background)],
+		ctx.theme[int(Theme_Color.Input_Light_Border)],
 	)
-	fill_rectangle(
-		ctx,
+	x += 1
+	y += 1
+	width -= 2
+	height -= 2
+	filled := width * (value - minimum) / (maximum - minimum)
+	progress_background := ctx.theme[int(Theme_Color.Progress_Background)]
+	if filled > 1 {
+		draw_outline_rectangle(
+			ctx,
+			x,
+			y,
+			filled,
+			height,
+			ctx.theme[int(Theme_Color.Progress_Light)],
+			progress_background,
+			ctx.theme[int(Theme_Color.Progress_Dark)],
+		)
+		fill_rectangle(ctx, x + 1, y + 1, filled - 2, height - 2, progress_background)
+	} else {
+		fill_rectangle(ctx, x, y, filled, height, progress_background)
+	}
+	fill_rectangle(ctx, x + filled, y, width - filled, height, ctx.theme[int(Theme_Color.Input_Background)])
+	permille := (value - minimum) * 1000 / (maximum - minimum)
+	text := fmt.tprintf("%d.%d%%", permille / 10, permille % 10)
+	text_width, text_height, left, top: int
+	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top); error != .None {
+		return error
+	}
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		ctx.theme[int(Theme_Color.Input_Foreground)],
+		x + (width - text_width) / 2 - left,
+		y + (height - text_height) / 2,
+		left,
+		top,
+		ctx.screen.pitch,
 		x + 1,
 		y + 1,
-		filled,
-		max(height - 2, 0),
-		ctx.theme[int(Theme_Color.Progress_Light)],
+		x + width - 2,
+		y + height - 2,
 	)
-	percentage := (value - minimum) * 100 / (maximum - minimum)
-	text := fmt.tprintf("%d%%", percentage)
-	return draw_text_centered(ctx, text, field, ctx.theme[int(Theme_Color.Input_Foreground)])
 }
 
 @(private = "file")

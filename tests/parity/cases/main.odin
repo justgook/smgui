@@ -120,6 +120,17 @@ main :: proc() {
 			maximum = 100,
 		},
 	}
+	progress_value := 0
+	progress_minimum := []smgui.Form {
+		{
+			kind = .Progress_Bar,
+			width = 58,
+			height = 20,
+			binding = smgui.bind(&progress_value),
+			minimum = 0,
+			maximum = 100,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -166,6 +177,8 @@ main :: proc() {
 		forms = slider_interaction
 	case "slider-disabled":
 		forms = slider_disabled
+	case "progress-minimum":
+		forms = progress_minimum
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
