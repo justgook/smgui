@@ -131,7 +131,8 @@ only their module and must agree with this list.
 - [x] Pass the decimal-disabled fixture.
 - [x] Pass the normal lowercase hexadecimal-value fixture.
 - [x] Pass the zero hexadecimal-value fixture.
-- [ ] Pass hex explicit-size and disabled fixtures.
+- [x] Pass the explicit-size hexadecimal-value fixture.
+- [ ] Pass the hexadecimal-disabled fixture.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

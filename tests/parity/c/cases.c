@@ -163,6 +163,10 @@ int main(int argc, char **argv)
         { .type = UI_HEX64, .ptr = &hexadecimal_zero_value },
         { .type = UI_END }
     };
+    ui_form_t hex_explicit_size[] = {
+        { .type = UI_HEX64, .w = 58, .h = 28, .ptr = &hexadecimal_value },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -242,6 +246,8 @@ int main(int argc, char **argv)
         forms = hex_normal;
     } else if (!strcmp(argv[1], "hex-zero")) {
         forms = hex_zero;
+    } else if (!strcmp(argv[1], "hex-explicit-size")) {
+        forms = hex_explicit_size;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

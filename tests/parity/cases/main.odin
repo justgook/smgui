@@ -182,6 +182,14 @@ main :: proc() {
 	hex_zero := []smgui.Form {
 		{kind = .Hexadecimal_64, binding = smgui.bind(&hexadecimal_zero_value)},
 	}
+	hex_explicit_size := []smgui.Form {
+		{
+			kind = .Hexadecimal_64,
+			width = 58,
+			height = 28,
+			binding = smgui.bind(&hexadecimal_value),
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -248,6 +256,8 @@ main :: proc() {
 		forms = hex_normal
 	case "hex-zero":
 		forms = hex_zero
+	case "hex-explicit-size":
+		forms = hex_explicit_size
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
