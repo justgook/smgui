@@ -27,10 +27,11 @@ int main(int argc, char **argv)
     int slider_midpoint_value = 50;
     int slider_maximum_value = 100;
     int slider_interaction_value = 0;
-    int progress_value = 0;
-    int progress_midpoint_value = 50;
+    int64_t progress_value = 0;
+    int64_t progress_midpoint_value = 50;
     int64_t decimal_value = 42;
-    int progress_maximum_value = 100;
+    int64_t decimal_negative_value = -42;
+    int64_t progress_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
     ui_form_t empty[] = {
@@ -140,6 +141,10 @@ int main(int argc, char **argv)
         { .type = UI_DEC64, .ptr = &decimal_value },
         { .type = UI_END }
     };
+    ui_form_t decimal_negative[] = {
+        { .type = UI_DEC64, .ptr = &decimal_negative_value },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -209,6 +214,8 @@ int main(int argc, char **argv)
         forms = progress_disabled;
     } else if (!strcmp(argv[1], "decimal-normal")) {
         forms = decimal_normal;
+    } else if (!strcmp(argv[1], "decimal-negative")) {
+        forms = decimal_negative;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
