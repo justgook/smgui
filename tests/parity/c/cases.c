@@ -199,6 +199,10 @@ int main(int argc, char **argv)
         { .type = UI_TXTINP, .ptr = text_input_empty_value, .max = sizeof(text_input_empty_value) },
         { .type = UI_END }
     };
+    ui_form_t text_input_explicit_size[] = {
+        { .type = UI_TXTINP, .w = 76, .h = 28, .ptr = text_input_value, .max = sizeof(text_input_value) },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -294,6 +298,8 @@ int main(int argc, char **argv)
         forms = text_input_normal;
     } else if (!strcmp(argv[1], "text-input-empty")) {
         forms = text_input_empty;
+    } else if (!strcmp(argv[1], "text-input-explicit-size")) {
+        forms = text_input_explicit_size;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;

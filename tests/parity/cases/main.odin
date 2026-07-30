@@ -228,6 +228,14 @@ main :: proc() {
 	text_input_empty := []smgui.Form {
 		{kind = .Text_Input, binding = smgui.bind_text(&text_input_empty_value)},
 	}
+	text_input_explicit_size := []smgui.Form {
+		{
+			kind = .Text_Input,
+			width = 76,
+			height = 28,
+			binding = smgui.bind_text(&text_input_value),
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -310,6 +318,8 @@ main :: proc() {
 		forms = text_input_normal
 	case "text-input-empty":
 		forms = text_input_empty
+	case "text-input-explicit-size":
+		forms = text_input_explicit_size
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
