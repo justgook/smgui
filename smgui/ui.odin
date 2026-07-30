@@ -1818,8 +1818,8 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if disabled {
 		background = ctx.theme[int(Theme_Color.Disabled_Background)]
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
-		dark = foreground
-		light = foreground
+		dark = background
+		light = background
 	}
 	draw_outline_rectangle(
 		ctx,

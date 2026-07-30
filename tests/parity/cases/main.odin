@@ -236,6 +236,23 @@ main :: proc() {
 			binding = smgui.bind_text(&text_input_value),
 		},
 	}
+	text_input_edit_value: smgui.Text_Buffer
+	if error := smgui.text_buffer_init(&text_input_edit_value, "Hello", 15); error != .None {
+		fmt.eprintln("failed to initialize editable text input buffer")
+		os.exit(1)
+	}
+	defer smgui.text_buffer_deinit(&text_input_edit_value)
+	text_input_edit := []smgui.Form {
+		{
+			kind = .Text_Input,
+			width = 76,
+			height = 28,
+			binding = smgui.bind_text(&text_input_edit_value),
+		},
+	}
+	text_input_disabled := []smgui.Form {
+		{kind = .Text_Input, flags = {.Disabled}, binding = smgui.bind_text(&text_input_value)},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -320,6 +337,10 @@ main :: proc() {
 		forms = text_input_empty
 	case "text-input-explicit-size":
 		forms = text_input_explicit_size
+	case "text-input-edit":
+		forms = text_input_edit
+	case "text-input-disabled":
+		forms = text_input_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -333,10 +354,14 @@ main :: proc() {
 		os.args[1] == "checkbox-pressed" ||
 		os.args[1] == "radio-hover" ||
 		os.args[1] == "radio-pressed" ||
-		os.args[1] == "slider-interaction"
+		os.args[1] == "slider-interaction" ||
+		os.args[1] == "text-input-edit"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
+	}
+	if os.args[1] == "text-input-edit" {
+		capture_delay = 3
 	}
 	image_state: image_backend.State
 	ctx: smgui.Context
@@ -388,6 +413,9 @@ main :: proc() {
 		event_x := 10
 		if os.args[1] == "slider-interaction" {
 			event_x = 29
+		} else if os.args[1] == "text-input-edit" {
+			event_x = 60
+			buttons = {.Mouse_Left}
 		}
 		if error := smgui.push_event(
 			&ctx,
@@ -395,6 +423,18 @@ main :: proc() {
 		); error != .None {
 			fmt.eprintf("event injection failed: %v\n", error)
 			os.exit(1)
+		}
+		if os.args[1] == "text-input-edit" {
+			if error := smgui.push_event(&ctx, {kind = .Key, key = smgui.key_input("!")});
+			   error != .None {
+				fmt.eprintf("key injection failed: %v\n", error)
+				os.exit(1)
+			}
+			if error := smgui.push_event(&ctx, {kind = .Key, key = smgui.key_input("Enter")});
+			   error != .None {
+				fmt.eprintf("commit injection failed: %v\n", error)
+				os.exit(1)
+			}
 		}
 	}
 	for {
@@ -417,6 +457,14 @@ main :: proc() {
 	}
 	if os.args[1] == "checkbox-pressed" && !pressed_value {
 		fmt.eprintln("checkbox press did not update its bound value")
+		os.exit(1)
+	}
+	if os.args[1] == "text-input-edit" &&
+	   smgui.text_buffer_string(&text_input_edit_value) != "Hello!" {
+		fmt.eprintf(
+			"text input edit produced %q instead of Hello!\n",
+			smgui.text_buffer_string(&text_input_edit_value),
+		)
 		os.exit(1)
 	}
 	if !image_state.succeeded {

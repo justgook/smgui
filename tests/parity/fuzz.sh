@@ -69,7 +69,9 @@ BEGIN {
     fixtures[38] = "text-input-normal"
     fixtures[39] = "text-input-empty"
     fixtures[40] = "text-input-explicit-size"
-    fixture_count = 41
+    fixtures[41] = "text-input-edit"
+    fixtures[42] = "text-input-disabled"
+    fixture_count = 43
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

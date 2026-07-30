@@ -37,6 +37,7 @@ int main(int argc, char **argv)
     float float_magnitude_value = 123456.0f;
     char text_input_value[16] = "Hello";
     char text_input_empty_value[16] = "";
+    char text_input_edit_value[16] = "Hello";
     int64_t progress_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
@@ -203,6 +204,14 @@ int main(int argc, char **argv)
         { .type = UI_TXTINP, .w = 76, .h = 28, .ptr = text_input_value, .max = sizeof(text_input_value) },
         { .type = UI_END }
     };
+    ui_form_t text_input_edit[] = {
+        { .type = UI_TXTINP, .w = 76, .h = 28, .ptr = text_input_edit_value, .max = sizeof(text_input_edit_value) },
+        { .type = UI_END }
+    };
+    ui_form_t text_input_disabled[] = {
+        { .type = UI_TXTINP, .flags = UI_DISABLED, .ptr = text_input_value, .max = sizeof(text_input_value) },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -300,6 +309,10 @@ int main(int argc, char **argv)
         forms = text_input_empty;
     } else if (!strcmp(argv[1], "text-input-explicit-size")) {
         forms = text_input_explicit_size;
+    } else if (!strcmp(argv[1], "text-input-edit")) {
+        forms = text_input_edit;
+    } else if (!strcmp(argv[1], "text-input-disabled")) {
+        forms = text_input_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -314,6 +327,8 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[1], "button-pressed") || !strcmp(argv[1], "checkbox-pressed") ||
         !strcmp(argv[1], "radio-pressed")) {
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "text-input-edit")) {
+        ui_image_backend_set_text_edit_events(60, 10, "!");
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
@@ -341,6 +356,11 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "checkbox-pressed") && pressed_value != 1) {
         fprintf(stderr, "checkbox press did not update its bound value\n");
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "text-input-edit") && strcmp(text_input_edit_value, "Hello!")) {
+        fprintf(stderr, "text input edit produced %s instead of Hello!\n", text_input_edit_value);
         ui_free(&context);
         return 1;
     }

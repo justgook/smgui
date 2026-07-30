@@ -17,12 +17,12 @@ typedef struct ui_backend_s {
     const char *output_path;
     int finished;
     int succeeded;
-    int event_sent;
+    int scripted_event_index;
 } ui_backend_t;
 
 static const char *ui_image_backend_output_path;
-static ui_event_t ui_image_backend_scripted_event;
-static int ui_image_backend_has_scripted_event;
+static ui_event_t ui_image_backend_scripted_events[4];
+static int ui_image_backend_scripted_event_count;
 
 static void ui_image_backend_set_output(const char *output_path)
 {
@@ -31,12 +31,30 @@ static void ui_image_backend_set_output(const char *output_path)
 
 static void ui_image_backend_set_mouse_event(int x, int y, int buttons)
 {
-    memset(&ui_image_backend_scripted_event, 0, sizeof(ui_image_backend_scripted_event));
-    ui_image_backend_scripted_event.type = UI_EVT_MOUSE;
-    ui_image_backend_scripted_event.btn = buttons;
-    ui_image_backend_scripted_event.x = x;
-    ui_image_backend_scripted_event.y = y;
-    ui_image_backend_has_scripted_event = 1;
+    ui_event_t *event = &ui_image_backend_scripted_events[0];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    event->type = UI_EVT_MOUSE;
+    event->btn = buttons;
+    event->x = x;
+    event->y = y;
+    ui_image_backend_scripted_event_count = 1;
+}
+
+static void ui_image_backend_set_text_edit_events(int x, int y, const char *text)
+{
+    ui_event_t *mouse = &ui_image_backend_scripted_events[0];
+    ui_event_t *key = &ui_image_backend_scripted_events[1];
+    ui_event_t *commit = &ui_image_backend_scripted_events[2];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    mouse->type = UI_EVT_MOUSE;
+    mouse->btn = UI_BTN_L;
+    mouse->x = x;
+    mouse->y = y;
+    key->type = UI_EVT_KEY;
+    snprintf(key->key, sizeof(key->key), "%s", text);
+    commit->type = UI_EVT_KEY;
+    commit->key[0] = '\n';
+    ui_image_backend_scripted_event_count = 3;
 }
 
 static int ui_image_backend_succeeded(ui_t *ctx)
@@ -114,13 +132,14 @@ int ui_backend_event(ui_backend_t *backend)
 {
     ui_event_t *event;
     if (!backend || backend->finished) return 1;
-    if (ui_image_backend_has_scripted_event && !backend->event_sent) {
+    if (backend->scripted_event_index < ui_image_backend_scripted_event_count) {
         event = _ui_evtslot(backend->ctx);
         if (!event) return 1;
-        *event = ui_image_backend_scripted_event;
-        backend->ctx->mousex = event->x;
-        backend->ctx->mousey = event->y;
-        backend->event_sent = 1;
+        *event = ui_image_backend_scripted_events[backend->scripted_event_index++];
+        if (event->type == UI_EVT_MOUSE) {
+            backend->ctx->mousex = event->x;
+            backend->ctx->mousey = event->y;
+        }
     }
     return 0;
 }
@@ -129,7 +148,7 @@ int ui_backend_redraw(ui_backend_t *backend)
 {
     ui_image_t *screen;
     if (!backend || !backend->ctx || !backend->output_path) return UI_ERR_BADINP;
-    if (ui_image_backend_has_scripted_event && backend->event_sent &&
+    if (backend->scripted_event_index < ui_image_backend_scripted_event_count ||
         backend->ctx->tail != backend->ctx->head) {
         return UI_OK;
     }
