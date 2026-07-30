@@ -31,7 +31,12 @@ cases are `empty`, `label-normal`, `button-normal`, and
 `numeric-input-increment`, `numeric-input-disabled`, `select-normal`,
 `select-explicit-size`, `select-pressed`, `select-open`, `select-choice`,
 `select-disabled`, `option-normal`, `option-explicit-size`, `option-decrement`,
-`option-increment`, and `option-disabled`.
+`option-increment`, `option-disabled`, `popup-normal`, `popup-intrinsic`,
+`popup-no-border`, `popup-no-shadow`, `popup-title`, `popup-draggable`,
+`popup-resizable`, `popup-hidden`, `popup-close`, `menu-closed`,
+`menu-button-closed`, `menu-button-open`, `menu-open`, `menu-intrinsic`,
+`menu-anchored`, `menu-hover`, `menu-disabled`, `menu-choice`,
+`menu-outside-close`, and `menu-escape-close`.
 
 ## Widget smoke fixture
 
@@ -70,7 +75,12 @@ from 32–256 by 24–192 across the completed `empty`, `label-normal`,
 `numeric-input-increment`, `numeric-input-disabled`, `select-normal`,
 `select-explicit-size`, `select-pressed`, `select-open`, `select-choice`,
 `select-disabled`, `option-normal`, `option-explicit-size`, `option-decrement`,
-`option-increment`, and `option-disabled` fixtures.
+`option-increment`, `option-disabled`, `popup-normal`, `popup-intrinsic`,
+`popup-no-border`, `popup-no-shadow`, `popup-title`, `popup-draggable`,
+`popup-resizable`, `popup-hidden`, `popup-close`, `menu-closed`,
+`menu-button-closed`, `menu-button-open`, `menu-open`, `menu-intrinsic`,
+`menu-anchored`, `menu-hover`, `menu-disabled`, `menu-choice`,
+`menu-outside-close`, and `menu-escape-close` fixtures.
 Form kinds and states enter the pool only after their small fixtures pass.
 
 A discovered mismatch is replayed, minimized, and promoted to a named

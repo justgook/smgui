@@ -17,8 +17,8 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
 
 int main(int argc, char **argv)
 {
-    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT, RADIO_TEXT };
-    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check", "Radio" };
+    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT, RADIO_TEXT, POPUP_TEXT, MENU_TEXT, MENU_ITEM_TEXT };
+    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open" };
     int checked = 0;
     int radio_value = 0;
     int selected_radio_value = 1;
@@ -49,6 +49,7 @@ int main(int argc, char **argv)
     int option_increment_value = 1;
     char *option_options[] = { "One", "Two" };
     int64_t progress_maximum_value = 100;
+    int menu_choice_value = 0;
     int checked_value = 1;
     int pressed_value = 0;
     ui_form_t empty[] = {
@@ -270,6 +271,101 @@ int main(int argc, char **argv)
     ui_form_t option_disabled[] = {
         { .type = UI_OPTION, .flags = UI_DISABLED, .ptr = &option_value, .optc = 2, .optv = option_options }, { .type = UI_END }
     };
+    ui_form_t popup_empty_children[] = { { .type = UI_END } };
+    ui_form_t popup_content_children[] = {
+        { .type = UI_LABEL, .label = LABEL_TEXT }, { .type = UI_END }
+    };
+    ui_form_t popup_normal[] = {
+        { .type = UI_POPUP, .x = UI_ABS(5), .y = UI_ABS(5), .w = 50, .h = 35, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_intrinsic[] = {
+        { .type = UI_POPUP, .x = UI_ABS(5), .y = UI_ABS(5), .ptr = popup_content_children }, { .type = UI_END }
+    };
+    ui_form_t popup_no_border[] = {
+        { .type = UI_POPUP, .flags = UI_NOBORDER, .x = UI_ABS(5), .y = UI_ABS(5), .w = 50, .h = 35, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_no_shadow[] = {
+        { .type = UI_POPUP, .flags = UI_NOSHADOW, .x = UI_ABS(5), .y = UI_ABS(5), .w = 50, .h = 35, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_title[] = {
+        { .type = UI_POPUP, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .label = POPUP_TEXT, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_draggable[] = {
+        { .type = UI_POPUP, .flags = UI_DRAGGABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .label = POPUP_TEXT, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_resizable[] = {
+        { .type = UI_POPUP, .flags = UI_RESIZABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 50, .h = 35, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_hidden[] = {
+        { .type = UI_POPUP, .flags = UI_HIDDEN, .x = UI_ABS(5), .y = UI_ABS(5), .w = 50, .h = 35, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_close[] = {
+        { .type = UI_POPUP, .flags = UI_DRAGGABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .label = POPUP_TEXT, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t menu_label_children[] = {
+        { .type = UI_LABEL, .label = MENU_ITEM_TEXT }, { .type = UI_END }
+    };
+    ui_form_t menu_disabled_children[] = {
+        { .type = UI_LABEL, .flags = UI_DISABLED, .label = MENU_ITEM_TEXT }, { .type = UI_END }
+    };
+    ui_form_t menu_choice_children[] = {
+        { .type = UI_RADIO, .label = MENU_ITEM_TEXT, .ptr = &menu_choice_value, .value = 1 }, { .type = UI_END }
+    };
+    ui_form_t menu_closed[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_button_closed[] = {
+        { .type = UI_TOGGLE, .flags = UI_NOBULLET, .m = 4, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_button_open[] = {
+        { .type = UI_TOGGLE, .flags = UI_NOBULLET, .m = 4, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_open[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_intrinsic[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_anchored[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_hover[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_disabled[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_disabled_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_choice[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_choice_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_outside_close[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
+    ui_form_t menu_escape_close[] = {
+        { .type = UI_TOGGLE, .label = MENU_TEXT },
+        { .type = UI_MENU, .x = UI_ABS(5), .y = UI_ABS(22), .w = 50, .h = 24, .ptr = menu_label_children },
+        { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -403,6 +499,46 @@ int main(int argc, char **argv)
         forms = option_increment;
     } else if (!strcmp(argv[1], "option-disabled")) {
         forms = option_disabled;
+    } else if (!strcmp(argv[1], "popup-normal")) {
+        forms = popup_normal;
+    } else if (!strcmp(argv[1], "popup-intrinsic")) {
+        forms = popup_intrinsic;
+    } else if (!strcmp(argv[1], "popup-no-border")) {
+        forms = popup_no_border;
+    } else if (!strcmp(argv[1], "popup-no-shadow")) {
+        forms = popup_no_shadow;
+    } else if (!strcmp(argv[1], "popup-title")) {
+        forms = popup_title;
+    } else if (!strcmp(argv[1], "popup-draggable")) {
+        forms = popup_draggable;
+    } else if (!strcmp(argv[1], "popup-resizable")) {
+        forms = popup_resizable;
+    } else if (!strcmp(argv[1], "popup-hidden")) {
+        forms = popup_hidden;
+    } else if (!strcmp(argv[1], "popup-close")) {
+        forms = popup_close;
+    } else if (!strcmp(argv[1], "menu-closed")) {
+        forms = menu_closed;
+    } else if (!strcmp(argv[1], "menu-button-closed")) {
+        forms = menu_button_closed;
+    } else if (!strcmp(argv[1], "menu-button-open")) {
+        forms = menu_button_open;
+    } else if (!strcmp(argv[1], "menu-open")) {
+        forms = menu_open;
+    } else if (!strcmp(argv[1], "menu-intrinsic")) {
+        forms = menu_intrinsic;
+    } else if (!strcmp(argv[1], "menu-anchored")) {
+        forms = menu_anchored;
+    } else if (!strcmp(argv[1], "menu-hover")) {
+        forms = menu_hover;
+    } else if (!strcmp(argv[1], "menu-disabled")) {
+        forms = menu_disabled;
+    } else if (!strcmp(argv[1], "menu-choice")) {
+        forms = menu_choice;
+    } else if (!strcmp(argv[1], "menu-outside-close")) {
+        forms = menu_outside_close;
+    } else if (!strcmp(argv[1], "menu-escape-close")) {
+        forms = menu_escape_close;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -433,6 +569,22 @@ int main(int argc, char **argv)
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "option-increment")) {
         ui_image_backend_set_mouse_event(55, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "popup-close")) {
+        ui_image_backend_set_two_mouse_events(50, 10, 0, 50, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "menu-open") || !strcmp(argv[1], "menu-button-open") ||
+               !strcmp(argv[1], "menu-intrinsic") || !strcmp(argv[1], "menu-anchored")) {
+        ui_image_backend_set_two_mouse_events(10, 10, 0, 10, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "menu-hover") || !strcmp(argv[1], "menu-disabled")) {
+        ui_image_backend_set_menu_item_events(10, 10, 0, 10, 10, UI_BTN_L, 10, 30, UI_BTN_RELEASE);
+    } else if (!strcmp(argv[1], "menu-choice")) {
+        ui_image_backend_set_menu_item_events(10, 10, 0, 10, 10, UI_BTN_L, 10, 30, UI_BTN_L | UI_BTN_RELEASE);
+    } else if (!strcmp(argv[1], "menu-outside-close")) {
+        ui_image_backend_set_menu_item_events(10, 10, 0, 10, 10, UI_BTN_L, 60, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "menu-escape-close")) {
+        ui_image_backend_set_mouse_then_key_events(10, 10, UI_BTN_L, '\x1b');
+    }
+    if (!strncmp(argv[1], "menu-", 5) && strcmp(argv[1], "menu-closed")) {
+        ui_image_backend_set_event_gap(1);
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
@@ -492,6 +644,16 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "option-increment") && option_increment_value != 0) {
         fprintf(stderr, "option increment produced %d instead of 0\n", option_increment_value);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "popup-close") && !(popup_close[0].flags & UI_HIDDEN)) {
+        fprintf(stderr, "popup close did not hide the popup\n");
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "menu-choice") && menu_choice_value != 1) {
+        fprintf(stderr, "menu choice did not mutate its bound value\n");
         ui_free(&context);
         return 1;
     }

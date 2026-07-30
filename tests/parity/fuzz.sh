@@ -87,7 +87,27 @@ BEGIN {
     fixtures[56] = "option-decrement"
     fixtures[57] = "option-increment"
     fixtures[58] = "option-disabled"
-    fixture_count = 59
+    fixtures[59] = "popup-normal"
+    fixtures[60] = "popup-intrinsic"
+    fixtures[61] = "popup-no-border"
+    fixtures[62] = "popup-no-shadow"
+    fixtures[63] = "popup-title"
+    fixtures[64] = "popup-draggable"
+    fixtures[65] = "popup-resizable"
+    fixtures[66] = "popup-hidden"
+    fixtures[67] = "popup-close"
+    fixtures[68] = "menu-closed"
+    fixtures[69] = "menu-open"
+    fixtures[70] = "menu-intrinsic"
+    fixtures[71] = "menu-hover"
+    fixtures[72] = "menu-disabled"
+    fixtures[73] = "menu-choice"
+    fixtures[74] = "menu-outside-close"
+    fixtures[75] = "menu-escape-close"
+    fixtures[76] = "menu-anchored"
+    fixtures[77] = "menu-button-closed"
+    fixtures[78] = "menu-button-open"
+    fixture_count = 79
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
@@ -95,7 +115,10 @@ BEGIN {
         # Keep the increment arrow inside the framebuffer so the public pointer
         # event can reach it while still varying widths from 64 through 256.
         if ((fixture == "numeric-input-increment" || fixture == "option-decrement" ||
-             fixture == "option-increment") && width < 64) width = 64
+             fixture == "option-increment" || fixture == "popup-close" ||
+             fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && width < 64) width = 64
+        if ((fixture == "popup-close" ||
+             fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && height < 48) height = 48
         printf "%d %s %d %d\n", case_number, fixture, width, height
     }
 }

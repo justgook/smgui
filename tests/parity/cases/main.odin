@@ -376,6 +376,82 @@ main :: proc() {
 			options = option_options,
 		},
 	}
+	popup_empty_children := []smgui.Form{}
+	popup_content_children := []smgui.Form{{kind = .Label, label = 1}}
+	popup_normal := []smgui.Form {
+		{kind = .Popup, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+	}
+	popup_intrinsic := []smgui.Form {
+		{kind = .Popup, x = smgui.absolute(5), y = smgui.absolute(5), children = popup_content_children},
+	}
+	popup_no_border := []smgui.Form {
+		{kind = .Popup, flags = {.No_Border}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+	}
+	popup_no_shadow := []smgui.Form {
+		{kind = .Popup, flags = {.No_Shadow}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+	}
+	popup_title := []smgui.Form {
+		{kind = .Popup, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
+	}
+	popup_draggable := []smgui.Form {
+		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
+	}
+	popup_resizable := []smgui.Form {
+		{kind = .Popup, flags = {.Resizable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+	}
+	popup_hidden := []smgui.Form {
+		{kind = .Popup, flags = {.Hidden}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+	}
+	popup_close := []smgui.Form {
+		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
+	}
+	menu_label_children := []smgui.Form{{kind = .Label, label = 8}}
+	menu_disabled_children := []smgui.Form{{kind = .Label, flags = {.Disabled}, label = 8}}
+	menu_choice_value := 0
+	menu_choice_children := []smgui.Form {
+		{kind = .Radio, label = 8, binding = smgui.bind(&menu_choice_value), value = 1},
+	}
+	menu_closed := []smgui.Form {
+		{kind = .Toggle, label = 7},
+		{kind = .Menu, flags = {.Hidden}, x = smgui.absolute(5), y = smgui.absolute(22), width = 50, height = 24, children = menu_label_children},
+	}
+	menu_button_closed := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_button_closed[0].flags = {.No_Bullet}
+	menu_button_closed[0].margin = 4
+	menu_button_closed[1].children = menu_label_children
+	menu_button_open := []smgui.Form{menu_button_closed[0], menu_button_closed[1]}
+	menu_button_open[1].children = menu_label_children
+	menu_open := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_open[1].children = menu_label_children
+	menu_intrinsic := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_intrinsic[1].width = 0
+	menu_intrinsic[1].height = 0
+	menu_intrinsic[1].children = menu_label_children
+	menu_anchored := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_anchored[1].x = {}
+	menu_anchored[1].y = {}
+	menu_anchored[1].children = menu_label_children
+	menu_hover := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_hover[1].children = menu_label_children
+	menu_disabled := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_disabled[1].children = menu_disabled_children
+	menu_choice := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_choice[1].children = menu_choice_children
+	menu_outside_close := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_outside_close[1].children = menu_label_children
+	menu_escape_close := []smgui.Form{menu_closed[0], menu_closed[1]}
+	menu_escape_close[1].children = menu_label_children
+	menu_closed[0].binding = smgui.bind(&menu_closed[1])
+	menu_button_closed[0].binding = smgui.bind(&menu_button_closed[1])
+	menu_button_open[0].binding = smgui.bind(&menu_button_open[1])
+	menu_open[0].binding = smgui.bind(&menu_open[1])
+	menu_intrinsic[0].binding = smgui.bind(&menu_intrinsic[1])
+	menu_anchored[0].binding = smgui.bind(&menu_anchored[1])
+	menu_hover[0].binding = smgui.bind(&menu_hover[1])
+	menu_disabled[0].binding = smgui.bind(&menu_disabled[1])
+	menu_choice[0].binding = smgui.bind(&menu_choice[1])
+	menu_outside_close[0].binding = smgui.bind(&menu_outside_close[1])
+	menu_escape_close[0].binding = smgui.bind(&menu_escape_close[1])
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -496,12 +572,52 @@ main :: proc() {
 		forms = option_increment
 	case "option-disabled":
 		forms = option_disabled
+	case "popup-normal":
+		forms = popup_normal
+	case "popup-intrinsic":
+		forms = popup_intrinsic
+	case "popup-no-border":
+		forms = popup_no_border
+	case "popup-no-shadow":
+		forms = popup_no_shadow
+	case "popup-title":
+		forms = popup_title
+	case "popup-draggable":
+		forms = popup_draggable
+	case "popup-resizable":
+		forms = popup_resizable
+	case "popup-hidden":
+		forms = popup_hidden
+	case "popup-close":
+		forms = popup_close
+	case "menu-closed":
+		forms = menu_closed
+	case "menu-button-closed":
+		forms = menu_button_closed
+	case "menu-button-open":
+		forms = menu_button_open
+	case "menu-open":
+		forms = menu_open
+	case "menu-intrinsic":
+		forms = menu_intrinsic
+	case "menu-anchored":
+		forms = menu_anchored
+	case "menu-hover":
+		forms = menu_hover
+	case "menu-disabled":
+		forms = menu_disabled
+	case "menu-choice":
+		forms = menu_choice
+	case "menu-outside-close":
+		forms = menu_outside_close
+	case "menu-escape-close":
+		forms = menu_escape_close
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
 	}
 
-	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check", "Radio"}
+	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open"}
 	interaction_case :=
 		os.args[1] == "button-hover" ||
 		os.args[1] == "button-pressed" ||
@@ -517,12 +633,30 @@ main :: proc() {
 		os.args[1] == "select-open" ||
 		os.args[1] == "select-choice" ||
 		os.args[1] == "option-decrement" ||
-		os.args[1] == "option-increment"
+		os.args[1] == "option-increment" ||
+		os.args[1] == "popup-close" ||
+		os.args[1] == "menu-open" ||
+		os.args[1] == "menu-button-open" ||
+		os.args[1] == "menu-intrinsic" ||
+		os.args[1] == "menu-anchored" ||
+		os.args[1] == "menu-hover" ||
+		os.args[1] == "menu-disabled" ||
+		os.args[1] == "menu-choice" ||
+		os.args[1] == "menu-outside-close" ||
+		os.args[1] == "menu-escape-close"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
 	}
-	if os.args[1] == "select-pressed" {
+	if os.args[1] == "menu-hover" || os.args[1] == "menu-disabled" ||
+	   os.args[1] == "menu-choice" || os.args[1] == "menu-outside-close" ||
+	   os.args[1] == "menu-escape-close" {
+		capture_delay = 4
+	} else if os.args[1] == "popup-close" || os.args[1] == "menu-open" ||
+	          os.args[1] == "menu-button-open" ||
+	          os.args[1] == "menu-intrinsic" || os.args[1] == "menu-anchored" {
+		capture_delay = 2
+	} else if os.args[1] == "select-pressed" {
 		capture_delay = 2
 	} else if os.args[1] == "select-open" {
 		capture_delay = 3
@@ -586,7 +720,17 @@ main :: proc() {
 		   os.args[1] == "select-open" ||
 		   os.args[1] == "select-choice" ||
 		   os.args[1] == "option-decrement" ||
-		   os.args[1] == "option-increment" {
+		   os.args[1] == "option-increment" ||
+		   os.args[1] == "popup-close" ||
+		   os.args[1] == "menu-open" ||
+		   os.args[1] == "menu-button-open" ||
+		   os.args[1] == "menu-intrinsic" ||
+		   os.args[1] == "menu-anchored" ||
+		   os.args[1] == "menu-hover" ||
+		   os.args[1] == "menu-disabled" ||
+		   os.args[1] == "menu-choice" ||
+		   os.args[1] == "menu-outside-close" ||
+		   os.args[1] == "menu-escape-close" {
 			buttons += {.Mouse_Left}
 		}
 		event_x := 10
@@ -600,6 +744,8 @@ main :: proc() {
 			event_x = 61
 		} else if os.args[1] == "option-increment" {
 			event_x = 55
+		} else if os.args[1] == "popup-close" {
+			event_x = 50
 		} else if os.args[1] == "select-open" || os.args[1] == "select-choice" {
 			event_y = 15
 		}
@@ -614,12 +760,69 @@ main :: proc() {
 				os.exit(1)
 			}
 		}
+		if os.args[1] == "popup-close" || os.args[1] == "menu-open" ||
+		   os.args[1] == "menu-button-open" ||
+		   os.args[1] == "menu-intrinsic" || os.args[1] == "menu-anchored" ||
+		   os.args[1] == "menu-hover" ||
+		   os.args[1] == "menu-disabled" || os.args[1] == "menu-choice" ||
+		   os.args[1] == "menu-outside-close" || os.args[1] == "menu-escape-close" {
+			if error := smgui.push_event(
+				&ctx,
+				{kind = .Mouse, x = event_x, y = event_y},
+			); error != .None {
+				fmt.eprintf("menu warmup injection failed: %v\n", error)
+				os.exit(1)
+			}
+		}
 		if error := smgui.push_event(
 			&ctx,
 			{kind = .Mouse, buttons = buttons, x = event_x, y = event_y},
 		); error != .None {
 			fmt.eprintf("event injection failed: %v\n", error)
 			os.exit(1)
+		}
+		if os.args[1] == "menu-hover" || os.args[1] == "menu-disabled" ||
+		   os.args[1] == "menu-choice" || os.args[1] == "menu-outside-close" ||
+		   os.args[1] == "menu-escape-close" {
+			idle_x, idle_y := 10, 30
+			if os.args[1] == "menu-outside-close" {
+				idle_x, idle_y = 60, 10
+			}
+			if error := smgui.push_event(
+				&ctx,
+				{kind = .Key, key = smgui.key_input("x"), x = idle_x, y = idle_y},
+			); error != .None {
+				fmt.eprintf("menu idle injection failed: %v\n", error)
+				os.exit(1)
+			}
+		}
+		if os.args[1] == "menu-hover" || os.args[1] == "menu-disabled" ||
+		   os.args[1] == "menu-choice" {
+			second_event := smgui.Event {
+				kind = .Key,
+				key = smgui.key_input("x"),
+				x = 10,
+				y = 30,
+			}
+			if os.args[1] == "menu-choice" {
+				second_event.kind = .Mouse
+				second_event.buttons = {.Mouse_Left, .Released}
+			}
+			if error := smgui.push_event(
+				&ctx,
+				second_event,
+			); error != .None {
+				fmt.eprintf("menu item injection failed: %v\n", error)
+				os.exit(1)
+			}
+		} else if os.args[1] == "menu-outside-close" {
+			if error := smgui.push_event(
+				&ctx,
+				{kind = .Mouse, buttons = {.Mouse_Left}, x = 60, y = 10},
+			); error != .None {
+				fmt.eprintf("menu outside injection failed: %v\n", error)
+				os.exit(1)
+			}
 		}
 		if os.args[1] == "select-open" || os.args[1] == "select-choice" {
 			if error := smgui.push_event(
@@ -652,6 +855,13 @@ main :: proc() {
 				fmt.eprintf("commit injection failed: %v\n", error)
 				os.exit(1)
 			}
+		}
+	}
+	if os.args[1] == "menu-escape-close" {
+		if error := smgui.push_event(&ctx, {kind = .Key, key = smgui.key_input("\e")});
+		   error != .None {
+			fmt.eprintf("menu escape injection failed: %v\n", error)
+			os.exit(1)
 		}
 	}
 	for {
@@ -702,6 +912,14 @@ main :: proc() {
 	}
 	if os.args[1] == "option-increment" && option_increment_value != 0 {
 		fmt.eprintf("option increment produced %d instead of 0\n", option_increment_value)
+		os.exit(1)
+	}
+	if os.args[1] == "popup-close" && .Hidden not_in popup_close[0].flags {
+		fmt.eprintln("popup close did not hide the popup")
+		os.exit(1)
+	}
+	if os.args[1] == "menu-choice" && menu_choice_value != 1 {
+		fmt.eprintln("menu choice did not mutate its bound value")
 		os.exit(1)
 	}
 	if !image_state.succeeded {

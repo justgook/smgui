@@ -23,6 +23,14 @@ typedef struct ui_backend_s {
 static const char *ui_image_backend_output_path;
 static ui_event_t ui_image_backend_scripted_events[6];
 static int ui_image_backend_scripted_event_count;
+static int ui_image_backend_scripted_event_gap;
+static int ui_image_backend_scripted_event_wait;
+
+static void ui_image_backend_set_event_gap(int gap)
+{
+    ui_image_backend_scripted_event_gap = gap;
+    ui_image_backend_scripted_event_wait = 0;
+}
 
 static void ui_image_backend_set_output(const char *output_path)
 {
@@ -38,6 +46,72 @@ static void ui_image_backend_set_mouse_event(int x, int y, int buttons)
     event->x = x;
     event->y = y;
     ui_image_backend_scripted_event_count = 1;
+}
+
+static void ui_image_backend_set_two_mouse_events(
+    int first_x, int first_y, int first_buttons,
+    int second_x, int second_y, int second_buttons)
+{
+    ui_event_t *first = &ui_image_backend_scripted_events[0];
+    ui_event_t *second = &ui_image_backend_scripted_events[1];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    first->type = UI_EVT_MOUSE;
+    first->btn = first_buttons;
+    first->x = first_x;
+    first->y = first_y;
+    second->type = UI_EVT_MOUSE;
+    second->btn = second_buttons;
+    second->x = second_x;
+    second->y = second_y;
+    ui_image_backend_scripted_event_count = 2;
+}
+
+static void ui_image_backend_set_menu_item_events(
+    int first_x, int first_y, int first_buttons,
+    int second_x, int second_y, int second_buttons,
+    int third_x, int third_y, int third_buttons)
+{
+    ui_event_t *first = &ui_image_backend_scripted_events[0];
+    ui_event_t *second = &ui_image_backend_scripted_events[1];
+    ui_event_t *idle = &ui_image_backend_scripted_events[2];
+    ui_event_t *third = &ui_image_backend_scripted_events[3];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    first->type = second->type = third->type = UI_EVT_MOUSE;
+    first->btn = first_buttons;
+    first->x = first_x;
+    first->y = first_y;
+    second->btn = second_buttons;
+    second->x = second_x;
+    second->y = second_y;
+    idle->type = UI_EVT_KEY;
+    idle->key[0] = 'x';
+    idle->x = third_x;
+    idle->y = third_y;
+    third->btn = third_buttons;
+    third->x = third_x;
+    third->y = third_y;
+    ui_image_backend_scripted_event_count = 4;
+}
+
+static void ui_image_backend_set_mouse_then_key_events(int x, int y, int buttons, char key_value)
+{
+    ui_event_t *warmup = &ui_image_backend_scripted_events[0];
+    ui_event_t *mouse = &ui_image_backend_scripted_events[1];
+    ui_event_t *idle = &ui_image_backend_scripted_events[2];
+    ui_event_t *key = &ui_image_backend_scripted_events[3];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    warmup->type = UI_EVT_MOUSE;
+    warmup->x = x;
+    warmup->y = y;
+    mouse->type = UI_EVT_MOUSE;
+    mouse->btn = buttons;
+    mouse->x = x;
+    mouse->y = y;
+    idle->type = UI_EVT_KEY;
+    idle->key[0] = 'x';
+    key->type = UI_EVT_KEY;
+    key->key[0] = key_value;
+    ui_image_backend_scripted_event_count = 4;
 }
 
 static void ui_image_backend_set_select_pressed_events(int x, int y)
@@ -194,10 +268,15 @@ int ui_backend_event(ui_backend_t *backend)
     ui_event_t *event;
     if (!backend || backend->finished) return 1;
     if (backend->scripted_event_index < ui_image_backend_scripted_event_count) {
+        if (ui_image_backend_scripted_event_wait > 0) {
+            ui_image_backend_scripted_event_wait--;
+            return 0;
+        }
         event = _ui_evtslot(backend->ctx);
         if (!event) return 1;
         *event = ui_image_backend_scripted_events[backend->scripted_event_index++];
-        if (event->type == UI_EVT_MOUSE) {
+        ui_image_backend_scripted_event_wait = ui_image_backend_scripted_event_gap;
+        if (event->type == UI_EVT_MOUSE || event->x || event->y) {
             backend->ctx->mousex = event->x;
             backend->ctx->mousey = event->y;
         }
