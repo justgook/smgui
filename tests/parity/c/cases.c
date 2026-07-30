@@ -38,6 +38,9 @@ int main(int argc, char **argv)
     char text_input_value[16] = "Hello";
     char text_input_empty_value[16] = "";
     char text_input_edit_value[16] = "Hello";
+    int64_t numeric_input_value = 42;
+    int64_t numeric_input_decrement_value = 42;
+    int64_t numeric_input_increment_value = 42;
     int64_t progress_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
@@ -212,6 +215,21 @@ int main(int argc, char **argv)
         { .type = UI_TXTINP, .flags = UI_DISABLED, .ptr = text_input_value, .max = sizeof(text_input_value) },
         { .type = UI_END }
     };
+    ui_form_t numeric_input_normal[] = {
+        { .type = UI_INT64, .ptr = &numeric_input_value, .min = 0, .max = 100, .inc = 5 }, { .type = UI_END }
+    };
+    ui_form_t numeric_input_explicit_size[] = {
+        { .type = UI_INT64, .w = 90, .h = 28, .ptr = &numeric_input_value, .min = 0, .max = 100, .inc = 5 }, { .type = UI_END }
+    };
+    ui_form_t numeric_input_decrement[] = {
+        { .type = UI_INT64, .ptr = &numeric_input_decrement_value, .min = 0, .max = 100, .inc = 5 }, { .type = UI_END }
+    };
+    ui_form_t numeric_input_increment[] = {
+        { .type = UI_INT64, .ptr = &numeric_input_increment_value, .min = 0, .max = 100, .inc = 5 }, { .type = UI_END }
+    };
+    ui_form_t numeric_input_disabled[] = {
+        { .type = UI_INT64, .flags = UI_DISABLED, .ptr = &numeric_input_value, .min = 0, .max = 100, .inc = 5 }, { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -313,6 +331,16 @@ int main(int argc, char **argv)
         forms = text_input_edit;
     } else if (!strcmp(argv[1], "text-input-disabled")) {
         forms = text_input_disabled;
+    } else if (!strcmp(argv[1], "numeric-input-normal")) {
+        forms = numeric_input_normal;
+    } else if (!strcmp(argv[1], "numeric-input-explicit-size")) {
+        forms = numeric_input_explicit_size;
+    } else if (!strcmp(argv[1], "numeric-input-decrement")) {
+        forms = numeric_input_decrement;
+    } else if (!strcmp(argv[1], "numeric-input-increment")) {
+        forms = numeric_input_increment;
+    } else if (!strcmp(argv[1], "numeric-input-disabled")) {
+        forms = numeric_input_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -329,6 +357,10 @@ int main(int argc, char **argv)
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "text-input-edit")) {
         ui_image_backend_set_text_edit_events(60, 10, "!");
+    } else if (!strcmp(argv[1], "numeric-input-decrement")) {
+        ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "numeric-input-increment")) {
+        ui_image_backend_set_mouse_event(61, 10, UI_BTN_L);
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
@@ -361,6 +393,16 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "text-input-edit") && strcmp(text_input_edit_value, "Hello!")) {
         fprintf(stderr, "text input edit produced %s instead of Hello!\n", text_input_edit_value);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "numeric-input-decrement") && numeric_input_decrement_value != 37) {
+        fprintf(stderr, "numeric decrement produced %lld instead of 37\n", (long long)numeric_input_decrement_value);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "numeric-input-increment") && numeric_input_increment_value != 47) {
+        fprintf(stderr, "numeric increment produced %lld instead of 47\n", (long long)numeric_input_increment_value);
         ui_free(&context);
         return 1;
     }

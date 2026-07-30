@@ -253,6 +253,57 @@ main :: proc() {
 	text_input_disabled := []smgui.Form {
 		{kind = .Text_Input, flags = {.Disabled}, binding = smgui.bind_text(&text_input_value)},
 	}
+	numeric_input_value := 42
+	numeric_input_decrement_value := 42
+	numeric_input_increment_value := 42
+	numeric_input_normal := []smgui.Form {
+		{
+			kind = .Integer_64,
+			binding = smgui.bind(&numeric_input_value),
+			minimum = 0,
+			maximum = 100,
+			increment = 5,
+		},
+	}
+	numeric_input_explicit_size := []smgui.Form {
+		{
+			kind = .Integer_64,
+			width = 90,
+			height = 28,
+			binding = smgui.bind(&numeric_input_value),
+			minimum = 0,
+			maximum = 100,
+			increment = 5,
+		},
+	}
+	numeric_input_decrement := []smgui.Form {
+		{
+			kind = .Integer_64,
+			binding = smgui.bind(&numeric_input_decrement_value),
+			minimum = 0,
+			maximum = 100,
+			increment = 5,
+		},
+	}
+	numeric_input_increment := []smgui.Form {
+		{
+			kind = .Integer_64,
+			binding = smgui.bind(&numeric_input_increment_value),
+			minimum = 0,
+			maximum = 100,
+			increment = 5,
+		},
+	}
+	numeric_input_disabled := []smgui.Form {
+		{
+			kind = .Integer_64,
+			flags = {.Disabled},
+			binding = smgui.bind(&numeric_input_value),
+			minimum = 0,
+			maximum = 100,
+			increment = 5,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -341,6 +392,16 @@ main :: proc() {
 		forms = text_input_edit
 	case "text-input-disabled":
 		forms = text_input_disabled
+	case "numeric-input-normal":
+		forms = numeric_input_normal
+	case "numeric-input-explicit-size":
+		forms = numeric_input_explicit_size
+	case "numeric-input-decrement":
+		forms = numeric_input_decrement
+	case "numeric-input-increment":
+		forms = numeric_input_increment
+	case "numeric-input-disabled":
+		forms = numeric_input_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -355,7 +416,9 @@ main :: proc() {
 		os.args[1] == "radio-hover" ||
 		os.args[1] == "radio-pressed" ||
 		os.args[1] == "slider-interaction" ||
-		os.args[1] == "text-input-edit"
+		os.args[1] == "text-input-edit" ||
+		os.args[1] == "numeric-input-decrement" ||
+		os.args[1] == "numeric-input-increment"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
@@ -407,7 +470,9 @@ main :: proc() {
 		if os.args[1] == "button-pressed" ||
 		   os.args[1] == "checkbox-pressed" ||
 		   os.args[1] == "radio-pressed" ||
-		   os.args[1] == "slider-interaction" {
+		   os.args[1] == "slider-interaction" ||
+		   os.args[1] == "numeric-input-decrement" ||
+		   os.args[1] == "numeric-input-increment" {
 			buttons += {.Mouse_Left}
 		}
 		event_x := 10
@@ -416,6 +481,8 @@ main :: proc() {
 		} else if os.args[1] == "text-input-edit" {
 			event_x = 60
 			buttons = {.Mouse_Left}
+		} else if os.args[1] == "numeric-input-increment" {
+			event_x = 61
 		}
 		if error := smgui.push_event(
 			&ctx,
@@ -465,6 +532,14 @@ main :: proc() {
 			"text input edit produced %q instead of Hello!\n",
 			smgui.text_buffer_string(&text_input_edit_value),
 		)
+		os.exit(1)
+	}
+	if os.args[1] == "numeric-input-decrement" && numeric_input_decrement_value != 37 {
+		fmt.eprintf("numeric decrement produced %d instead of 37\n", numeric_input_decrement_value)
+		os.exit(1)
+	}
+	if os.args[1] == "numeric-input-increment" && numeric_input_increment_value != 47 {
+		fmt.eprintf("numeric increment produced %d instead of 47\n", numeric_input_increment_value)
 		os.exit(1)
 	}
 	if !image_state.succeeded {

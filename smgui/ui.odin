@@ -540,6 +540,7 @@ Context :: struct {
 	dragged:        ^Form,
 	resized:        ^Form,
 	pressed:        ^Form,
+	pressed_part:   i8,
 	vertical_bar:   ^Form,
 	horizontal_bar: ^Form,
 	text_field:     ^Form,
@@ -1169,10 +1170,24 @@ measure_form :: proc(
 		if field.binding.data == nil || ctx.font == nil || ctx.font_bounds == nil {
 			return 0, 0, .Invalid_Input
 		}
+		placeholder := "0"
+		if field.kind == .Float_Input {
+			magnitude := field.float_maximum
+			if -field.float_minimum > field.float_maximum {
+				magnitude = field.float_minimum
+			}
+			placeholder = fmt.tprintf("%g.000", magnitude)
+		} else {
+			magnitude := field.maximum
+			if -field.minimum > field.maximum {
+				magnitude = field.minimum
+			}
+			placeholder = fmt.tprintf("%d", magnitude)
+		}
 		text_width, text_height, left, top: int
 		if bounds_error := ctx.font_bounds(
 			ctx.font,
-			"-100.000",
+			placeholder,
 			&text_width,
 			&text_height,
 			&left,
@@ -1182,11 +1197,12 @@ measure_form :: proc(
 		}
 		field.left = left
 		field.top = top
+		intrinsic_height := text_height + 4
 		if width < 1 {
-			width = max(text_width + (text_height + 8) * 2, 120)
+			width = text_width + 4 + 2 * intrinsic_height
 		}
 		if height < 1 {
-			height = text_height + 8
+			height = intrinsic_height
 		}
 	case .Slider, .Progress_Bar:
 		if width < 1 {
@@ -1208,8 +1224,14 @@ measure_form :: proc(
 			return 0, 0, .Invalid_Input
 		}
 		text_width, text_height, left, top: int
-		if bounds_error := ctx.font_bounds(ctx.font, "0.000", &text_width, &text_height, &left, &top);
-		   bounds_error != .None {
+		if bounds_error := ctx.font_bounds(
+			ctx.font,
+			"0.000",
+			&text_width,
+			&text_height,
+			&left,
+			&top,
+		); bounds_error != .None {
 			return 0, 0, bounds_error
 		}
 		field.left = left
@@ -2030,77 +2052,185 @@ draw_numeric_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if !valid {
 		return .Invalid_Input
 	}
-	x := field.computed_x
-	y := field.computed_y
-	width := field.computed_width
-	height := field.computed_height
-	disabled := .Disabled in field.flags
-	background := ctx.theme[int(Theme_Color.Input_Background)]
-	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
-	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
-	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
-	if disabled {
-		background = ctx.theme[int(Theme_Color.Disabled_Background)]
-		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
-		dark = foreground
-		light = foreground
+	x, y := field.computed_x, field.computed_y
+	width, height := field.computed_width, field.computed_height
+	if width < 2 * height || height < 2 {
+		return .None
 	}
-	draw_beveled_rectangle(ctx, x, y, width, height, dark, background, light)
-	draw_beveled_rectangle(ctx, x, y, height, height, light, background, dark)
-	draw_beveled_rectangle(ctx, x + width - height, y, height, height, light, background, dark)
+	disabled := .Disabled in field.flags
+	input_background := ctx.theme[int(Theme_Color.Input_Background)]
+	input_foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	input_dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	input_light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	button_light := ctx.theme[int(Theme_Color.Button_Light_Inner_Border)]
+	button_dark := ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)]
+	button_background := ctx.theme[int(Theme_Color.Button_Light_Background)]
+	triangle_background := input_background
+	if disabled {
+		input_background = ctx.theme[int(Theme_Color.Disabled_Background)]
+		input_foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		input_dark = input_foreground
+		input_light = input_foreground
+		button_light = input_background
+		button_dark = input_background
+		button_background = input_foreground
+		triangle_background = input_background
+	}
+	draw_outline_rectangle(ctx, x, y, width, height, input_dark, input_background, input_light)
+	inner_x, inner_y := x + 1, y + 1
+	inner_width, inner_height := width - 2, height - 2
+	fill_rectangle(
+		ctx,
+		inner_x + inner_height,
+		inner_y,
+		inner_width - 2 * inner_height,
+		inner_height,
+		input_background,
+	)
+
+	left_pressed := !disabled && ctx.pressed == field && ctx.pressed_part < 0
+	right_pressed := !disabled && ctx.pressed == field && ctx.pressed_part > 0
+	left_top, left_bottom := button_light, button_dark
+	right_top, right_bottom := button_light, button_dark
+	left_shift, right_shift := 0, 0
+	if left_pressed {
+		left_top, left_bottom = button_dark, button_light
+		left_shift = 1
+	}
+	if right_pressed {
+		right_top, right_bottom = button_dark, button_light
+		right_shift = 1
+	}
+	draw_outline_rectangle(
+		ctx,
+		inner_x,
+		inner_y,
+		inner_height,
+		inner_height,
+		left_top,
+		button_background,
+		left_bottom,
+	)
+	fill_rectangle(
+		ctx,
+		inner_x + 1,
+		inner_y + 1,
+		inner_height - 2,
+		inner_height - 2,
+		button_background,
+	)
+	right_x := inner_x + inner_width - inner_height
+	draw_outline_rectangle(
+		ctx,
+		right_x,
+		inner_y,
+		inner_height,
+		inner_height,
+		right_top,
+		button_background,
+		right_bottom,
+	)
+	fill_rectangle(
+		ctx,
+		right_x + 1,
+		inner_y + 1,
+		inner_height - 2,
+		inner_height - 2,
+		button_background,
+	)
+	draw_reference_triangle(
+		ctx,
+		inner_x + inner_height / 2 - 3,
+		inner_y + inner_height / 2 - 4 + left_shift,
+		false,
+		input_light,
+		triangle_background,
+		input_dark,
+	)
+	draw_reference_triangle(
+		ctx,
+		inner_x + inner_width - inner_height / 2 - 2,
+		inner_y + inner_height / 2 - 4 + right_shift,
+		true,
+		input_light,
+		triangle_background,
+		input_dark,
+	)
+
 	text_width, text_height, left, top: int
 	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
 	   error != .None {
 		return error
 	}
+	text_x :=
+		inner_x + inner_height + 2 + inner_width - 2 * inner_height - 4 - text_width - field.left
 	if error := ctx.font_draw(
 		ctx.font,
 		text,
 		ctx.screen.pixels,
-		foreground,
-		x + height + (width - height * 2 - text_width) / 2,
-		y + (height - text_height) / 2,
-		left,
-		top,
+		input_foreground,
+		text_x,
+		inner_y + 1,
+		field.left,
+		field.top,
 		ctx.screen.pitch,
-		x + height,
-		y + 1,
-		x + width - height,
-		y + height - 1,
+		inner_x + inner_height + 2 - field.left,
+		inner_y + 1,
+		min(inner_x + inner_width - inner_height - 2, ctx.screen.width),
+		min(inner_y + inner_height - 2, ctx.screen.height),
 	); error != .None {
 		return error
 	}
-	if error := draw_symbol(ctx, "-", x, y, height, height, foreground); error != .None {
-		return error
-	}
-	if error := draw_symbol(ctx, "+", x + width - height, y, height, height, foreground);
-	   error != .None {
-		return error
-	}
-	if ctx.text_field == field && !disabled {
-		cursor := clamp(ctx.text_cursor, 0, len(text))
-		cursor_width, cursor_height, cursor_left, cursor_top: int
-		if error := ctx.font_bounds(
-			ctx.font,
-			text[:cursor],
-			&cursor_width,
-			&cursor_height,
-			&cursor_left,
-			&cursor_top,
-		); error != .None {
-			return error
-		}
-		cursor_x := x + height + (width - height * 2 - text_width) / 2 + cursor_width
-		fill_rectangle(
-			ctx,
-			cursor_x,
-			y + 3,
-			1,
-			height - 6,
-			ctx.theme[int(Theme_Color.Input_Cursor)],
-		)
-	}
 	return .None
+}
+
+@(private = "file")
+draw_reference_triangle :: proc(
+	ctx: ^Context,
+	x, y: int,
+	right: bool,
+	light, background, dark: u32,
+) {
+	if x < 0 || y < 0 || x + 7 >= ctx.screen.width || y + 7 >= ctx.screen.height {
+		return
+	}
+	left_rows := [7]string {
+		"...db..",
+		"..dbl..",
+		".dbbl..",
+		"dbbbl..",
+		".bbbl..",
+		"..bbl..",
+		"...bl..",
+	}
+	right_rows := [7]string {
+		"bd.....",
+		"bbd....",
+		"bbbd...",
+		"bbbbl..",
+		"bbbl...",
+		"bbl....",
+		"bl.....",
+	}
+	rows := left_rows[:]
+	if right {
+		rows = right_rows[:]
+	}
+	for row, row_index in rows {
+		for pixel, column in transmute([]u8)(row) {
+			color := background
+			switch pixel {
+			case 'l':
+				color = light
+			case 'd':
+				color = dark
+			case 'b':
+			case:
+				continue
+			}
+			set_pixel(ctx, x + column, y + row_index, color)
+		}
+	}
 }
 
 @(private = "file")
@@ -2287,7 +2417,8 @@ draw_bound_value :: proc(ctx: ^Context, field: ^Form) -> Error {
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	}
 	text_width, text_height, left, top: int
-	if bounds_error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top); bounds_error != .None {
+	if bounds_error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+	   bounds_error != .None {
 		return bounds_error
 	}
 	_, _, _ = text_height, left, top
@@ -2610,10 +2741,14 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
 			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
 				deactivate_text_input(ctx, true)
+				ctx.pressed = ctx.hovered
+				ctx.pressed_part = -1
 				step_numeric_input(ctx.hovered, -1)
 			} else if event.x >=
 			   ctx.hovered.computed_x + ctx.hovered.computed_width - ctx.hovered.computed_height {
 				deactivate_text_input(ctx, true)
+				ctx.pressed = ctx.hovered
+				ctx.pressed_part = 1
 				step_numeric_input(ctx.hovered, 1)
 			} else if error := activate_numeric_input(ctx, ctx.hovered); error != .None {
 				return error
@@ -2629,6 +2764,7 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			activate_button(ctx.pressed)
 		}
 		ctx.pressed = nil
+		ctx.pressed_part = 0
 		ctx.flags += {.Refresh}
 	}
 	return .None
@@ -3118,7 +3254,12 @@ point_inside :: proc(field: ^Form, x, y: int) -> bool {
 
 @(private = "file")
 draw_outline_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, color, dark: u32) {
-	if width < 2 || height < 2 {
+	if width < 2 ||
+	   height < 2 ||
+	   x >= ctx.screen.width ||
+	   y >= ctx.screen.height ||
+	   x + width < 0 ||
+	   y + height < 0 {
 		return
 	}
 	top_right := min(x + width - 1, ctx.screen.width - 1)
