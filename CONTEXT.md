@@ -142,6 +142,7 @@ only their module and must agree with this list.
 - [x] Pass the explicit-size text-input fixture.
 - [x] Pass text-input focus/edit and disabled fixtures.
 - [x] Pass numeric-input intrinsic, explicit-size, decrement, increment, and disabled fixtures.
+- [x] Pass select intrinsic, explicit-size, pressed, open, choice, and disabled fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.

@@ -28,7 +28,9 @@ cases are `empty`, `label-normal`, `button-normal`, and
 `progress-maximum`, `progress-disabled`, `decimal-normal`, `decimal-negative`, and
 `decimal-explicit-size`, `decimal-disabled`, `hex-normal`, `hex-zero`, `hex-explicit-size`, `hex-disabled`, `float-normal`, `float-magnitude`, `float-explicit-size`, `float-disabled`, `text-input-normal`, `text-input-empty`, `text-input-explicit-size`, `text-input-edit`, `text-input-disabled`, `numeric-input-normal`,
 `numeric-input-explicit-size`, `numeric-input-decrement`,
-`numeric-input-increment`, and `numeric-input-disabled`.
+`numeric-input-increment`, `numeric-input-disabled`, `select-normal`,
+`select-explicit-size`, `select-pressed`, `select-open`, `select-choice`, and
+`select-disabled`.
 
 ## Widget smoke fixture
 
@@ -64,7 +66,9 @@ from 32–256 by 24–192 across the completed `empty`, `label-normal`,
 `slider-midpoint`, `slider-maximum`, `slider-interaction`, and `slider-disabled`, `progress-minimum`, `progress-midpoint`, and
 `progress-maximum`, `progress-disabled`, `decimal-normal`, and `decimal-negative`, `decimal-explicit-size`, `decimal-disabled`, `hex-normal`, `hex-zero`, `hex-explicit-size`, `hex-disabled`, `float-normal`, `float-magnitude`, `float-explicit-size`, `float-disabled`, `text-input-normal`, `text-input-empty`, `text-input-explicit-size`, `text-input-edit`, `text-input-disabled`, `numeric-input-normal`,
 `numeric-input-explicit-size`, `numeric-input-decrement`,
-`numeric-input-increment`, and `numeric-input-disabled` fixtures.
+`numeric-input-increment`, `numeric-input-disabled`, `select-normal`,
+`select-explicit-size`, `select-pressed`, `select-open`, `select-choice`, and
+`select-disabled` fixtures.
 Form kinds and states enter the pool only after their small fixtures pass.
 
 A discovered mismatch is replayed, minimized, and promoted to a named

@@ -76,7 +76,13 @@ BEGIN {
     fixtures[45] = "numeric-input-decrement"
     fixtures[46] = "numeric-input-increment"
     fixtures[47] = "numeric-input-disabled"
-    fixture_count = 48
+    fixtures[48] = "select-normal"
+    fixtures[49] = "select-explicit-size"
+    fixtures[50] = "select-pressed"
+    fixtures[51] = "select-open"
+    fixtures[52] = "select-choice"
+    fixtures[53] = "select-disabled"
+    fixture_count = 54
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

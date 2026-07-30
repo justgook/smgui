@@ -380,10 +380,12 @@ select_and_option_controls_choose_bound_values :: proc(t: ^testing.T) {
 	poll_for_test(t, &ctx, forms)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 30, 15, {.Mouse_Left})
+	testing.expect(t, ctx.popup == nil)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 30, 15, {.Released})
 	testing.expect(t, ctx.popup == &forms[0])
-	popup_x := forms[0].computed_x
-	popup_y := forms[0].computed_y + forms[0].computed_height
-	row_height := forms[0].computed_height
+	popup_x := ctx.popup_x
+	popup_y := ctx.popup_y + 2
+	row_height := forms[0].computed_height - 4
 	send_mouse_for_test(
 		t,
 		&ctx,
@@ -397,6 +399,7 @@ select_and_option_controls_choose_bound_values :: proc(t: ^testing.T) {
 	testing.expect(t, ctx.popup == nil)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 30, 15, {.Mouse_Left})
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 30, 15, {.Released})
 	send_key_for_test(t, &ctx, &backend_state, forms, "Up")
 	send_key_for_test(t, &ctx, &backend_state, forms, "Enter")
 	testing.expect_value(t, selected, 1)

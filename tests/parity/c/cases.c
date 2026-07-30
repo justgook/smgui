@@ -41,6 +41,9 @@ int main(int argc, char **argv)
     int64_t numeric_input_value = 42;
     int64_t numeric_input_decrement_value = 42;
     int64_t numeric_input_increment_value = 42;
+    int select_value = 0;
+    int select_choice_value = -1;
+    char *select_options[] = { "Alpha", "Beta" };
     int64_t progress_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
@@ -230,6 +233,24 @@ int main(int argc, char **argv)
     ui_form_t numeric_input_disabled[] = {
         { .type = UI_INT64, .flags = UI_DISABLED, .ptr = &numeric_input_value, .min = 0, .max = 100, .inc = 5 }, { .type = UI_END }
     };
+    ui_form_t select_normal[] = {
+        { .type = UI_SELECT, .ptr = &select_value, .optc = 2, .optv = select_options }, { .type = UI_END }
+    };
+    ui_form_t select_explicit_size[] = {
+        { .type = UI_SELECT, .w = 76, .h = 28, .ptr = &select_value, .optc = 2, .optv = select_options }, { .type = UI_END }
+    };
+    ui_form_t select_pressed[] = {
+        { .type = UI_SELECT, .ptr = &select_value, .optc = 2, .optv = select_options }, { .type = UI_END }
+    };
+    ui_form_t select_open[] = {
+        { .type = UI_SELECT, .y = 10, .ptr = &select_value, .optc = 2, .optv = select_options }, { .type = UI_END }
+    };
+    ui_form_t select_choice[] = {
+        { .type = UI_SELECT, .y = 10, .ptr = &select_choice_value, .optc = 2, .optv = select_options }, { .type = UI_END }
+    };
+    ui_form_t select_disabled[] = {
+        { .type = UI_SELECT, .flags = UI_DISABLED, .ptr = &select_value, .optc = 2, .optv = select_options }, { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -341,6 +362,18 @@ int main(int argc, char **argv)
         forms = numeric_input_increment;
     } else if (!strcmp(argv[1], "numeric-input-disabled")) {
         forms = numeric_input_disabled;
+    } else if (!strcmp(argv[1], "select-normal")) {
+        forms = select_normal;
+    } else if (!strcmp(argv[1], "select-explicit-size")) {
+        forms = select_explicit_size;
+    } else if (!strcmp(argv[1], "select-pressed")) {
+        forms = select_pressed;
+    } else if (!strcmp(argv[1], "select-open")) {
+        forms = select_open;
+    } else if (!strcmp(argv[1], "select-choice")) {
+        forms = select_choice;
+    } else if (!strcmp(argv[1], "select-disabled")) {
+        forms = select_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -361,6 +394,12 @@ int main(int argc, char **argv)
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "numeric-input-increment")) {
         ui_image_backend_set_mouse_event(61, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "select-pressed")) {
+        ui_image_backend_set_select_pressed_events(10, 10);
+    } else if (!strcmp(argv[1], "select-open")) {
+        ui_image_backend_set_select_open_events(10, 15);
+    } else if (!strcmp(argv[1], "select-choice")) {
+        ui_image_backend_set_select_choice_events(10, 15);
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
@@ -371,7 +410,8 @@ int main(int argc, char **argv)
         (!strcmp(argv[1], "checkbox-normal") || !strcmp(argv[1], "checkbox-checked")) ||
         (!strcmp(argv[1], "radio-normal") || !strcmp(argv[1], "radio-selected")) ||
         (!strcmp(argv[1], "slider-minimum") || !strcmp(argv[1], "slider-midpoint") ||
-         !strcmp(argv[1], "slider-maximum"))) {
+         !strcmp(argv[1], "slider-maximum")) ||
+        !strcmp(argv[1], "select-normal") || !strcmp(argv[1], "select-explicit-size")) {
         context.mousex = -1;
         context.mousey = -1;
     }
@@ -403,6 +443,11 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "numeric-input-increment") && numeric_input_increment_value != 47) {
         fprintf(stderr, "numeric increment produced %lld instead of 47\n", (long long)numeric_input_increment_value);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "select-choice") && select_choice_value != 0) {
+        fprintf(stderr, "select choice produced %d instead of 0\n", select_choice_value);
         ui_free(&context);
         return 1;
     }

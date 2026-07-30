@@ -21,7 +21,7 @@ typedef struct ui_backend_s {
 } ui_backend_t;
 
 static const char *ui_image_backend_output_path;
-static ui_event_t ui_image_backend_scripted_events[4];
+static ui_event_t ui_image_backend_scripted_events[6];
 static int ui_image_backend_scripted_event_count;
 
 static void ui_image_backend_set_output(const char *output_path)
@@ -38,6 +38,67 @@ static void ui_image_backend_set_mouse_event(int x, int y, int buttons)
     event->x = x;
     event->y = y;
     ui_image_backend_scripted_event_count = 1;
+}
+
+static void ui_image_backend_set_select_pressed_events(int x, int y)
+{
+    ui_event_t *hover = &ui_image_backend_scripted_events[0];
+    ui_event_t *press = &ui_image_backend_scripted_events[1];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    hover->type = UI_EVT_MOUSE;
+    hover->x = x;
+    hover->y = y;
+    press->type = UI_EVT_MOUSE;
+    press->btn = UI_BTN_L;
+    press->x = x;
+    press->y = y;
+    ui_image_backend_scripted_event_count = 2;
+}
+
+static void ui_image_backend_set_select_choice_events(int x, int y)
+{
+    ui_event_t *hover = &ui_image_backend_scripted_events[0];
+    ui_event_t *press = &ui_image_backend_scripted_events[1];
+    ui_event_t *release = &ui_image_backend_scripted_events[2];
+    ui_event_t *commit = &ui_image_backend_scripted_events[3];
+    ui_event_t *commit_again = &ui_image_backend_scripted_events[4];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    hover->type = UI_EVT_MOUSE;
+    hover->x = x;
+    hover->y = y;
+    press->type = UI_EVT_MOUSE;
+    press->btn = UI_BTN_L;
+    press->x = x;
+    press->y = y;
+    release->type = UI_EVT_MOUSE;
+    release->btn = UI_BTN_RELEASE;
+    release->x = x;
+    release->y = y;
+    commit->type = UI_EVT_KEY;
+    commit->key[0] = '\n';
+    commit_again->type = UI_EVT_KEY;
+    commit_again->key[0] = '\n';
+    ui_image_backend_scripted_event_count = 5;
+}
+
+static void ui_image_backend_set_select_open_events(int x, int y)
+{
+    ui_event_t *hover = &ui_image_backend_scripted_events[0];
+    ui_event_t *press = &ui_image_backend_scripted_events[1];
+    ui_event_t *release = &ui_image_backend_scripted_events[2];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    hover->type = UI_EVT_MOUSE;
+    hover->x = x;
+    hover->y = y;
+    press->type = UI_EVT_MOUSE;
+    press->btn = UI_BTN_L;
+    press->x = x;
+    press->y = y;
+    release->type = UI_EVT_MOUSE;
+    release->btn = UI_BTN_RELEASE;
+    release->x = x;
+    release->y = y;
+    ui_image_backend_scripted_event_count = 3;
 }
 
 static void ui_image_backend_set_text_edit_events(int x, int y, const char *text)

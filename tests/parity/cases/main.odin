@@ -304,6 +304,48 @@ main :: proc() {
 			increment = 5,
 		},
 	}
+	select_value := 0
+	select_choice_value := -1
+	select_options := []string{"Alpha", "Beta"}
+	select_normal := []smgui.Form {
+		{kind = .Select, binding = smgui.bind(&select_value), options = select_options},
+	}
+	select_explicit_size := []smgui.Form {
+		{
+			kind = .Select,
+			width = 76,
+			height = 28,
+			binding = smgui.bind(&select_value),
+			options = select_options,
+		},
+	}
+	select_pressed := []smgui.Form {
+		{kind = .Select, binding = smgui.bind(&select_value), options = select_options},
+	}
+	select_open := []smgui.Form {
+		{
+			kind = .Select,
+			y = smgui.absolute(10),
+			binding = smgui.bind(&select_value),
+			options = select_options,
+		},
+	}
+	select_choice := []smgui.Form {
+		{
+			kind = .Select,
+			y = smgui.absolute(10),
+			binding = smgui.bind(&select_choice_value),
+			options = select_options,
+		},
+	}
+	select_disabled := []smgui.Form {
+		{
+			kind = .Select,
+			flags = {.Disabled},
+			binding = smgui.bind(&select_value),
+			options = select_options,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -402,6 +444,18 @@ main :: proc() {
 		forms = numeric_input_increment
 	case "numeric-input-disabled":
 		forms = numeric_input_disabled
+	case "select-normal":
+		forms = select_normal
+	case "select-explicit-size":
+		forms = select_explicit_size
+	case "select-pressed":
+		forms = select_pressed
+	case "select-open":
+		forms = select_open
+	case "select-choice":
+		forms = select_choice
+	case "select-disabled":
+		forms = select_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -418,13 +472,22 @@ main :: proc() {
 		os.args[1] == "slider-interaction" ||
 		os.args[1] == "text-input-edit" ||
 		os.args[1] == "numeric-input-decrement" ||
-		os.args[1] == "numeric-input-increment"
+		os.args[1] == "numeric-input-increment" ||
+		os.args[1] == "select-pressed" ||
+		os.args[1] == "select-open" ||
+		os.args[1] == "select-choice"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
 	}
-	if os.args[1] == "text-input-edit" {
+	if os.args[1] == "select-pressed" {
+		capture_delay = 2
+	} else if os.args[1] == "select-open" {
 		capture_delay = 3
+	} else if os.args[1] == "text-input-edit" {
+		capture_delay = 3
+	} else if os.args[1] == "select-choice" {
+		capture_delay = 5
 	}
 	image_state: image_backend.State
 	ctx: smgui.Context
@@ -461,7 +524,9 @@ main :: proc() {
 	   os.args[1] == "radio-selected" ||
 	   os.args[1] == "slider-minimum" ||
 	   os.args[1] == "slider-midpoint" ||
-	   os.args[1] == "slider-maximum" {
+	   os.args[1] == "slider-maximum" ||
+	   os.args[1] == "select-normal" ||
+	   os.args[1] == "select-explicit-size" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
@@ -472,10 +537,14 @@ main :: proc() {
 		   os.args[1] == "radio-pressed" ||
 		   os.args[1] == "slider-interaction" ||
 		   os.args[1] == "numeric-input-decrement" ||
-		   os.args[1] == "numeric-input-increment" {
+		   os.args[1] == "numeric-input-increment" ||
+		   os.args[1] == "select-pressed" ||
+		   os.args[1] == "select-open" ||
+		   os.args[1] == "select-choice" {
 			buttons += {.Mouse_Left}
 		}
 		event_x := 10
+		event_y := 10
 		if os.args[1] == "slider-interaction" {
 			event_x = 29
 		} else if os.args[1] == "text-input-edit" {
@@ -483,13 +552,46 @@ main :: proc() {
 			buttons = {.Mouse_Left}
 		} else if os.args[1] == "numeric-input-increment" {
 			event_x = 61
+		} else if os.args[1] == "select-open" || os.args[1] == "select-choice" {
+			event_y = 15
+		}
+		if os.args[1] == "select-pressed" ||
+		   os.args[1] == "select-open" ||
+		   os.args[1] == "select-choice" {
+			if error := smgui.push_event(
+				&ctx,
+				{kind = .Mouse, x = event_x, y = event_y},
+			); error != .None {
+				fmt.eprintf("select hover injection failed: %v\n", error)
+				os.exit(1)
+			}
 		}
 		if error := smgui.push_event(
 			&ctx,
-			{kind = .Mouse, buttons = buttons, x = event_x, y = 10},
+			{kind = .Mouse, buttons = buttons, x = event_x, y = event_y},
 		); error != .None {
 			fmt.eprintf("event injection failed: %v\n", error)
 			os.exit(1)
+		}
+		if os.args[1] == "select-open" || os.args[1] == "select-choice" {
+			if error := smgui.push_event(
+				&ctx,
+				{kind = .Mouse, buttons = {.Released}, x = event_x, y = event_y},
+			); error != .None {
+				fmt.eprintf("select release injection failed: %v\n", error)
+				os.exit(1)
+			}
+			if os.args[1] == "select-choice" {
+				for _ in 0 ..< 2 {
+					if error := smgui.push_event(
+						&ctx,
+						{kind = .Key, key = smgui.key_input("Enter")},
+					); error != .None {
+						fmt.eprintf("select choice injection failed: %v\n", error)
+						os.exit(1)
+					}
+				}
+			}
 		}
 		if os.args[1] == "text-input-edit" {
 			if error := smgui.push_event(&ctx, {kind = .Key, key = smgui.key_input("!")});
@@ -540,6 +642,10 @@ main :: proc() {
 	}
 	if os.args[1] == "numeric-input-increment" && numeric_input_increment_value != 47 {
 		fmt.eprintf("numeric increment produced %d instead of 47\n", numeric_input_increment_value)
+		os.exit(1)
+	}
+	if os.args[1] == "select-choice" && select_choice_value != 0 {
+		fmt.eprintf("select choice produced %d instead of 0\n", select_choice_value)
 		os.exit(1)
 	}
 	if !image_state.succeeded {

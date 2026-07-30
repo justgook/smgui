@@ -547,6 +547,10 @@ Context :: struct {
 	text_cursor:    int,
 	edit_buffer:    Text_Buffer,
 	popup:          ^Form,
+	popup_x:        int,
+	popup_y:        int,
+	popup_width:    int,
+	popup_height:   int,
 	drag_x:         int,
 	drag_y:         int,
 	default_size:   int,
@@ -1157,14 +1161,14 @@ measure_form :: proc(
 		field.left = left
 		field.top = top
 		if height < 1 {
-			height = text_height + 8
+			height = text_height + 4
 		}
 		if width < 1 {
 			button_count := 1
 			if field.kind == .Option {
 				button_count = 2
 			}
-			width = text_width + height * button_count + 8
+			width = text_width + height * button_count + 4
 		}
 	case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
 		if field.binding.data == nil || ctx.font == nil || ctx.font_bounds == nil {
@@ -1909,20 +1913,10 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 }
 
 @(private = "file")
-draw_choice_input :: proc(ctx: ^Context, field: ^Form) -> Error {
-	if ctx.font == nil ||
-	   ctx.font_bounds == nil ||
-	   ctx.font_draw == nil ||
-	   field.binding.kind != .Integer ||
-	   field.binding.data == nil ||
-	   len(field.options) == 0 {
-		return .Invalid_Input
-	}
+draw_option_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	selected := clamp(((^int)(field.binding.data))^, 0, len(field.options) - 1)
-	x := field.computed_x
-	y := field.computed_y
-	width := field.computed_width
-	height := field.computed_height
+	x, y := field.computed_x, field.computed_y
+	width, height := field.computed_width, field.computed_height
 	disabled := .Disabled in field.flags
 	background := ctx.theme[int(Theme_Color.Input_Background)]
 	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
@@ -1935,65 +1929,169 @@ draw_choice_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		light = foreground
 	}
 	draw_beveled_rectangle(ctx, x, y, width, height, dark, background, light)
-	text_x := x + 4
-	text_width := width - height - 8
-	if field.kind == .Option {
-		draw_beveled_rectangle(ctx, x, y, height, height, light, background, dark)
-		if error := draw_symbol(ctx, "<", x, y, height, height, foreground); error != .None {
-			return error
-		}
-		text_x = x + height + 4
-		text_width = width - height * 2 - 8
+	draw_beveled_rectangle(ctx, x, y, height, height, light, background, dark)
+	if error := draw_symbol(ctx, "<", x, y, height, height, foreground); error != .None {
+		return error
 	}
 	button_x := x + width - height
 	draw_beveled_rectangle(ctx, button_x, y, height, height, light, background, dark)
-	symbol := "v"
-	if field.kind == .Option {
-		symbol = ">"
-	}
-	if error := draw_symbol(ctx, symbol, button_x, y, height, height, foreground); error != .None {
+	if error := draw_symbol(ctx, ">", button_x, y, height, height, foreground); error != .None {
 		return error
 	}
 	return draw_clipped_text(
 		ctx,
 		field.options[selected],
-		text_x,
+		x + height + 4,
 		y,
-		text_width,
+		width - height * 2 - 8,
 		height,
 		foreground,
 	)
 }
 
 @(private = "file")
+draw_choice_input :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if ctx.font == nil ||
+	   ctx.font_bounds == nil ||
+	   ctx.font_draw == nil ||
+	   field.binding.kind != .Integer ||
+	   field.binding.data == nil ||
+	   len(field.options) == 0 {
+		return .Invalid_Input
+	}
+	if field.kind == .Option {
+		return draw_option_input(ctx, field)
+	}
+	selected := ((^int)(field.binding.data))^
+	text := ""
+	if selected >= 0 && selected < len(field.options) {
+		text = field.options[selected]
+	}
+	x, y := field.computed_x, field.computed_y
+	width, height := field.computed_width, field.computed_height
+	if height < 2 || width < height {
+		return .None
+	}
+	input_light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	input_dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	input_background := ctx.theme[int(Theme_Color.Input_Background)]
+	input_foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	button_background := ctx.theme[int(Theme_Color.Button_Light_Background)]
+	button_light := ctx.theme[int(Theme_Color.Button_Light_Inner_Border)]
+	button_dark := ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)]
+	triangle_background := input_background
+	disabled := .Disabled in field.flags
+	if disabled {
+		input_background = ctx.theme[int(Theme_Color.Disabled_Background)]
+		button_light = input_background
+		button_dark = input_background
+		triangle_background = input_background
+		input_foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		input_light = input_foreground
+		input_dark = input_foreground
+		button_background = input_foreground
+	}
+	draw_outline_rectangle(
+		ctx,
+		x,
+		y,
+		width,
+		height,
+		input_dark,
+		input_background,
+		input_light,
+	)
+	x += 1
+	y += 1
+	width -= 2
+	height -= 2
+	fill_rectangle(ctx, x, y, width - height, height, input_background)
+	pressed := !disabled && ctx.pressed == field
+	top, bottom := button_light, button_dark
+	shift := 0
+	if pressed {
+		top, bottom = button_dark, button_light
+		shift = 1
+	}
+	button_x := x + width - height
+	draw_outline_rectangle(ctx, button_x, y, height, height, top, button_background, bottom)
+	fill_rectangle(ctx, button_x + 1, y + 1, height - 2, height - 2, button_background)
+	draw_down_triangle(
+		ctx,
+		x + width - height / 2 - 3,
+		y + height / 2 - 2 + shift,
+		input_light,
+		triangle_background,
+		input_dark,
+	)
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		input_foreground,
+		x + 2 - field.left,
+		y + 1,
+		field.left,
+		field.top,
+		ctx.screen.pitch,
+		x + 2,
+		y + 1,
+		min(x + width - height - 2, ctx.screen.width),
+		min(y + height - 2, ctx.screen.height),
+	)
+}
+
+@(private = "file")
 draw_select_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
-	x, y, width, row_height := select_popup_geometry(ctx, field)
+	x, y, width, height, row_height := select_popup_geometry(ctx, field)
+	if width < 1 || height < 1 || x >= ctx.screen.width || y >= ctx.screen.height {
+		return .Invalid_Input
+	}
+	border := ctx.theme[int(Theme_Color.Input_Selected_Border)]
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	draw_outline_rectangle(ctx, x, y, width, height, border, background, border)
+	x += 1
+	y += 1
+	width -= 2
+	height -= 2
+	if .No_Shadow not_in field.flags {
+		fill_rectangle(ctx, x + width + 1, y + 3, 4, height - 2, ctx.theme[int(Theme_Color.Shadow)])
+		fill_rectangle(ctx, x + 3, y + height + 1, width + 2, 4, ctx.theme[int(Theme_Color.Shadow)])
+	}
+	fill_rectangle(ctx, x, y, width, height, background)
 	for option, index in field.options {
 		row_y := y + index * row_height
-		selected := index == field.selected_option
-		hovered :=
-			ctx.mouse_x >= x &&
-			ctx.mouse_x < x + width &&
-			ctx.mouse_y >= row_y &&
-			ctx.mouse_y < row_y + row_height
-		background := ctx.theme[int(Theme_Color.Input_Background)]
-		foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
-		border := ctx.theme[int(Theme_Color.Input_Dark_Border)]
-		if selected || hovered {
-			background = ctx.theme[int(Theme_Color.Highlight_Background)]
-			foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
-			border = ctx.theme[int(Theme_Color.Input_Selected_Border)]
+		if row_y + field.top >= ctx.screen.height {
+			break
 		}
-		fill_rectangle(ctx, x, row_y, width, row_height, border)
-		fill_rectangle(ctx, x + 1, row_y + 1, width - 2, row_height - 2, background)
-		if error := draw_clipped_text(
-			ctx,
+		hovered := ctx.mouse_y >= row_y + 1 && ctx.mouse_y < row_y + 1 + row_height
+		foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+		if hovered {
+			field.selected_option = index
+			fill_rectangle(
+				ctx,
+				x + 1,
+				row_y + 1,
+				width - 2,
+				row_height,
+				ctx.theme[int(Theme_Color.Highlight_Background)],
+			)
+			foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
+		}
+		if error := ctx.font_draw(
+			ctx.font,
 			option,
-			x + 4,
-			row_y,
-			width - 8,
-			row_height,
+			ctx.screen.pixels,
 			foreground,
+			x + 2 - field.left,
+			row_y + 1,
+			field.left,
+			field.top,
+			ctx.screen.pitch,
+			x + 2,
+			row_y + 1,
+			min(x + width, ctx.screen.width),
+			min(row_y + 1 + row_height, ctx.screen.height),
 		); error != .None {
 			return error
 		}
@@ -2031,14 +2129,41 @@ draw_clipped_text :: proc(
 }
 
 @(private = "file")
-select_popup_geometry :: proc(ctx: ^Context, field: ^Form) -> (x, y, width, row_height: int) {
+select_popup_geometry :: proc(
+	ctx: ^Context,
+	field: ^Form,
+) -> (x, y, width, height, row_height: int) {
+	if ctx.popup == field && ctx.popup_width > 0 && ctx.popup_height > 0 {
+		return ctx.popup_x,
+		       ctx.popup_y,
+		       ctx.popup_width,
+		       ctx.popup_height,
+		       field.computed_height - 4
+	}
 	x = field.computed_x
 	width = field.computed_width
-	row_height = field.computed_height
-	height := row_height * len(field.options)
-	y = field.computed_y + row_height
-	if y + height > ctx.screen.height {
-		y = max(field.computed_y - height, 0)
+	for option in field.options {
+		option_width, option_height, left, top: int
+		if ctx.font_bounds(ctx.font, option, &option_width, &option_height, &left, &top) == .None {
+			width = max(width, option_width)
+		}
+	}
+	row_height = field.computed_height - 4
+	y = field.computed_y - row_height * field.selected_option
+	height = 4 + row_height * len(field.options)
+	if x + width + 2 >= ctx.screen.width {
+		x = ctx.screen.width - width - 2
+	}
+	if y + height + 2 >= ctx.screen.height {
+		y = ctx.screen.height - height - 2
+	}
+	if x < 0 {
+		width += x
+		x = 0
+	}
+	if y < 0 {
+		height += y
+		y = 0
 	}
 	return
 }
@@ -2182,6 +2307,35 @@ draw_numeric_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		return error
 	}
 	return .None
+}
+
+@(private = "file")
+draw_down_triangle :: proc(ctx: ^Context, x, y: int, light, background, dark: u32) {
+	if x < 0 || y < 0 || x + 7 >= ctx.screen.width || y + 7 >= ctx.screen.height {
+		return
+	}
+	rows := [5]string {
+		"ddddddd",
+		"dbbbbbl",
+		".dbbbl.",
+		"..dbl..",
+		"...l...",
+	}
+	for row, row_index in rows {
+		for pixel, column in transmute([]u8)(row) {
+			color := background
+			switch pixel {
+			case 'l':
+				color = light
+			case 'd':
+				color = dark
+			case 'b':
+			case:
+				continue
+			}
+			set_pixel(ctx, x + column, y + row_index, color)
+		}
+	}
 }
 
 @(private = "file")
@@ -2653,6 +2807,10 @@ hovered_container_at :: proc(container: ^Form, x, y: int) -> ^Form {
 
 @(private = "file")
 process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
+	if event.kind == .Mouse {
+		ctx.mouse_x = event.x
+		ctx.mouse_y = event.y
+	}
 	if ctx.popup != nil && ctx.popup.kind == .Select {
 		return process_select_popup_event(ctx, event)
 	}
@@ -2729,7 +2887,7 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			activate_text_input(ctx, ctx.hovered)
 		case .Select:
 			deactivate_text_input(ctx, true)
-			open_select_popup(ctx, ctx.hovered)
+			ctx.pressed = ctx.hovered
 		case .Option:
 			deactivate_text_input(ctx, true)
 			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
@@ -2760,8 +2918,12 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		}
 		ctx.flags += {.Refresh}
 	} else if .Released in event.buttons {
-		if ctx.pressed != nil && ctx.pressed == ctx.hovered && ctx.pressed.kind == .Button {
-			activate_button(ctx.pressed)
+		if ctx.pressed != nil && ctx.pressed == ctx.hovered {
+			if ctx.pressed.kind == .Button {
+				activate_button(ctx.pressed)
+			} else if ctx.pressed.kind == .Select {
+				open_select_popup(ctx, ctx.pressed)
+			}
 		}
 		ctx.pressed = nil
 		ctx.pressed_part = 0
@@ -2834,6 +2996,11 @@ open_select_popup :: proc(ctx: ^Context, field: ^Form) {
 		return
 	}
 	field.selected_option = clamp(((^int)(field.binding.data))^, 0, len(field.options) - 1)
+	x, y, width, height, _ := select_popup_geometry(ctx, field)
+	ctx.popup_x = x
+	ctx.popup_y = y
+	ctx.popup_width = width
+	ctx.popup_height = height
 	ctx.popup = field
 }
 
@@ -2862,12 +3029,12 @@ process_select_popup_event :: proc(ctx: ^Context, event: ^Event) -> Error {
 	if event.kind != .Mouse || .Mouse_Left not_in event.buttons {
 		return .None
 	}
-	x, y, width, row_height := select_popup_geometry(ctx, field)
+	x, y, width, height, row_height := select_popup_geometry(ctx, field)
 	if event.x >= x &&
 	   event.x < x + width &&
-	   event.y >= y &&
-	   event.y < y + row_height * len(field.options) {
-		selected := (event.y - y) / row_height
+	   event.y >= y + 2 &&
+	   event.y < y + height - 1 {
+		selected := (event.y - y - 2) / row_height
 		field.selected_option = clamp(selected, 0, len(field.options) - 1)
 		((^int)(field.binding.data))^ = field.selected_option
 	}
