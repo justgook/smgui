@@ -110,7 +110,9 @@ BEGIN {
     fixtures[79] = "division-intrinsic"
     fixtures[80] = "division-percentage"
     fixtures[81] = "popup-chrome"
-    fixture_count = 82
+    fixtures[82] = "popup-drag"
+    fixtures[83] = "popup-resize"
+    fixture_count = 84
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
@@ -122,6 +124,10 @@ BEGIN {
              fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && width < 64) width = 64
         if (fixture ~ /^division-/ && width < 64) width = 64
         if (fixture ~ /^division-/ && height < 48) height = 48
+        if (fixture == "popup-drag" || fixture == "popup-resize") {
+            if (width < 96) width = 96
+            if (height < 72) height = 72
+        }
         if ((fixture == "popup-close" ||
              fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && height < 48) height = 48
         printf "%d %s %d %d\n", case_number, fixture, width, height

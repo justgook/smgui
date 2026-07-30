@@ -314,6 +314,12 @@ int main(int argc, char **argv)
     ui_form_t popup_close[] = {
         { .type = UI_POPUP, .flags = UI_DRAGGABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .label = POPUP_TEXT, .ptr = popup_empty_children }, { .type = UI_END }
     };
+    ui_form_t popup_drag[] = {
+        { .type = UI_POPUP, .flags = UI_DRAGGABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .ptr = popup_empty_children }, { .type = UI_END }
+    };
+    ui_form_t popup_resize[] = {
+        { .type = UI_POPUP, .flags = UI_RESIZABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .ptr = popup_empty_children }, { .type = UI_END }
+    };
     ui_form_t menu_label_children[] = {
         { .type = UI_LABEL, .label = MENU_ITEM_TEXT }, { .type = UI_END }
     };
@@ -535,6 +541,10 @@ int main(int argc, char **argv)
         forms = popup_hidden;
     } else if (!strcmp(argv[1], "popup-close")) {
         forms = popup_close;
+    } else if (!strcmp(argv[1], "popup-drag")) {
+        forms = popup_drag;
+    } else if (!strcmp(argv[1], "popup-resize")) {
+        forms = popup_resize;
     } else if (!strcmp(argv[1], "menu-closed")) {
         forms = menu_closed;
     } else if (!strcmp(argv[1], "menu-button-closed")) {
@@ -589,6 +599,10 @@ int main(int argc, char **argv)
         ui_image_backend_set_mouse_event(55, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "popup-close")) {
         ui_image_backend_set_two_mouse_events(50, 10, 0, 50, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "popup-drag")) {
+        ui_image_backend_set_popup_motion_events(10, 10, 25, 20);
+    } else if (!strcmp(argv[1], "popup-resize")) {
+        ui_image_backend_set_popup_motion_events(57, 42, 47, 32);
     } else if (!strcmp(argv[1], "menu-open") || !strcmp(argv[1], "menu-button-open") ||
                !strcmp(argv[1], "menu-intrinsic") || !strcmp(argv[1], "menu-anchored")) {
         ui_image_backend_set_two_mouse_events(10, 10, 0, 10, 10, UI_BTN_L);
@@ -681,6 +695,20 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "popup-close") && !(popup_close[0].flags & UI_HIDDEN)) {
         fprintf(stderr, "popup close did not hide the popup\n");
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "popup-drag") &&
+        (popup_drag[0].ex != (width < 76 ? width - 56 : 20) ||
+         popup_drag[0].ey != (height < 56 ? height - 41 : 15))) {
+        fprintf(stderr, "popup drag moved to %d,%d instead of %d,%d\n",
+            popup_drag[0].ex, popup_drag[0].ey,
+            width < 76 ? width - 56 : 20, height < 56 ? height - 41 : 15);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "popup-resize") && (popup_resize[0].ew != 45 || popup_resize[0].eh != 30)) {
+        fprintf(stderr, "popup resize produced %dx%d instead of 45x30\n", popup_resize[0].ew, popup_resize[0].eh);
         ui_free(&context);
         return 1;
     }

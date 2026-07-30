@@ -66,6 +66,25 @@ static void ui_image_backend_set_two_mouse_events(
     ui_image_backend_scripted_event_count = 2;
 }
 
+static void ui_image_backend_set_popup_motion_events(
+    int start_x, int start_y,
+    int end_x, int end_y)
+{
+    ui_event_t *warmup = &ui_image_backend_scripted_events[0];
+    ui_event_t *press = &ui_image_backend_scripted_events[1];
+    ui_event_t *move = &ui_image_backend_scripted_events[2];
+    ui_event_t *release = &ui_image_backend_scripted_events[3];
+    memset(ui_image_backend_scripted_events, 0, sizeof(ui_image_backend_scripted_events));
+    warmup->type = press->type = move->type = release->type = UI_EVT_MOUSE;
+    warmup->x = press->x = start_x;
+    warmup->y = press->y = start_y;
+    press->btn = move->btn = UI_BTN_L;
+    move->x = release->x = end_x;
+    move->y = release->y = end_y;
+    release->btn = UI_BTN_RELEASE;
+    ui_image_backend_scripted_event_count = 4;
+}
+
 static void ui_image_backend_set_menu_item_events(
     int first_x, int first_y, int first_buttons,
     int second_x, int second_y, int second_buttons,

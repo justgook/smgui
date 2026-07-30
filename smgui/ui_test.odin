@@ -62,6 +62,47 @@ resize_reallocates_framebuffer_and_requests_layout :: proc(t: ^testing.T) {
 }
 
 @(test)
+popup_wrap_uses_configured_vertical_pitch :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 64, 64); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+		return
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+		return
+	}
+	children := []Form {
+		{kind = .Button, flags = {.No_Break}, width = 30, height = 8},
+		{kind = .Button, width = 30, height = 8},
+	}
+	forms := []Form {
+		{kind = .Popup, x = absolute(5), y = absolute(5), width = 50, height = 50, margin = 2, pitch = 6, children = children},
+	}
+	if error := render(&ctx, forms); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+		return
+	}
+	testing.expect_value(
+		t,
+		children[1].computed_y - children[0].computed_y,
+		children[0].computed_height + forms[0].pitch,
+	)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context

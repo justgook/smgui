@@ -34,9 +34,9 @@ cases are `empty`, `label-normal`, `button-normal`, and
 `option-increment`, `option-disabled`, `division-intrinsic`,
 `division-percentage`, `popup-normal`, `popup-intrinsic`, `popup-no-border`,
 `popup-no-shadow`, `popup-title`, `popup-draggable`, `popup-chrome`,
-`popup-resizable`, `popup-hidden`, `popup-close`, `menu-closed`,
-`menu-button-closed`, `menu-button-open`, `menu-open`, `menu-intrinsic`,
-`menu-anchored`, `menu-hover`, `menu-disabled`, `menu-choice`,
+`popup-resizable`, `popup-hidden`, `popup-close`, `popup-drag`, `popup-resize`,
+`menu-closed`, `menu-button-closed`, `menu-button-open`, `menu-open`,
+`menu-intrinsic`, `menu-anchored`, `menu-hover`, `menu-disabled`, `menu-choice`,
 `menu-outside-close`, and `menu-escape-close`.
 
 ## Widget smoke fixture
@@ -52,7 +52,7 @@ to RGBA before comparison, so parity does not depend on compressed PNG bytes.
 
 The fixture deliberately records remaining composition differences. Division
 intrinsic sizing and transparent rendering now match; the current first
-mismatch is in root menu spacing at `(36,4)`. This is parity work, not
+mismatch is in root menu spacing at `(80,4)`. This is parity work, not
 image-adapter behavior.
 
 ## Seeded fuzz fixtures
@@ -79,9 +79,9 @@ from 32–256 by 24–192 across the completed `empty`, `label-normal`,
 `option-increment`, `option-disabled`, `division-intrinsic`,
 `division-percentage`, `popup-normal`, `popup-intrinsic`, `popup-no-border`,
 `popup-no-shadow`, `popup-title`, `popup-draggable`, `popup-chrome`,
-`popup-resizable`, `popup-hidden`, `popup-close`, `menu-closed`,
-`menu-button-closed`, `menu-button-open`, `menu-open`, `menu-intrinsic`,
-`menu-anchored`, `menu-hover`, `menu-disabled`, `menu-choice`,
+`popup-resizable`, `popup-hidden`, `popup-close`, `popup-drag`, `popup-resize`,
+`menu-closed`, `menu-button-closed`, `menu-button-open`, `menu-open`,
+`menu-intrinsic`, `menu-anchored`, `menu-hover`, `menu-disabled`, `menu-choice`,
 `menu-outside-close`, and `menu-escape-close` fixtures.
 Form kinds and states enter the pool only after their small fixtures pass.
 

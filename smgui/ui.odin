@@ -20,7 +20,8 @@ Status:
   [ ] Remaining drawing primitives implemented
   [x] Relative flow layout and division containers implemented
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
-  [ ] Scrolling, dragging, resizing, and advanced alignment implemented
+  [x] Popup dragging and resizing implemented
+  [ ] Scrolling and advanced alignment implemented
   [ ] Remaining widget interaction and event processing implemented
   [ ] Remaining built-in widgets implemented
 
@@ -3031,34 +3032,90 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 	if event.kind != .Mouse {
 		return .None
 	}
+	if .Released in event.buttons && (ctx.dragged != nil || ctx.resized != nil) {
+		ctx.dragged = nil
+		ctx.resized = nil
+		ctx.flags += {.Refresh}
+		return .None
+	}
+	if ctx.dragged != nil {
+		new_x := clamp(event.x - ctx.drag_x, 1, max(ctx.screen.width - ctx.dragged.computed_width - 1, 1))
+		new_y := clamp(event.y - ctx.drag_y, 1, max(ctx.screen.height - ctx.dragged.computed_height - 1, 1))
+		ctx.dragged.horizontal_alignment = .Left
+		ctx.dragged.vertical_alignment = .Top
+		ctx.dragged.x = absolute(new_x)
+		ctx.dragged.y = absolute(new_y)
+		ctx.dragged.computed_x = new_x
+		ctx.dragged.computed_y = new_y
+		ctx.flags += {.Refresh}
+		return .None
+	}
+	if ctx.resized != nil {
+		new_width := event.x - ctx.resized.computed_x + ctx.drag_x
+		new_height := event.y - ctx.resized.computed_y + ctx.drag_y
+		title_height := 0
+		if .Draggable in ctx.resized.flags {
+			title_height = 11
+			if ctx.resized.label > 0 && ctx.resized.label < len(ctx.texts) {
+				if _, text_height, _, _, measure_error := measure_label(ctx, ctx.resized);
+				   measure_error == .None {
+					title_height = max(title_height, text_height + 2)
+				}
+			}
+		}
+		new_width = max(new_width, 8 + 2 * ctx.resized.margin)
+		new_height = max(new_height, 8 + title_height + 2 * ctx.resized.margin)
+		ctx.resized.horizontal_alignment = .Left
+		ctx.resized.vertical_alignment = .Top
+		ctx.resized.width = new_width
+		ctx.resized.height = new_height
+		ctx.resized.computed_width = new_width
+		ctx.resized.computed_height = new_height
+		ctx.flags += {.Refresh, .Recalculate}
+		return .None
+	}
 	if .Mouse_Left in event.buttons {
+		for reverse_index in 0 ..< len(form) {
+			index := len(form) - 1 - reverse_index
+			field := &form[index]
+			if field.kind != .Popup || .Hidden in field.flags || !point_inside(field, event.x, event.y) {
+				continue
+			}
+			title_height := 0
+			if .Draggable in field.flags {
+				title_height = 11
+				if field.label > 0 && field.label < len(ctx.texts) {
+					if _, text_height, _, _, measure_error := measure_label(ctx, field);
+					   measure_error == .None {
+						title_height = max(title_height, text_height + 2)
+					}
+				}
+			}
+			if title_height > 0 && event.y < field.computed_y + title_height {
+				if event.x > field.computed_x + field.computed_width - title_height {
+					field.flags += {.Hidden}
+				} else {
+					ctx.dragged = field
+					ctx.drag_x = event.x - field.computed_x
+					ctx.drag_y = event.y - field.computed_y
+				}
+				ctx.flags += {.Refresh}
+				return .None
+			}
+			if .Resizable in field.flags &&
+			   event.x > field.computed_x + field.computed_width - 7 &&
+			   event.y > field.computed_y + field.computed_height - 7 {
+				ctx.resized = field
+				ctx.drag_x = field.computed_x + field.computed_width - event.x
+				ctx.drag_y = field.computed_y + field.computed_height - event.y
+				ctx.flags += {.Refresh}
+				return .None
+			}
+			break
+		}
 		if ctx.menu != nil && !point_inside(ctx.menu, event.x, event.y) {
 			close_menu(ctx)
 			return .None
-		}
-		for &field in form {
-			if field.kind == .End {
-				break
-			}
-			if field.kind == .Popup &&
-			   .Hidden not_in field.flags &&
-			   .Draggable in field.flags {
-				title_height := 11
-				if field.label > 0 && field.label < len(ctx.texts) {
-					if _, text_height, _, _, error := measure_label(ctx, &field);
-					   error == .None {
-						title_height = max(text_height + 2, 11)
-					}
-				}
-				if event.x > field.computed_x + field.computed_width - title_height &&
-				   event.x < field.computed_x + field.computed_width &&
-				   event.y >= field.computed_y &&
-				   event.y < field.computed_y + title_height {
-					field.flags += {.Hidden}
-					ctx.flags += {.Refresh}
-					return .None
-				}
-			}
 		}
 	}
 	update_hover(ctx, form)

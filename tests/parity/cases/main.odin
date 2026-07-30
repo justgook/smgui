@@ -415,6 +415,12 @@ main :: proc() {
 	popup_close := []smgui.Form {
 		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
 	}
+	popup_drag := []smgui.Form {
+		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, children = popup_empty_children},
+	}
+	popup_resize := []smgui.Form {
+		{kind = .Popup, flags = {.Resizable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, children = popup_empty_children},
+	}
 	menu_label_children := []smgui.Form{{kind = .Label, label = 8}}
 	menu_disabled_children := []smgui.Form{{kind = .Label, flags = {.Disabled}, label = 8}}
 	menu_choice_value := 0
@@ -606,6 +612,10 @@ main :: proc() {
 		forms = popup_hidden
 	case "popup-close":
 		forms = popup_close
+	case "popup-drag":
+		forms = popup_drag
+	case "popup-resize":
+		forms = popup_resize
 	case "menu-closed":
 		forms = menu_closed
 	case "menu-button-closed":
@@ -651,6 +661,8 @@ main :: proc() {
 		os.args[1] == "option-decrement" ||
 		os.args[1] == "option-increment" ||
 		os.args[1] == "popup-close" ||
+		os.args[1] == "popup-drag" ||
+		os.args[1] == "popup-resize" ||
 		os.args[1] == "menu-open" ||
 		os.args[1] == "menu-button-open" ||
 		os.args[1] == "menu-intrinsic" ||
@@ -667,6 +679,8 @@ main :: proc() {
 	if os.args[1] == "menu-hover" || os.args[1] == "menu-disabled" ||
 	   os.args[1] == "menu-choice" || os.args[1] == "menu-outside-close" ||
 	   os.args[1] == "menu-escape-close" {
+		capture_delay = 4
+	} else if os.args[1] == "popup-drag" || os.args[1] == "popup-resize" {
 		capture_delay = 4
 	} else if os.args[1] == "popup-close" || os.args[1] == "menu-open" ||
 	          os.args[1] == "menu-button-open" ||
@@ -738,6 +752,8 @@ main :: proc() {
 		   os.args[1] == "option-decrement" ||
 		   os.args[1] == "option-increment" ||
 		   os.args[1] == "popup-close" ||
+		   os.args[1] == "popup-drag" ||
+		   os.args[1] == "popup-resize" ||
 		   os.args[1] == "menu-open" ||
 		   os.args[1] == "menu-button-open" ||
 		   os.args[1] == "menu-intrinsic" ||
@@ -762,6 +778,8 @@ main :: proc() {
 			event_x = 55
 		} else if os.args[1] == "popup-close" {
 			event_x = 50
+		} else if os.args[1] == "popup-resize" {
+			event_x, event_y = 57, 42
 		} else if os.args[1] == "select-open" || os.args[1] == "select-choice" {
 			event_y = 15
 		}
@@ -776,7 +794,8 @@ main :: proc() {
 				os.exit(1)
 			}
 		}
-		if os.args[1] == "popup-close" || os.args[1] == "menu-open" ||
+		if os.args[1] == "popup-close" || os.args[1] == "popup-drag" ||
+		   os.args[1] == "popup-resize" || os.args[1] == "menu-open" ||
 		   os.args[1] == "menu-button-open" ||
 		   os.args[1] == "menu-intrinsic" || os.args[1] == "menu-anchored" ||
 		   os.args[1] == "menu-hover" ||
@@ -837,6 +856,26 @@ main :: proc() {
 				{kind = .Mouse, buttons = {.Mouse_Left}, x = 60, y = 10},
 			); error != .None {
 				fmt.eprintf("menu outside injection failed: %v\n", error)
+				os.exit(1)
+			}
+		}
+		if os.args[1] == "popup-drag" || os.args[1] == "popup-resize" {
+			end_x, end_y := 25, 20
+			if os.args[1] == "popup-resize" {
+				end_x, end_y = 47, 32
+			}
+			if error := smgui.push_event(
+				&ctx,
+				{kind = .Mouse, buttons = {.Mouse_Left}, x = end_x, y = end_y},
+			); error != .None {
+				fmt.eprintf("popup motion injection failed: %v\n", error)
+				os.exit(1)
+			}
+			if error := smgui.push_event(
+				&ctx,
+				{kind = .Mouse, buttons = {.Released}, x = end_x, y = end_y},
+			); error != .None {
+				fmt.eprintf("popup release injection failed: %v\n", error)
 				os.exit(1)
 			}
 		}
@@ -951,6 +990,29 @@ main :: proc() {
 	}
 	if os.args[1] == "popup-close" && .Hidden not_in popup_close[0].flags {
 		fmt.eprintln("popup close did not hide the popup")
+		os.exit(1)
+	}
+	if os.args[1] == "popup-drag" {
+		expected_x := min(20, width - 56)
+		expected_y := min(15, height - 41)
+		if popup_drag[0].computed_x != expected_x || popup_drag[0].computed_y != expected_y {
+			fmt.eprintf(
+				"popup drag moved to %d,%d instead of %d,%d\n",
+				popup_drag[0].computed_x,
+				popup_drag[0].computed_y,
+				expected_x,
+				expected_y,
+			)
+			os.exit(1)
+		}
+	}
+	if os.args[1] == "popup-resize" &&
+	   (popup_resize[0].computed_width != 45 || popup_resize[0].computed_height != 30) {
+		fmt.eprintf(
+			"popup resize produced %dx%d instead of 45x30\n",
+			popup_resize[0].computed_width,
+			popup_resize[0].computed_height,
+		)
 		os.exit(1)
 	}
 	if os.args[1] == "menu-choice" && menu_choice_value != 1 {

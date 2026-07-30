@@ -189,12 +189,13 @@ main :: proc() {
 	forms := []smgui.Form {
 		{
 			kind = .Popup,
-			flags = {.Draggable, .Resizable},
+			flags = {.Horizontal_Scroll, .Vertical_Scroll, .Draggable, .Resizable},
 			x = smgui.absolute(455),
 			y = smgui.absolute(315),
 			width = 110,
 			height = 90,
-			margin = 8,
+			margin = 10,
+			pitch = 10,
 			children = popup_children,
 		},
 		{kind = .Toggle, flags = {.No_Bullet, .No_Break}, x = smgui.relative(10), margin = 8, label = 1},
