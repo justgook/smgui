@@ -453,6 +453,8 @@ Form :: struct {
 	flags:                Form_Flags,
 	x, y:                 Position,
 	width, height:        int,
+	width_percentage:     int,
+	height_percentage:    int,
 	margin:               int,
 	pitch:                int,
 	left, top:            int,
@@ -1045,14 +1047,20 @@ layout_forms :: proc(
 					title_height = max(title_height, 11)
 				}
 			}
-			border_offset := 0
-			if field.kind != .Division && .No_Border not_in field.flags {
-				border_offset = 1
+			inner_x := field_x + field.margin
+			inner_y := field_y + field.margin
+			inner_width := max(field_width - 2 * field.margin, 0)
+			inner_height := max(field_height - 2 * field.margin, 0)
+			if field.kind != .Division {
+				border_offset := 0
+				if .No_Border not_in field.flags {
+					border_offset = 1
+				}
+				inner_x += border_offset + 2
+				inner_y += border_offset + title_height + 2
+				inner_width = max(inner_width - 4, 0)
+				inner_height = max(inner_height - title_height - 4, 0)
 			}
-			inner_x := field_x + border_offset + field.margin + 2
-			inner_y := field_y + border_offset + field.margin + title_height + 2
-			inner_width := max(field_width - 2 * field.margin - 4, 0)
-			inner_height := max(field_height - 2 * field.margin - title_height - 4, 0)
 			if _, _, child_error := layout_forms(
 				ctx,
 				field.children,
@@ -1095,6 +1103,12 @@ measure_form :: proc(
 ) {
 	width := field.width
 	height := field.height
+	if field.width_percentage != 0 {
+		width += available_width * field.width_percentage / 100
+	}
+	if field.height_percentage != 0 {
+		height += available_height * field.height_percentage / 100
+	}
 	#partial switch field.kind {
 	case .Label:
 		text_width, text_height, _, _, error := measure_label(ctx, field)
@@ -1316,12 +1330,18 @@ measure_form :: proc(
 			height = max(content_height + 2 * field.margin + title_height + 2, 16)
 		}
 	case .Division:
-		if width < 1 {
-			width = available_width
+		content_width, content_height, content_error := measure_container_content(
+			ctx,
+			field.children,
+			max(width - 2 * field.margin - 4, available_width - 2 * field.margin - 4),
+			available_height,
+			field.pitch,
+		)
+		if content_error != .None {
+			return 0, 0, content_error
 		}
-		if height < 1 {
-			height = available_height
-		}
+		width = max(width, content_width + 2 * field.margin + 4)
+		height = max(height, content_height + 2 * field.margin + 4)
 	}
 	return max(width, 0), max(height, 0), .None
 }
@@ -1535,16 +1555,6 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 		}
 		#partial switch field.kind {
 		case .Division:
-			draw_beveled_rectangle(
-				ctx,
-				field.computed_x,
-				field.computed_y,
-				field.computed_width,
-				field.computed_height,
-				ctx.theme[int(Theme_Color.Input_Light_Border)],
-				ctx.theme[int(Theme_Color.Input_Background)],
-				ctx.theme[int(Theme_Color.Input_Dark_Border)],
-			)
 			if error := draw_forms(ctx, field.children); error != .None {
 				return error
 			}

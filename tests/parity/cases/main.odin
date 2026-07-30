@@ -376,6 +376,13 @@ main :: proc() {
 			options = option_options,
 		},
 	}
+	division_label_children := []smgui.Form{{kind = .Label, label = 1}}
+	division_intrinsic := []smgui.Form {
+		{kind = .Division, x = smgui.absolute(5), y = smgui.absolute(5), margin = 4, children = division_label_children},
+	}
+	division_percentage := []smgui.Form {
+		{kind = .Division, width_percentage = 100, margin = 4, children = division_label_children},
+	}
 	popup_empty_children := []smgui.Form{}
 	popup_content_children := []smgui.Form{{kind = .Label, label = 1}}
 	popup_normal := []smgui.Form {
@@ -572,6 +579,10 @@ main :: proc() {
 		forms = option_increment
 	case "option-disabled":
 		forms = option_disabled
+	case "division-intrinsic":
+		forms = division_intrinsic
+	case "division-percentage":
+		forms = division_percentage
 	case "popup-normal":
 		forms = popup_normal
 	case "popup-intrinsic":
@@ -873,6 +884,25 @@ main :: proc() {
 		if state == .Closed {
 			break
 		}
+	}
+	if os.args[1] == "division-intrinsic" &&
+	   (division_intrinsic[0].computed_width != 57 || division_intrinsic[0].computed_height != 32) {
+		fmt.eprintf(
+			"intrinsic division measured %dx%d instead of 57x32\n",
+			division_intrinsic[0].computed_width,
+			division_intrinsic[0].computed_height,
+		)
+		os.exit(1)
+	}
+	if os.args[1] == "division-percentage" &&
+	   (division_percentage[0].computed_width != max(width, 57) || division_percentage[0].computed_height != 32) {
+		fmt.eprintf(
+			"percentage division measured %dx%d instead of %dx32\n",
+			division_percentage[0].computed_width,
+			division_percentage[0].computed_height,
+			max(width, 57),
+		)
+		os.exit(1)
 	}
 	if os.args[1] == "slider-interaction" && slider_interaction_value != 53 {
 		fmt.eprintf("slider interaction produced %d instead of 53\n", slider_interaction_value)

@@ -152,6 +152,7 @@ only their module and must agree with this list.
 - [x] Pass numeric-input intrinsic, explicit-size, decrement, increment, and disabled fixtures.
 - [x] Pass select intrinsic, explicit-size, pressed, open, choice, and disabled fixtures.
 - [x] Pass option intrinsic, explicit-size, decrement, increment, wraparound, and disabled fixtures.
+- [x] Pass division intrinsic sizing, percentage width, child origin, and transparent rendering fixtures.
 - [x] Pass popup intrinsic, explicit, border, shadow, title, draggable, resizable, hidden, and close fixtures.
 - [x] Pass menu closed, menu-button, open, intrinsic, anchored, hover, disabled-item, choice, outside-close, and escape-close fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;

@@ -140,9 +140,9 @@ main :: proc() {
 	defer delete(inactive_inputs)
 	input_fields := []smgui.Form {
 		{kind = .Toggle, label = 8},
-		{kind = .Division, margin = 4, children = active_inputs},
+		{kind = .Division, width_percentage = 100, margin = 4, children = active_inputs},
 		{kind = .Toggle, label = 9},
-		{kind = .Division, margin = 4, children = inactive_inputs},
+		{kind = .Division, width_percentage = 100, margin = 4, children = inactive_inputs},
 	}
 	active_buttons := []smgui.Form {
 		{
@@ -171,9 +171,9 @@ main :: proc() {
 	defer delete(inactive_buttons)
 	button_fields := []smgui.Form {
 		{kind = .Toggle, label = 8},
-		{kind = .Division, margin = 4, children = active_buttons},
+		{kind = .Division, width_percentage = 100, margin = 4, children = active_buttons},
 		{kind = .Toggle, label = 9},
-		{kind = .Division, margin = 4, children = inactive_buttons},
+		{kind = .Division, width_percentage = 100, margin = 4, children = inactive_buttons},
 	}
 	forms := []smgui.Form {
 		{
@@ -192,11 +192,11 @@ main :: proc() {
 		{kind = .Toggle, flags = {.No_Bullet}, label = 3},
 		{kind = .Menu, flags = {.Hidden}, width = 100, margin = 4, children = popup_menu},
 		{kind = .Toggle, label = 6},
-		{kind = .Division, margin = 4, children = label_fields},
+		{kind = .Division, width_percentage = 100, margin = 4, children = label_fields},
 		{kind = .Toggle, label = 7},
-		{kind = .Division, margin = 4, children = input_fields},
+		{kind = .Division, width_percentage = 100, margin = 4, children = input_fields},
 		{kind = .Toggle, label = 10},
-		{kind = .Division, margin = 4, children = button_fields},
+		{kind = .Division, width_percentage = 100, margin = 4, children = button_fields},
 	}
 	forms[1].binding = smgui.bind(&forms[2])
 	forms[3].binding = smgui.bind(&forms[4])

@@ -147,12 +147,12 @@ flow_layout_positions_children_inside_divisions :: proc(t: ^testing.T) {
 		testing.expectf(t, false, "render failed: %v", error)
 	}
 
-	testing.expect_value(t, children[0].computed_x, 17)
-	testing.expect_value(t, children[0].computed_y, 17)
-	testing.expect_value(t, children[1].computed_x, 26)
-	testing.expect_value(t, children[1].computed_y, 17)
-	testing.expect_value(t, children[2].computed_x, 17)
-	testing.expect_value(t, children[2].computed_y, 37)
+	testing.expect_value(t, children[0].computed_x, 15)
+	testing.expect_value(t, children[0].computed_y, 15)
+	testing.expect_value(t, children[1].computed_x, 24)
+	testing.expect_value(t, children[1].computed_y, 15)
+	testing.expect_value(t, children[2].computed_x, 15)
+	testing.expect_value(t, children[2].computed_y, 35)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Mouse_Left})
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Released})

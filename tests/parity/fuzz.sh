@@ -107,7 +107,9 @@ BEGIN {
     fixtures[76] = "menu-anchored"
     fixtures[77] = "menu-button-closed"
     fixtures[78] = "menu-button-open"
-    fixture_count = 79
+    fixtures[79] = "division-intrinsic"
+    fixtures[80] = "division-percentage"
+    fixture_count = 81
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
@@ -117,6 +119,8 @@ BEGIN {
         if ((fixture == "numeric-input-increment" || fixture == "option-decrement" ||
              fixture == "option-increment" || fixture == "popup-close" ||
              fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && width < 64) width = 64
+        if (fixture ~ /^division-/ && width < 64) width = 64
+        if (fixture ~ /^division-/ && height < 48) height = 48
         if ((fixture == "popup-close" ||
              fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && height < 48) height = 48
         printf "%d %s %d %d\n", case_number, fixture, width, height

@@ -271,6 +271,15 @@ int main(int argc, char **argv)
     ui_form_t option_disabled[] = {
         { .type = UI_OPTION, .flags = UI_DISABLED, .ptr = &option_value, .optc = 2, .optv = option_options }, { .type = UI_END }
     };
+    ui_form_t division_label_children[] = {
+        { .type = UI_LABEL, .label = LABEL_TEXT }, { .type = UI_END }
+    };
+    ui_form_t division_intrinsic[] = {
+        { .type = UI_DIV, .x = UI_ABS(5), .y = UI_ABS(5), .m = 4, .ptr = division_label_children }, { .type = UI_END }
+    };
+    ui_form_t division_percentage[] = {
+        { .type = UI_DIV, .w = UI_PERCENT(100), .m = 4, .ptr = division_label_children }, { .type = UI_END }
+    };
     ui_form_t popup_empty_children[] = { { .type = UI_END } };
     ui_form_t popup_content_children[] = {
         { .type = UI_LABEL, .label = LABEL_TEXT }, { .type = UI_END }
@@ -499,6 +508,10 @@ int main(int argc, char **argv)
         forms = option_increment;
     } else if (!strcmp(argv[1], "option-disabled")) {
         forms = option_disabled;
+    } else if (!strcmp(argv[1], "division-intrinsic")) {
+        forms = division_intrinsic;
+    } else if (!strcmp(argv[1], "division-percentage")) {
+        forms = division_percentage;
     } else if (!strcmp(argv[1], "popup-normal")) {
         forms = popup_normal;
     } else if (!strcmp(argv[1], "popup-intrinsic")) {
@@ -602,6 +615,20 @@ int main(int argc, char **argv)
         context.mousey = -1;
     }
     while (ui_event(&context, forms)) { }
+    if (!strcmp(argv[1], "division-intrinsic") &&
+        (division_intrinsic[0].ew != 57 || division_intrinsic[0].eh != 32)) {
+        fprintf(stderr, "intrinsic division measured %dx%d instead of 57x32\n",
+            division_intrinsic[0].ew, division_intrinsic[0].eh);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "division-percentage") &&
+        (division_percentage[0].ew != (width < 57 ? 57 : width) || division_percentage[0].eh != 32)) {
+        fprintf(stderr, "percentage division measured %dx%d instead of %dx32\n",
+            division_percentage[0].ew, division_percentage[0].eh, width < 57 ? 57 : width);
+        ui_free(&context);
+        return 1;
+    }
     if (!strcmp(argv[1], "slider-interaction") && slider_interaction_value != 53) {
         fprintf(stderr, "slider interaction produced %d instead of 53\n", slider_interaction_value);
         ui_free(&context);
