@@ -82,14 +82,20 @@ BEGIN {
     fixtures[51] = "select-open"
     fixtures[52] = "select-choice"
     fixtures[53] = "select-disabled"
-    fixture_count = 54
+    fixtures[54] = "option-normal"
+    fixtures[55] = "option-explicit-size"
+    fixtures[56] = "option-decrement"
+    fixtures[57] = "option-increment"
+    fixtures[58] = "option-disabled"
+    fixture_count = 59
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
         fixture = fixtures[next_random() % fixture_count]
         # Keep the increment arrow inside the framebuffer so the public pointer
         # event can reach it while still varying widths from 64 through 256.
-        if (fixture == "numeric-input-increment" && width < 64) width = 64
+        if ((fixture == "numeric-input-increment" || fixture == "option-decrement" ||
+             fixture == "option-increment") && width < 64) width = 64
         printf "%d %s %d %d\n", case_number, fixture, width, height
     }
 }

@@ -346,6 +346,36 @@ main :: proc() {
 			options = select_options,
 		},
 	}
+	option_value := 0
+	option_decrement_value := 0
+	option_increment_value := 1
+	option_options := []string{"One", "Two"}
+	option_normal := []smgui.Form {
+		{kind = .Option, binding = smgui.bind(&option_value), options = option_options},
+	}
+	option_explicit_size := []smgui.Form {
+		{
+			kind = .Option,
+			width = 90,
+			height = 28,
+			binding = smgui.bind(&option_value),
+			options = option_options,
+		},
+	}
+	option_decrement := []smgui.Form {
+		{kind = .Option, binding = smgui.bind(&option_decrement_value), options = option_options},
+	}
+	option_increment := []smgui.Form {
+		{kind = .Option, binding = smgui.bind(&option_increment_value), options = option_options},
+	}
+	option_disabled := []smgui.Form {
+		{
+			kind = .Option,
+			flags = {.Disabled},
+			binding = smgui.bind(&option_value),
+			options = option_options,
+		},
+	}
 	forms: []smgui.Form
 	switch os.args[1] {
 	case "empty":
@@ -456,6 +486,16 @@ main :: proc() {
 		forms = select_choice
 	case "select-disabled":
 		forms = select_disabled
+	case "option-normal":
+		forms = option_normal
+	case "option-explicit-size":
+		forms = option_explicit_size
+	case "option-decrement":
+		forms = option_decrement
+	case "option-increment":
+		forms = option_increment
+	case "option-disabled":
+		forms = option_disabled
 	case:
 		fmt.eprintf("unknown parity case: %s\n", os.args[1])
 		os.exit(2)
@@ -475,7 +515,9 @@ main :: proc() {
 		os.args[1] == "numeric-input-increment" ||
 		os.args[1] == "select-pressed" ||
 		os.args[1] == "select-open" ||
-		os.args[1] == "select-choice"
+		os.args[1] == "select-choice" ||
+		os.args[1] == "option-decrement" ||
+		os.args[1] == "option-increment"
 	capture_delay := 0
 	if interaction_case {
 		capture_delay = 1
@@ -526,7 +568,9 @@ main :: proc() {
 	   os.args[1] == "slider-midpoint" ||
 	   os.args[1] == "slider-maximum" ||
 	   os.args[1] == "select-normal" ||
-	   os.args[1] == "select-explicit-size" {
+	   os.args[1] == "select-explicit-size" ||
+	   os.args[1] == "option-normal" ||
+	   os.args[1] == "option-explicit-size" {
 		ctx.mouse_x = -1
 		ctx.mouse_y = -1
 	}
@@ -540,7 +584,9 @@ main :: proc() {
 		   os.args[1] == "numeric-input-increment" ||
 		   os.args[1] == "select-pressed" ||
 		   os.args[1] == "select-open" ||
-		   os.args[1] == "select-choice" {
+		   os.args[1] == "select-choice" ||
+		   os.args[1] == "option-decrement" ||
+		   os.args[1] == "option-increment" {
 			buttons += {.Mouse_Left}
 		}
 		event_x := 10
@@ -552,6 +598,8 @@ main :: proc() {
 			buttons = {.Mouse_Left}
 		} else if os.args[1] == "numeric-input-increment" {
 			event_x = 61
+		} else if os.args[1] == "option-increment" {
+			event_x = 55
 		} else if os.args[1] == "select-open" || os.args[1] == "select-choice" {
 			event_y = 15
 		}
@@ -646,6 +694,14 @@ main :: proc() {
 	}
 	if os.args[1] == "select-choice" && select_choice_value != 0 {
 		fmt.eprintf("select choice produced %d instead of 0\n", select_choice_value)
+		os.exit(1)
+	}
+	if os.args[1] == "option-decrement" && option_decrement_value != 1 {
+		fmt.eprintf("option decrement produced %d instead of 1\n", option_decrement_value)
+		os.exit(1)
+	}
+	if os.args[1] == "option-increment" && option_increment_value != 0 {
+		fmt.eprintf("option increment produced %d instead of 0\n", option_increment_value)
 		os.exit(1)
 	}
 	if !image_state.succeeded {

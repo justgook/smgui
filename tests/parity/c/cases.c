@@ -44,6 +44,10 @@ int main(int argc, char **argv)
     int select_value = 0;
     int select_choice_value = -1;
     char *select_options[] = { "Alpha", "Beta" };
+    int option_value = 0;
+    int option_decrement_value = 0;
+    int option_increment_value = 1;
+    char *option_options[] = { "One", "Two" };
     int64_t progress_maximum_value = 100;
     int checked_value = 1;
     int pressed_value = 0;
@@ -251,6 +255,21 @@ int main(int argc, char **argv)
     ui_form_t select_disabled[] = {
         { .type = UI_SELECT, .flags = UI_DISABLED, .ptr = &select_value, .optc = 2, .optv = select_options }, { .type = UI_END }
     };
+    ui_form_t option_normal[] = {
+        { .type = UI_OPTION, .ptr = &option_value, .optc = 2, .optv = option_options }, { .type = UI_END }
+    };
+    ui_form_t option_explicit_size[] = {
+        { .type = UI_OPTION, .w = 90, .h = 28, .ptr = &option_value, .optc = 2, .optv = option_options }, { .type = UI_END }
+    };
+    ui_form_t option_decrement[] = {
+        { .type = UI_OPTION, .ptr = &option_decrement_value, .optc = 2, .optv = option_options }, { .type = UI_END }
+    };
+    ui_form_t option_increment[] = {
+        { .type = UI_OPTION, .ptr = &option_increment_value, .optc = 2, .optv = option_options }, { .type = UI_END }
+    };
+    ui_form_t option_disabled[] = {
+        { .type = UI_OPTION, .flags = UI_DISABLED, .ptr = &option_value, .optc = 2, .optv = option_options }, { .type = UI_END }
+    };
     ui_form_t *forms;
     ui_t context;
     int result;
@@ -374,6 +393,16 @@ int main(int argc, char **argv)
         forms = select_choice;
     } else if (!strcmp(argv[1], "select-disabled")) {
         forms = select_disabled;
+    } else if (!strcmp(argv[1], "option-normal")) {
+        forms = option_normal;
+    } else if (!strcmp(argv[1], "option-explicit-size")) {
+        forms = option_explicit_size;
+    } else if (!strcmp(argv[1], "option-decrement")) {
+        forms = option_decrement;
+    } else if (!strcmp(argv[1], "option-increment")) {
+        forms = option_increment;
+    } else if (!strcmp(argv[1], "option-disabled")) {
+        forms = option_disabled;
     } else {
         fprintf(stderr, "unknown parity case: %s\n", argv[1]);
         return 2;
@@ -400,6 +429,10 @@ int main(int argc, char **argv)
         ui_image_backend_set_select_open_events(10, 15);
     } else if (!strcmp(argv[1], "select-choice")) {
         ui_image_backend_set_select_choice_events(10, 15);
+    } else if (!strcmp(argv[1], "option-decrement")) {
+        ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
+    } else if (!strcmp(argv[1], "option-increment")) {
+        ui_image_backend_set_mouse_event(55, 10, UI_BTN_L);
     }
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
@@ -411,7 +444,8 @@ int main(int argc, char **argv)
         (!strcmp(argv[1], "radio-normal") || !strcmp(argv[1], "radio-selected")) ||
         (!strcmp(argv[1], "slider-minimum") || !strcmp(argv[1], "slider-midpoint") ||
          !strcmp(argv[1], "slider-maximum")) ||
-        !strcmp(argv[1], "select-normal") || !strcmp(argv[1], "select-explicit-size")) {
+        !strcmp(argv[1], "select-normal") || !strcmp(argv[1], "select-explicit-size") ||
+        !strcmp(argv[1], "option-normal") || !strcmp(argv[1], "option-explicit-size")) {
         context.mousex = -1;
         context.mousey = -1;
     }
@@ -448,6 +482,16 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "select-choice") && select_choice_value != 0) {
         fprintf(stderr, "select choice produced %d instead of 0\n", select_choice_value);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "option-decrement") && option_decrement_value != 1) {
+        fprintf(stderr, "option decrement produced %d instead of 1\n", option_decrement_value);
+        ui_free(&context);
+        return 1;
+    }
+    if (!strcmp(argv[1], "option-increment") && option_increment_value != 0) {
+        fprintf(stderr, "option increment produced %d instead of 0\n", option_increment_value);
         ui_free(&context);
         return 1;
     }

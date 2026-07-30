@@ -1914,38 +1914,118 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 
 @(private = "file")
 draw_option_input :: proc(ctx: ^Context, field: ^Form) -> Error {
-	selected := clamp(((^int)(field.binding.data))^, 0, len(field.options) - 1)
+	selected := ((^int)(field.binding.data))^
+	text := ""
+	if selected >= 0 && selected < len(field.options) {
+		text = field.options[selected]
+	}
 	x, y := field.computed_x, field.computed_y
 	width, height := field.computed_width, field.computed_height
+	if height < 2 || width < 2 * height {
+		return .None
+	}
+	input_light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	input_dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	input_background := ctx.theme[int(Theme_Color.Input_Background)]
+	input_foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	button_background := ctx.theme[int(Theme_Color.Button_Light_Background)]
+	button_light := ctx.theme[int(Theme_Color.Button_Light_Inner_Border)]
+	button_dark := ctx.theme[int(Theme_Color.Button_Dark_Inner_Border)]
+	triangle_background := input_background
 	disabled := .Disabled in field.flags
-	background := ctx.theme[int(Theme_Color.Input_Background)]
-	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
-	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
-	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
 	if disabled {
-		background = ctx.theme[int(Theme_Color.Disabled_Background)]
-		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
-		dark = foreground
-		light = foreground
+		input_background = ctx.theme[int(Theme_Color.Disabled_Background)]
+		button_light = input_background
+		button_dark = input_background
+		triangle_background = input_background
+		input_foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		input_light = input_foreground
+		input_dark = input_foreground
+		button_background = input_foreground
 	}
-	draw_beveled_rectangle(ctx, x, y, width, height, dark, background, light)
-	draw_beveled_rectangle(ctx, x, y, height, height, light, background, dark)
-	if error := draw_symbol(ctx, "<", x, y, height, height, foreground); error != .None {
-		return error
-	}
-	button_x := x + width - height
-	draw_beveled_rectangle(ctx, button_x, y, height, height, light, background, dark)
-	if error := draw_symbol(ctx, ">", button_x, y, height, height, foreground); error != .None {
-		return error
-	}
-	return draw_clipped_text(
+	draw_outline_rectangle(
 		ctx,
-		field.options[selected],
-		x + height + 4,
+		x,
 		y,
-		width - height * 2 - 8,
+		width,
 		height,
-		foreground,
+		input_dark,
+		input_background,
+		input_light,
+	)
+	x += 1
+	y += 1
+	width -= 2
+	height -= 2
+	fill_rectangle(ctx, x + height, y, width - 2 * height, height, input_background)
+	left_pressed := !disabled && ctx.pressed == field && ctx.pressed_part < 0
+	right_pressed := !disabled && ctx.pressed == field && ctx.pressed_part > 0
+	left_top, left_bottom := button_light, button_dark
+	right_top, right_bottom := button_light, button_dark
+	left_shift, right_shift := 0, 0
+	if left_pressed {
+		left_top, left_bottom = button_dark, button_light
+		left_shift = 1
+	}
+	if right_pressed {
+		right_top, right_bottom = button_dark, button_light
+		right_shift = 1
+	}
+	draw_outline_rectangle(
+		ctx,
+		x,
+		y,
+		height,
+		height,
+		left_top,
+		button_background,
+		left_bottom,
+	)
+	fill_rectangle(ctx, x + 1, y + 1, height - 2, height - 2, button_background)
+	right_x := x + width - height
+	draw_outline_rectangle(
+		ctx,
+		right_x,
+		y,
+		height,
+		height,
+		right_top,
+		button_background,
+		right_bottom,
+	)
+	fill_rectangle(ctx, right_x + 1, y + 1, height - 2, height - 2, button_background)
+	draw_reference_triangle(
+		ctx,
+		x + height / 2 - 3,
+		y + height / 2 - 4 + left_shift,
+		false,
+		input_light,
+		triangle_background,
+		input_dark,
+	)
+	draw_reference_triangle(
+		ctx,
+		x + width - height / 2 - 2,
+		y + height / 2 - 4 + right_shift,
+		true,
+		input_light,
+		triangle_background,
+		input_dark,
+	)
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		input_foreground,
+		x + height + 2 - field.left,
+		y + 1,
+		field.left,
+		field.top,
+		ctx.screen.pitch,
+		x + height + 2 - field.left,
+		y + 1,
+		min(x + width - height - 2, ctx.screen.width),
+		min(y + height - 2, ctx.screen.height),
 	)
 }
 
@@ -2891,9 +2971,13 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		case .Option:
 			deactivate_text_input(ctx, true)
 			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
+				ctx.pressed = ctx.hovered
+				ctx.pressed_part = -1
 				step_choice_input(ctx.hovered, -1)
 			} else if event.x >=
 			   ctx.hovered.computed_x + ctx.hovered.computed_width - ctx.hovered.computed_height {
+				ctx.pressed = ctx.hovered
+				ctx.pressed_part = 1
 				step_choice_input(ctx.hovered, 1)
 			}
 		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
@@ -3048,7 +3132,12 @@ step_choice_input :: proc(field: ^Form, direction: int) {
 		return
 	}
 	value := (^int)(field.binding.data)
-	value^ = clamp(value^ + direction, 0, len(field.options) - 1)
+	value^ += direction
+	if value^ < 0 {
+		value^ = len(field.options) - 1
+	} else if value^ >= len(field.options) {
+		value^ = 0
+	}
 }
 
 @(private = "file")
