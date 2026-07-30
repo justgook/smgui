@@ -1840,6 +1840,9 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		background,
 	)
 	text := text_buffer_string(buffer)
+	if len(text) == 0 && ctx.text_field != field {
+		return .None
+	}
 	if error := ctx.font_draw(
 		ctx.font,
 		text,

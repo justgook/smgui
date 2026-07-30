@@ -138,7 +138,8 @@ only their module and must agree with this list.
 - [x] Pass the explicit-size floating-point-value fixture.
 - [x] Pass the floating-point-disabled fixture.
 - [x] Pass the normal populated text-input fixture.
-- [ ] Pass text-input empty, explicit-size, focus/edit, and disabled fixtures.
+- [x] Pass the empty text-input fixture.
+- [ ] Pass text-input explicit-size, focus/edit, and disabled fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.
