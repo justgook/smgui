@@ -178,6 +178,7 @@ main :: proc() {
 	forms := []smgui.Form {
 		{
 			kind = .Popup,
+			flags = {.Draggable, .Resizable},
 			x = smgui.absolute(455),
 			y = smgui.absolute(315),
 			width = 110,
@@ -215,6 +216,11 @@ main :: proc() {
 	image_state: image_backend.State
 	writing_image := false
 	if len(os.args) == 1 {
+		// Matches glClearColor(0.0, 0.0, 0.25, 1.0) in reference-c/examples/widgets.c.
+		if error := raylib_backend.set_background(&raylib_state, 0, 0, 64, 255);
+		   error != .None {
+			fail("configuring presentation background", error)
+		}
 		backend = raylib_backend.create(&raylib_state)
 	} else if len(os.args) == 3 && os.args[1] == "--output" {
 		writing_image = true

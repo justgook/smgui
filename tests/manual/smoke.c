@@ -138,7 +138,7 @@ int main(int argc, char **argv)
         { .type = UI_END }
     };
     ui_form_t forms[] = {
-        { .type = UI_POPUP, .x = UI_ABS(455), .y = UI_ABS(315), .w = 110, .h = 90, .m = 8, .ptr = &popup_children },
+        { .type = UI_POPUP, .flags = UI_DRAGGABLE | UI_RESIZABLE, .x = UI_ABS(455), .y = UI_ABS(315), .w = 110, .h = 90, .m = 8, .ptr = &popup_children },
         { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_NOBR, .label = FILE_MENU },
         { .type = UI_MENU, .m = 4, .ptr = &file_menu },
         { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_NOBR, .label = LANGUAGE_MENU },

@@ -302,6 +302,9 @@ int main(int argc, char **argv)
     ui_form_t popup_draggable[] = {
         { .type = UI_POPUP, .flags = UI_DRAGGABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .label = POPUP_TEXT, .ptr = popup_empty_children }, { .type = UI_END }
     };
+    ui_form_t popup_chrome[] = {
+        { .type = UI_POPUP, .flags = UI_DRAGGABLE | UI_RESIZABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 55, .h = 40, .ptr = popup_empty_children }, { .type = UI_END }
+    };
     ui_form_t popup_resizable[] = {
         { .type = UI_POPUP, .flags = UI_RESIZABLE, .x = UI_ABS(5), .y = UI_ABS(5), .w = 50, .h = 35, .ptr = popup_empty_children }, { .type = UI_END }
     };
@@ -524,6 +527,8 @@ int main(int argc, char **argv)
         forms = popup_title;
     } else if (!strcmp(argv[1], "popup-draggable")) {
         forms = popup_draggable;
+    } else if (!strcmp(argv[1], "popup-chrome")) {
+        forms = popup_chrome;
     } else if (!strcmp(argv[1], "popup-resizable")) {
         forms = popup_resizable;
     } else if (!strcmp(argv[1], "popup-hidden")) {

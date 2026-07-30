@@ -9,7 +9,7 @@ Purpose:
 
 Status:
   [x] Package scaffolded
-  [x] Window and framebuffer presentation implemented
+  [x] Window and configurable presentation background implemented
   [x] Close, mouse-button, mouse-motion, and keyboard events implemented
   [x] Clipboard, cursor, title, and fullscreen hooks implemented
   [ ] Wheel, drop-file, gamepad, and resize events implemented
@@ -33,6 +33,7 @@ State :: struct {
 	last_mouse_x: int,
 	last_mouse_y: int,
 	initialized:  bool,
+	background:   rl.Color,
 }
 
 create :: proc(state: ^State) -> smgui.Backend {
@@ -53,6 +54,14 @@ create :: proc(state: ^State) -> smgui.Backend {
 		show_keyboard = backend_no_operation,
 		native_window = backend_native_window,
 	}
+}
+
+set_background :: proc(state: ^State, red, green, blue, alpha: u8) -> smgui.Error {
+	if state == nil {
+		return .Invalid_Input
+	}
+	state.background = {red, green, blue, alpha}
+	return .None
 }
 
 @(private = "file")
@@ -83,6 +92,9 @@ backend_init :: proc(
 		height  = i32(height),
 		mipmaps = 1,
 		format  = .UNCOMPRESSED_R8G8B8A8,
+	}
+	if state.background.a == 0 {
+		state.background = rl.BLACK
 	}
 	state.ctx = ctx
 	state.last_mouse_x = int(rl.GetMouseX())
@@ -268,7 +280,7 @@ backend_redraw :: proc(data: rawptr) -> smgui.Error {
 	}
 	rl.UpdateTexture(state.texture, raw_data(state.ctx.screen.pixels))
 	rl.BeginDrawing()
-	rl.ClearBackground(rl.BLACK)
+	rl.ClearBackground(state.background)
 	rl.DrawTexture(state.texture, 0, 0, rl.WHITE)
 	rl.EndDrawing()
 	return .None

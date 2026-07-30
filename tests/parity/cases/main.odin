@@ -403,6 +403,9 @@ main :: proc() {
 	popup_draggable := []smgui.Form {
 		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
 	}
+	popup_chrome := []smgui.Form {
+		{kind = .Popup, flags = {.Draggable, .Resizable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, children = popup_empty_children},
+	}
 	popup_resizable := []smgui.Form {
 		{kind = .Popup, flags = {.Resizable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
 	}
@@ -595,6 +598,8 @@ main :: proc() {
 		forms = popup_title
 	case "popup-draggable":
 		forms = popup_draggable
+	case "popup-chrome":
+		forms = popup_chrome
 	case "popup-resizable":
 		forms = popup_resizable
 	case "popup-hidden":

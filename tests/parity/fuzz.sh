@@ -109,7 +109,8 @@ BEGIN {
     fixtures[78] = "menu-button-open"
     fixtures[79] = "division-intrinsic"
     fixtures[80] = "division-percentage"
-    fixture_count = 81
+    fixtures[81] = "popup-chrome"
+    fixture_count = 82
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

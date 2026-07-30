@@ -1043,9 +1043,9 @@ layout_forms :: proc(
 					return 0, 0, label_error
 				}
 				title_height = text_height + 2
-				if .Draggable in field.flags {
-					title_height = max(title_height, 11)
-				}
+			}
+			if field.kind == .Popup && .Draggable in field.flags {
+				title_height = max(title_height, 11)
 			}
 			inner_x := field_x + field.margin
 			inner_y := field_y + field.margin
@@ -1319,9 +1319,9 @@ measure_form :: proc(
 			field.top = title_top
 			content_width = max(content_width, title_width)
 			title_height = text_height + 2
-			if .Draggable in field.flags {
-				title_height = max(title_height, 11)
-			}
+		}
+		if .Draggable in field.flags {
+			title_height = max(title_height, 11)
 		}
 		if width < 1 {
 			width = max(content_width + 2 * field.margin + 2, 16)
@@ -1475,24 +1475,27 @@ draw_container :: proc(ctx: ^Context, field: ^Form) -> Error {
 	}
 	title_height := 0
 	if field.kind == .Popup {
-		if field.label > 0 && field.label < len(ctx.texts) {
+		has_title := field.label > 0 && field.label < len(ctx.texts)
+		if has_title {
 			_, text_height, _, _, error := measure_label(ctx, field)
 			if error != .None {
 				return error
 			}
 			title_height = text_height + 2
-			if .Draggable in field.flags {
-				title_height = max(title_height, 11)
-				fill_rectangle(
-					ctx,
-					x + 1,
-					y + 1,
-					width - 12,
-					title_height - 2,
-					ctx.theme[int(Theme_Color.Title)],
-				)
-				draw_popup_close(ctx, x + width - 5, y + (title_height + 1) / 2)
-			}
+		}
+		if .Draggable in field.flags {
+			title_height = max(title_height, 11)
+			fill_rectangle(
+				ctx,
+				x + 1,
+				y + 1,
+				width - 12,
+				title_height - 2,
+				ctx.theme[int(Theme_Color.Title)],
+			)
+			draw_popup_close(ctx, x + width - 5, y + (title_height + 1) / 2)
+		}
+		if has_title {
 			text_color := ctx.theme[int(Theme_Color.Title)]
 			if .Draggable in field.flags {
 				text_color = background
