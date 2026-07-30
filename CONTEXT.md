@@ -39,6 +39,10 @@ events, and framebuffer output while using Odin-native types and errors.
 7. Every user-visible parity slice updates both `tests/manual/smoke.c` and
    `examples/smoke/main.odin` so their shared fixture stays equivalent.
 8. A commit contains one coherent parity slice or one prerequisite for parity.
+9. Port reference behavior by structurally translating the C implementation
+   into Odin first. Modernize only where Odin's type system, ownership, or
+   public API improves safety without changing behavior; avoid independent
+   redesigns that create extra parity work.
 
 ## Work loop and definition of done
 
@@ -73,9 +77,12 @@ and event path has a completed parity slice on every supported adapter.
 1. **Element fixtures** — small deterministic images for one Form kind, size, or
    interaction state. `make parity` runs only fixtures already expected to
    match; a new fixture is added red and fixed before the next one.
-2. **Widget smoke fixture** — one large representative composition that exposes
-   cross-Form layout differences. It may remain red while smaller slices are
-   being completed.
+2. **Widget smoke fixture** — one large representative composition derived
+   from `reference-c/docs/screen1.png` that exposes cross-Form layout
+   differences. `make run` launches the Odin migration target and `make c-run`
+   launches the upstream C widgets reference; `make smoke-odin` / `make smoke-c`
+   retain exact paired trees for comparison. The smoke comparison may remain
+   red while smaller slices are being completed.
 3. **Seeded fuzz fixtures** — bounded random screen sizes, values, Form order,
    and supported flags. Fuzzing may use only Form behaviors whose deterministic
    element fixtures are green. Every failure reports its seed and generated
@@ -98,6 +105,7 @@ only their module and must agree with this list.
 - [x] Implement the Odin public types, backend seam, framebuffer lifecycle, and
   bounded event queue.
 - [x] Add paired C/Odin manual smoke examples for currently migrated widgets.
+- [x] Make the screen1-derived Odin fixture and upstream C widgets reference the default `make run` / `make c-run` targets.
 - [x] Build headless stb image adapters and decoded-RGBA comparison tooling.
 - [x] Pass the 64×48 empty-framebuffer tracer fixture.
 - [x] Pass the normal-label glyph, baseline, and intrinsic-size fixture.

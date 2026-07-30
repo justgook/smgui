@@ -14,13 +14,14 @@ endif
 
 ODIN ?= odin
 ODIN_FLAGS ?=
-EXAMPLE ?= basic
+# The default Odin target is the screen1 migration fixture.
+EXAMPLE ?= smoke
 BACKEND ?= raylib
 EXAMPLE_DIR := examples/$(EXAMPLE)
 ODIN_CHECK_FLAGS ?= -no-entry-point -strict-style -vet-cast -vet-semicolon -vet-shadowing -vet-style -vet-unused-imports -vet-unused-variables -warnings-as-errors
 BUILD_DIR ?= build.nosync
 ODIN_BIN ?= $(BUILD_DIR)/$(EXAMPLE)-$(BACKEND)
-C_EXAMPLE ?= helloworld
+C_EXAMPLE ?= widgets
 C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
 SMOKE_C_SOURCE := tests/manual/smoke.c
@@ -66,8 +67,8 @@ help:
 	  '  check        Check every Odin package' \
 	  '  test         Run every Odin test package' \
 	  '  build        Build EXAMPLE with BACKEND' \
-	  '  run          Build and run EXAMPLE (default)' \
-	  '               EXAMPLE=basic BACKEND=raylib' \
+	  '  run          Run the Odin screen1 migration target (default)' \
+	  '               EXAMPLE=basic BACKEND=raylib selects another example' \
 	  '' \
 	  'Paired manual smoke test:' \
 	  '  smoke-odin    Run the Odin widget smoke test' \
@@ -81,9 +82,10 @@ help:
 	  '  parity-fuzz            Run seeded bounded cases (FUZZ_SEED=1 FUZZ_CASES=20)' \
 	  '' \
 	  'Reference C targets:' \
+	  '  c-run, run-c      Run the upstream C widgets target behind screen1' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
-	  '  c-build           Build C_EXAMPLE (default: helloworld)' \
-	  '  c-run, run-c      Build and run C_EXAMPLE' \
+	  '  c-build           Build upstream C_EXAMPLE (default: widgets)' \
+	  '  c-example-run     Build and run upstream C_EXAMPLE' \
 	  '' \
 	  'Other:' \
 	  '  clean        Remove Odin and C build output' \
@@ -131,8 +133,8 @@ c-build: reference-c-init
 		CC="$(C_REFERENCE_CC) $(C_REFERENCE_CPPFLAGS)" \
 		LIBS="$(C_REFERENCE_LIBS)"
 
-.PHONY: c-run run-c
-c-run run-c: c-build
+.PHONY: c-run run-c c-example-run
+c-run run-c c-example-run: c-build
 	$(Q)"$(C_BIN)"
 
 $(SMOKE_C_BIN): $(SMOKE_C_SOURCE) | $(BUILD_DIR) reference-c-init

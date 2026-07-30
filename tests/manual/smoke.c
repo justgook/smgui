@@ -1,8 +1,9 @@
 /*
- * Paired manual smoke test: examples/smoke/main.odin
+ * Paired screen1 parity fixture for examples/smoke/main.odin.
  *
- * Keep strings, initial state, window dimensions, and the supported form tree
- * aligned with the Odin counterpart. The pinned reference remains untouched.
+ * This form tree is derived from reference-c/docs/screen1.png. Keep its
+ * strings, initial state, dimensions, and forms aligned with the Odin
+ * counterpart. The pinned reference remains untouched.
  */
 
 #include <stdint.h>

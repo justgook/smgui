@@ -1,11 +1,11 @@
 package main
 
 /*
-Paired manual smoke test: tests/manual/smoke.c
+Default screen1 migration target, paired with tests/manual/smoke.c.
 
-Keep the strings, initial state, window dimensions, and form tree aligned with
-its C counterpart. This intentionally contains only form kinds implemented by
-both versions; add new controls to both examples as parity slices land.
+This form tree is derived from reference-c/docs/screen1.png. Keep its strings,
+initial state, dimensions, and forms aligned with the C counterpart. Add missing
+screen1 controls to both versions as their parity slices land.
 */
 
 import psf2 "../../psf2"

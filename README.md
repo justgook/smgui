@@ -24,8 +24,10 @@ Direnv loads the pinned Nix development shell from `flake.nix`, including
 Odin, the C toolchain, GLFW, and native graphics dependencies. After changing
 `flake.nix` or `flake.lock`, approve it again with `direnv allow`.
 
-Use `make help` to list Odin and reference-C build targets. The pinned C
-reference example can be run with `make run-c`.
+Use `make help` to list Odin and reference-C build targets. `make run` launches
+the Odin migration target derived from
+[`reference-c/docs/screen1.png`](reference-c/docs/screen1.png); `make c-run`
+launches the original C `widgets` example behind that screenshot.
 
 ## Layout
 
@@ -40,18 +42,27 @@ reference example can be run with `make run-c`.
 The Odin interface intentionally uses slices, enums, bit sets, and typed errors
 rather than preserving C source compatibility.
 
-The growing production-readiness showcase currently uses Raylib:
+The default commands show the migration target and its original reference:
 
 ```sh
-make run                         # examples/basic with Raylib
-make run EXAMPLE=basic BACKEND=raylib
+make run                         # Odin target with Raylib
+make c-run                       # upstream reference-c/examples/widgets.c
 ```
 
-For a manual side-by-side comparison of equivalent C and Odin form trees, run:
+This target stays intentionally visible while parity work proceeds, making
+cross-form layout gaps and missing controls obvious. For exact paired form trees
+used by framebuffer comparison, run:
 
 ```sh
-make smoke-c
 make smoke-odin
+make smoke-c
+```
+
+Other examples remain selectable explicitly:
+
+```sh
+make run EXAMPLE=basic BACKEND=raylib
+make c-example-run C_EXAMPLE=helloworld
 ```
 
 Run completed small framebuffer fixtures, or generate the large smoke fixture:
