@@ -12,7 +12,8 @@ Status:
   [x] Window and configurable presentation background implemented
   [x] Close, mouse-button, mouse-motion, and keyboard events implemented
   [x] Clipboard, cursor, title, and fullscreen hooks implemented
-  [ ] Wheel, drop-file, gamepad, and resize events implemented
+  [x] Window resize reallocates the framebuffer and presentation texture
+  [ ] Wheel, drop-file, and gamepad events implemented
   [ ] Parity fixtures passing
 
 Definition of done:
@@ -81,27 +82,33 @@ backend_init :: proc(
 	if title_c == nil {
 		return .Out_Of_Memory
 	}
+	rl.SetConfigFlags(rl.ConfigFlags{.WINDOW_RESIZABLE})
 	rl.InitWindow(i32(width), i32(height), title_c)
 	if !rl.IsWindowReady() {
 		return .Backend_Failure
 	}
 	rl.SetTargetFPS(60)
-	image := rl.Image {
-		data    = raw_data(ctx.screen.pixels),
-		width   = i32(width),
-		height  = i32(height),
-		mipmaps = 1,
-		format  = .UNCOMPRESSED_R8G8B8A8,
-	}
 	if state.background.a == 0 {
 		state.background = rl.BLACK
 	}
 	state.ctx = ctx
 	state.last_mouse_x = int(rl.GetMouseX())
 	state.last_mouse_y = int(rl.GetMouseY())
-	state.texture = rl.LoadTextureFromImage(image)
+	state.texture = load_framebuffer_texture(ctx)
 	state.initialized = true
 	return .None
+}
+
+@(private = "file")
+load_framebuffer_texture :: proc(ctx: ^smgui.Context) -> rl.Texture2D {
+	image := rl.Image {
+		data    = raw_data(ctx.screen.pixels),
+		width   = i32(ctx.screen.width),
+		height  = i32(ctx.screen.height),
+		mipmaps = 1,
+		format  = .UNCOMPRESSED_R8G8B8A8,
+	}
+	return rl.LoadTextureFromImage(image)
 }
 
 @(private = "file")
@@ -129,6 +136,18 @@ backend_poll :: proc(data: rawptr) -> (closed: bool, error: smgui.Error) {
 	}
 	if rl.WindowShouldClose() {
 		return true, .None
+	}
+	if rl.IsWindowResized() {
+		width := int(rl.GetScreenWidth())
+		height := int(rl.GetScreenHeight())
+		if width < 1 || height < 1 {
+			return false, .Backend_Failure
+		}
+		if error = smgui.resize_framebuffer(state.ctx, width, height); error != .None {
+			return false, error
+		}
+		rl.UnloadTexture(state.texture)
+		state.texture = load_framebuffer_texture(state.ctx)
 	}
 
 	mouse_x := int(rl.GetMouseX())

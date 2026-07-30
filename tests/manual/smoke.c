@@ -87,26 +87,26 @@ int main(int argc, char **argv)
         { .type = UI_LABEL, .flags = UI_NOBR, .label = ITEM_1 },
         { .type = UI_DEC32, .flags = UI_NOBR, .w = 28, .ptr = &integer_value },
         { .type = UI_HEX32, .flags = UI_NOBR, .w = 36, .ptr = &integer_value },
-        { .type = UI_PBAR, .flags = UI_NOBR, .w = 100, .ptr = &progress_value, .max = 100 },
+        { .type = UI_PBAR, .flags = UI_NOBR, .x = 10, .w = 100, .ptr = &progress_value, .max = 100 },
         { .type = UI_DEC_FLOAT, .w = 80, .ptr = &float_value },
         { .type = UI_END }
     };
     ui_form_t active_inputs[] = {
         { .type = UI_TEXT, .flags = UI_NOBR, .w = 130, .ptr = &text_value, .max = sizeof(text_value) },
-        { .type = UI_SELECT, .flags = UI_NOBR, .w = 80, .ptr = &option_value, .optc = 3, .optv = options },
-        { .type = UI_OPTION, .flags = UI_NOBR, .w = 90, .ptr = &option_value, .optc = 3, .optv = options },
-        { .type = UI_INT32, .flags = UI_NOBR, .w = 72, .ptr = &integer_value, .min = 1, .max = 32 },
-        { .type = UI_FLOAT, .flags = UI_NOBR, .w = 100, .ptr = &float_value, .fmin = 1, .fmax = 32, .finc = 0.25f },
-        { .type = UI_SLIDER, .w = 60, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_SELECT, .flags = UI_NOBR, .x = 10, .m = 17, .w = 80, .ptr = &option_value, .optc = 3, .optv = options },
+        { .type = UI_OPTION, .flags = UI_NOBR, .x = 10, .m = 17, .w = 90, .ptr = &option_value, .optc = 3, .optv = options },
+        { .type = UI_INT32, .flags = UI_NOBR, .x = 10, .m = 17, .w = 72, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_FLOAT, .flags = UI_NOBR, .x = 10, .m = 17, .w = 100, .ptr = &float_value, .fmin = 1, .fmax = 32, .finc = 0.25f },
+        { .type = UI_SLIDER, .x = 10, .w = 60, .ptr = &integer_value, .min = 1, .max = 32 },
         { .type = UI_END }
     };
     ui_form_t inactive_inputs[] = {
         { .type = UI_TEXT, .flags = UI_DISABLED | UI_NOBR, .w = 130, .ptr = &text_value, .max = sizeof(text_value) },
-        { .type = UI_SELECT, .flags = UI_DISABLED | UI_NOBR, .w = 80, .ptr = &option_value, .optc = 3, .optv = options },
-        { .type = UI_OPTION, .flags = UI_DISABLED | UI_NOBR, .w = 90, .ptr = &option_value, .optc = 3, .optv = options },
-        { .type = UI_INT32, .flags = UI_DISABLED | UI_NOBR, .w = 72, .ptr = &integer_value, .min = 1, .max = 32 },
-        { .type = UI_FLOAT, .flags = UI_DISABLED | UI_NOBR, .w = 100, .ptr = &float_value, .fmin = 1, .fmax = 32, .finc = 0.25f },
-        { .type = UI_SLIDER, .flags = UI_DISABLED, .w = 60, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_SELECT, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 80, .ptr = &option_value, .optc = 3, .optv = options },
+        { .type = UI_OPTION, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 90, .ptr = &option_value, .optc = 3, .optv = options },
+        { .type = UI_INT32, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 72, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_FLOAT, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 100, .ptr = &float_value, .fmin = 1, .fmax = 32, .finc = 0.25f },
+        { .type = UI_SLIDER, .flags = UI_DISABLED, .x = 10, .w = 60, .ptr = &integer_value, .min = 1, .max = 32 },
         { .type = UI_END }
     };
     ui_form_t input_fields[] = {
@@ -118,16 +118,16 @@ int main(int argc, char **argv)
     };
     ui_form_t active_buttons[] = {
         { .type = UI_CHECK, .flags = UI_NOBR, .ptr = &checkbox_option, .value = 1, .label = ITEM_1 },
-        { .type = UI_RADIO, .flags = UI_NOBR, .ptr = &radio_option, .value = 0, .label = ITEM_1 },
+        { .type = UI_RADIO, .flags = UI_NOBR, .x = 10, .ptr = &radio_option, .value = 0, .label = ITEM_1 },
         { .type = UI_RADIO, .flags = UI_NOBR, .ptr = &radio_option, .value = 1, .label = ITEM_2 },
-        { .type = UI_BUTTON, .ptr = &button_option, .value = 1, .label = ITEM_1 },
+        { .type = UI_BUTTON, .x = 10, .m = -1, .ptr = &button_option, .value = 1, .label = ITEM_1 },
         { .type = UI_END }
     };
     ui_form_t inactive_buttons[] = {
         { .type = UI_CHECK, .flags = UI_DISABLED | UI_NOBR, .ptr = &checkbox_option, .value = 1, .label = ITEM_1 },
-        { .type = UI_RADIO, .flags = UI_DISABLED | UI_NOBR, .ptr = &radio_option, .value = 0, .label = ITEM_1 },
+        { .type = UI_RADIO, .flags = UI_DISABLED | UI_NOBR, .x = 10, .ptr = &radio_option, .value = 0, .label = ITEM_1 },
         { .type = UI_RADIO, .flags = UI_DISABLED | UI_NOBR, .ptr = &radio_option, .value = 1, .label = ITEM_2 },
-        { .type = UI_BUTTON, .flags = UI_DISABLED, .ptr = &button_option, .value = 1, .label = ITEM_1 },
+        { .type = UI_BUTTON, .flags = UI_DISABLED, .x = 10, .m = -1, .ptr = &button_option, .value = 1, .label = ITEM_1 },
         { .type = UI_END }
     };
     ui_form_t button_fields[] = {
@@ -139,11 +139,11 @@ int main(int argc, char **argv)
     };
     ui_form_t forms[] = {
         { .type = UI_POPUP, .flags = UI_DRAGGABLE | UI_RESIZABLE, .x = UI_ABS(455), .y = UI_ABS(315), .w = 110, .h = 90, .m = 8, .ptr = &popup_children },
-        { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_NOBR, .label = FILE_MENU },
+        { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_NOBR, .x = 10, .m = 8, .label = FILE_MENU },
         { .type = UI_MENU, .m = 4, .ptr = &file_menu },
-        { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_NOBR, .label = LANGUAGE_MENU },
+        { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_NOBR, .x = 10, .m = 8, .label = LANGUAGE_MENU },
         { .type = UI_MENU, .m = 4, .ptr = &language_menu },
-        { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_FORCEBR, .label = POPUP_MENU },
+        { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_FORCEBR, .x = 10, .m = 8, .label = POPUP_MENU },
         { .type = UI_MENU, .m = 4, .ptr = &popup_menu },
         { .type = UI_TOGGLE, .flags = UI_FORCEBR, .label = LABELS },
         { .type = UI_DIV, .flags = UI_FORCEBR, .w = UI_PERCENT(100), .m = 4, .ptr = &label_fields },

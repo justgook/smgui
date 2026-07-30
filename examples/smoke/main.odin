@@ -83,6 +83,7 @@ main :: proc() {
 		{
 			kind = .Progress_Bar,
 			flags = {.No_Break},
+			x = smgui.relative(10),
 			width = 100,
 			binding = smgui.bind(&progress_value),
 			maximum = 100,
@@ -100,6 +101,8 @@ main :: proc() {
 		{
 			kind = .Select,
 			flags = {.No_Break},
+			x = smgui.relative(10),
+			margin = 17,
 			width = 80,
 			binding = smgui.bind(&option_value),
 			options = options,
@@ -107,6 +110,8 @@ main :: proc() {
 		{
 			kind = .Option,
 			flags = {.No_Break},
+			x = smgui.relative(10),
+			margin = 17,
 			width = 90,
 			binding = smgui.bind(&option_value),
 			options = options,
@@ -114,6 +119,8 @@ main :: proc() {
 		{
 			kind = .Integer_32,
 			flags = {.No_Break},
+			x = smgui.relative(10),
+			margin = 17,
 			width = 72,
 			binding = smgui.bind(&integer_value),
 			minimum = 1,
@@ -122,6 +129,8 @@ main :: proc() {
 		{
 			kind = .Float_Input,
 			flags = {.No_Break},
+			x = smgui.relative(10),
+			margin = 17,
 			width = 100,
 			binding = smgui.bind(&float_value),
 			float_minimum = 1,
@@ -130,6 +139,7 @@ main :: proc() {
 		},
 		{
 			kind = .Slider,
+			x = smgui.relative(10),
 			width = 60,
 			binding = smgui.bind(&integer_value),
 			minimum = 1,
@@ -139,10 +149,10 @@ main :: proc() {
 	inactive_inputs := clone_disabled_inputs(active_inputs)
 	defer delete(inactive_inputs)
 	input_fields := []smgui.Form {
-		{kind = .Toggle, label = 8},
-		{kind = .Division, width_percentage = 100, margin = 4, children = active_inputs},
-		{kind = .Toggle, label = 9},
-		{kind = .Division, width_percentage = 100, margin = 4, children = inactive_inputs},
+		{kind = .Toggle, flags = {.Force_Break}, label = 8},
+		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = active_inputs},
+		{kind = .Toggle, flags = {.Force_Break}, label = 9},
+		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = inactive_inputs},
 	}
 	active_buttons := []smgui.Form {
 		{
@@ -154,6 +164,7 @@ main :: proc() {
 		{
 			kind = .Radio,
 			flags = {.No_Break},
+			x = smgui.relative(10),
 			label = 4,
 			binding = smgui.bind(&radio_option),
 			value = 0,
@@ -165,15 +176,15 @@ main :: proc() {
 			binding = smgui.bind(&radio_option),
 			value = 1,
 		},
-		{kind = .Button, label = 4, binding = smgui.bind(&button_option), value = 1},
+		{kind = .Button, x = smgui.relative(10), margin = -1, label = 4, binding = smgui.bind(&button_option), value = 1},
 	}
 	inactive_buttons := clone_disabled_buttons(active_buttons)
 	defer delete(inactive_buttons)
 	button_fields := []smgui.Form {
-		{kind = .Toggle, label = 8},
-		{kind = .Division, width_percentage = 100, margin = 4, children = active_buttons},
-		{kind = .Toggle, label = 9},
-		{kind = .Division, width_percentage = 100, margin = 4, children = inactive_buttons},
+		{kind = .Toggle, flags = {.Force_Break}, label = 8},
+		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = active_buttons},
+		{kind = .Toggle, flags = {.Force_Break}, label = 9},
+		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = inactive_buttons},
 	}
 	forms := []smgui.Form {
 		{
@@ -186,18 +197,18 @@ main :: proc() {
 			margin = 8,
 			children = popup_children,
 		},
-		{kind = .Toggle, flags = {.No_Bullet, .No_Break}, label = 1},
+		{kind = .Toggle, flags = {.No_Bullet, .No_Break}, x = smgui.relative(10), margin = 8, label = 1},
 		{kind = .Menu, flags = {.Hidden}, width = 100, margin = 4, children = file_menu},
-		{kind = .Toggle, flags = {.No_Bullet, .No_Break}, label = 2},
+		{kind = .Toggle, flags = {.No_Bullet, .No_Break}, x = smgui.relative(10), margin = 8, label = 2},
 		{kind = .Menu, flags = {.Hidden}, width = 100, margin = 4, children = language_menu},
-		{kind = .Toggle, flags = {.No_Bullet}, label = 3},
+		{kind = .Toggle, flags = {.No_Bullet, .Force_Break}, x = smgui.relative(10), margin = 8, label = 3},
 		{kind = .Menu, flags = {.Hidden}, width = 100, margin = 4, children = popup_menu},
-		{kind = .Toggle, label = 6},
-		{kind = .Division, width_percentage = 100, margin = 4, children = label_fields},
-		{kind = .Toggle, label = 7},
-		{kind = .Division, width_percentage = 100, margin = 4, children = input_fields},
-		{kind = .Toggle, label = 10},
-		{kind = .Division, width_percentage = 100, margin = 4, children = button_fields},
+		{kind = .Toggle, flags = {.Force_Break}, label = 6},
+		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = label_fields},
+		{kind = .Toggle, flags = {.Force_Break}, label = 7},
+		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = input_fields},
+		{kind = .Toggle, flags = {.Force_Break}, label = 10},
+		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = button_fields},
 	}
 	forms[1].binding = smgui.bind(&forms[2])
 	forms[3].binding = smgui.bind(&forms[4])

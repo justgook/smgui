@@ -35,6 +35,33 @@ render_clears_unpainted_pixels_to_transparent_black :: proc(t: ^testing.T) {
 }
 
 @(test)
+resize_reallocates_framebuffer_and_requests_layout :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 4, 3); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	ctx.flags = {}
+	if error := resize_framebuffer(&ctx, 7, 5); error != .None {
+		testing.expectf(t, false, "resize failed: %v", error)
+		return
+	}
+	testing.expect_value(t, ctx.screen.width, 7)
+	testing.expect_value(t, ctx.screen.height, 5)
+	testing.expect_value(t, ctx.screen.pitch, 28)
+	testing.expect_value(t, len(ctx.screen.pixels), 140)
+	testing.expect(t, .Refresh in ctx.flags)
+	testing.expect(t, .Recalculate in ctx.flags)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context
