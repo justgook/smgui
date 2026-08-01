@@ -98,8 +98,8 @@ than numeric values.
 | `UI_HIDDEN` | `Hidden` | Green | `popup-hidden`, menu closed/open fixtures. |
 | `UI_NOBULLET` | `No_Bullet` | Focused, Smoke | Toggle focused test; add toggle parity fixture. |
 | `UI_NOHEADER` | `No_Header` | Focused, Smoke | Popup/container focused coverage; add titled no-header fixture. |
-| `UI_NOBR` | `No_Break` | Focused | `flow_breaks_no_break_and_alignment_match_reference`. |
-| `UI_FORCEBR` | `Force_Break` | Focused | Same focused flow test. |
+| `UI_NOBR` | `No_Break` | Green, Focused | `layout-flow`; `flow_breaks_no_break_and_alignment_match_reference`. |
+| `UI_FORCEBR` | `Force_Break` | Green, Focused | `layout-flow`; same focused flow test. |
 | `UI_POINTER` | `Pointer` | Focused, Smoke | Image activation focused test; add pointer/selection fixture. |
 | `UI_NOBORDER` | `No_Border` | Green | `popup-no-border`. |
 | `UI_NOSHADOW` | `No_Shadow` | Green | `popup-no-shadow`. |
@@ -149,12 +149,12 @@ hardening even though they are not separate C operations.
 
 | Surface | Status | Evidence / next fixture |
 |---|---|---|
-| Relative flow | Green | Most element fixtures. |
-| Absolute position | Green | Popup and division fixtures. |
-| Percent / percent-plus | Green | `division-percentage`; add offset edge cases. |
-| Absolute from right/bottom | Focused | Flow/alignment focused test. |
+| Relative flow | Green | `layout-flow` and `layout-right-flow` cover nested origin, wrapping, and row continuation. |
+| Absolute position | Green | Popup, division, and `layout-alignment` fixtures. |
+| Percent / percent-plus | Green | `division-percentage` and `layout-percent`. Zero-percent packed edge behavior remains unrepresented. |
+| Absolute from right/bottom | Green | `layout-from-end` and typed `absolute_from_end`; behavior follows Reference C's packed 127%-minus-inset result. |
 | Left/top alignment | Green | Default element fixtures. |
-| Right/center/bottom/middle alignment | Focused | `flow_breaks_no_break_and_alignment_match_reference`. |
+| Right/center/bottom/middle alignment | Green, Focused | `layout-alignment`, `layout-right-flow`; `flow_breaks_no_break_and_alignment_match_reference`. |
 | `UI_FILTER_NONE` | Green | Text-input edit fixture. |
 | `UI_FILTER_ID/VAR/EXPR/HEX/PASS` | Focused | UTF-8/text and color/numeric focused tests; add one deterministic fixture per filter. |
 | Odin `Integer` and `Decimal` filters | Focused | Odin-native explicit numeric filters; map to C input-kind behavior in numeric fixtures. |
@@ -170,7 +170,7 @@ Work top-down from the smallest unsupported surfaces:
 4. Toggle, toggle-button, and icon-button state fixtures.
 5. Lines, connectors, and curve fixtures.
 6. Standalone and popup scrollbar fixtures.
-7. Advanced flow/alignment/position fixtures.
+7. Absolute fill-width/fill-height and zero-percent packed layout edge fixtures.
 8. Drop, resize, wheel, gamepad, and modifier event fixtures.
 9. Custom callback/lifecycle fixtures.
 10. Theme, skin, PNG skin, cursor, clipboard, window, and fullscreen operations.

@@ -22,7 +22,7 @@ Status:
   [x] Relative flow layout and division containers implemented
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
   [x] Popup dragging, resizing, clipped container scrolling, and child text clipping implemented
-  [x] Reference flow breaks, offsets, wrapping, and alignment implemented
+  [x] Reference nested flow origins, breaks, wrapping, percentages, from-end positions, and alignment implemented
   [x] Wheel routing, event consumption, and drop/resize/gamepad passthrough implemented
   [x] Custom bounds, view, control, popup, and finalization callbacks implemented
   [x] Software cursor and PNG skin loading implemented
@@ -647,6 +647,10 @@ absolute :: proc(value: int) -> Position {
 	return {mode = .Absolute, value = i32(value)}
 }
 
+absolute_from_end :: proc(inset: int) -> Position {
+	return {mode = .Absolute_From_End, value = i32(inset)}
+}
+
 percent :: proc(value: int, offset: int = 0) -> Position {
 	return {mode = .Percent, value = i32(value), offset = i32(offset)}
 }
@@ -1110,7 +1114,7 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 	for &pixel in ctx.screen.pixels {
 		pixel = 0
 	}
-	if _, _, error := layout_forms(ctx, form, 0, 0, ctx.screen.width, ctx.screen.height, 8);
+	if _, _, error := layout_forms(ctx, form, 0, 0, ctx.screen.width, ctx.screen.height, 8, 0);
 	   error != .None {
 		return error
 	}
@@ -1202,7 +1206,9 @@ resolve_position :: proc(position: Position, extent: int) -> int {
 	case .Percent, .Percent_Plus:
 		return extent * int(position.value) / 100 + int(position.offset)
 	case .Absolute_From_End:
-		return extent - int(position.value)
+		// UI_ABS_RIGHT/UI_ABS_BOTTOM leave the packed percentage bits set;
+		// preserve the reference implementation's resulting 127%-minus-inset anchor.
+		return extent * 127 / 100 - int(position.value) + int(position.offset)
 	case .Relative, .Absolute:
 		return int(position.value) + int(position.offset)
 	}
@@ -1213,14 +1219,14 @@ resolve_position :: proc(position: Position, extent: int) -> int {
 layout_forms :: proc(
 	ctx: ^Context,
 	forms: []Form,
-	x, y, width, height, gap: int,
+	x, y, width, height, gap, flow_origin: int,
 ) -> (
 	used_width, used_height: int,
 	error: Error,
 ) {
 	cursor_x := x
 	cursor_y := y
-	right_cursor := x + width - 2
+	right_cursor := x + width - 2 + flow_origin
 	row_height := 0
 	content_right := x
 	content_bottom := y
@@ -1238,6 +1244,9 @@ layout_forms :: proc(
 		field_x, field_y: int
 		if is_flow {
 			field_x = cursor_x + int(field.x.value) + int(field.x.offset)
+			if cursor_x != x {
+				field_x += flow_origin
+			}
 			field_y = cursor_y + int(field.y.value) + int(field.y.offset)
 		} else {
 			field_x = x + resolve_position(field.x, width)
@@ -1296,7 +1305,7 @@ layout_forms :: proc(
 				right_cursor -= field_width
 				row_height = max(row_height, field_height)
 				if right_cursor < x {
-					right_cursor = x + width - field_width - 2
+					right_cursor = x + width - field_width - 2 + flow_origin
 					if row_height > 0 {
 						row_height += gap
 					}
@@ -1420,6 +1429,7 @@ layout_forms :: proc(
 				inner_width,
 				inner_height,
 				field.pitch,
+				2,
 			); child_error != .None {
 				return 0, 0, child_error
 			}
@@ -1844,7 +1854,7 @@ measure_container_content :: proc(
 	width, height: int,
 	error: Error,
 ) {
-	return layout_forms(ctx, children, 0, 0, available_width, available_height, gap)
+	return layout_forms(ctx, children, 0, 0, available_width, available_height, gap, 2)
 }
 
 @(private = "file")

@@ -399,6 +399,32 @@ main :: proc() {
 	division_percentage := []smgui.Form {
 		{kind = .Division, width_percentage = 100, margin = 4, children = division_label_children},
 	}
+	layout_alignment := []smgui.Form {
+		{kind = .Label, x = smgui.absolute(20), y = smgui.absolute(14), width = 10, height = 20, horizontal_alignment = .Center, vertical_alignment = .Middle, label = 10},
+		{kind = .Label, x = smgui.absolute(52), y = smgui.absolute(36), width = 10, height = 20, horizontal_alignment = .Right, vertical_alignment = .Bottom, label = 10},
+	}
+	layout_from_end := []smgui.Form {
+		{kind = .Label, x = smgui.absolute_from_end(8), y = smgui.absolute_from_end(8), width = 10, height = 20, horizontal_alignment = .Right, vertical_alignment = .Bottom, label = 10},
+	}
+	layout_percent := []smgui.Form {
+		{kind = .Label, x = smgui.percent(50, 3), y = smgui.percent(50, 2), width = 10, height = 20, horizontal_alignment = .Center, vertical_alignment = .Middle, label = 10},
+	}
+	layout_right_flow_children := []smgui.Form {
+		{kind = .Label, horizontal_alignment = .Right, width = 10, height = 20, label = 10},
+		{kind = .Label, horizontal_alignment = .Right, width = 10, height = 20, label = 10},
+		{kind = .Label, horizontal_alignment = .Right, width = 10, height = 20, label = 10},
+	}
+	layout_right_flow := []smgui.Form {
+		{kind = .Division, x = smgui.absolute(5), y = smgui.absolute(5), width = 40, height = 50, margin = 3, pitch = 4, children = layout_right_flow_children},
+	}
+	layout_flow_children := []smgui.Form {
+		{kind = .Label, flags = {.No_Break}, width = 10, height = 20, label = 10},
+		{kind = .Label, flags = {.Force_Break}, width = 10, height = 20, label = 10},
+		{kind = .Label, width = 10, height = 20, label = 10},
+	}
+	layout_flow := []smgui.Form {
+		{kind = .Division, x = smgui.absolute(5), y = smgui.absolute(5), width = 40, height = 50, margin = 3, pitch = 4, children = layout_flow_children},
+	}
 	popup_empty_children := []smgui.Form{}
 	popup_content_children := []smgui.Form{{kind = .Label, label = 1}}
 	popup_normal := []smgui.Form {
@@ -614,6 +640,16 @@ main :: proc() {
 		forms = division_intrinsic
 	case "division-percentage":
 		forms = division_percentage
+	case "layout-alignment":
+		forms = layout_alignment
+	case "layout-from-end":
+		forms = layout_from_end
+	case "layout-percent":
+		forms = layout_percent
+	case "layout-right-flow":
+		forms = layout_right_flow
+	case "layout-flow":
+		forms = layout_flow
 	case "popup-normal":
 		forms = popup_normal
 	case "popup-intrinsic":
@@ -665,7 +701,7 @@ main :: proc() {
 		os.exit(2)
 	}
 
-	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open", "Alpha\nBeta"}
+	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open", "Alpha\nBeta", "X"}
 	interaction_case :=
 		os.args[1] == "button-hover" ||
 		os.args[1] == "button-pressed" ||

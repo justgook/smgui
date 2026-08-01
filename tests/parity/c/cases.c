@@ -17,8 +17,8 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
 
 int main(int argc, char **argv)
 {
-    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT, RADIO_TEXT, POPUP_TEXT, MENU_TEXT, MENU_ITEM_TEXT, MULTILINE_TEXT };
-    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open", "Alpha\nBeta" };
+    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT, RADIO_TEXT, POPUP_TEXT, MENU_TEXT, MENU_ITEM_TEXT, MULTILINE_TEXT, LAYOUT_TEXT };
+    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open", "Alpha\nBeta", "X" };
     int checked = 0;
     int radio_value = 0;
     int selected_radio_value = 1;
@@ -293,6 +293,39 @@ int main(int argc, char **argv)
     ui_form_t division_percentage[] = {
         { .type = UI_DIV, .w = UI_PERCENT(100), .m = 4, .ptr = division_label_children }, { .type = UI_END }
     };
+    ui_form_t layout_alignment[] = {
+        { .type = UI_LABEL, .x = UI_ABS(20), .y = UI_ABS(14), .w = 10, .h = 20, .align = UI_CENTER | UI_MIDDLE, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .x = UI_ABS(52), .y = UI_ABS(36), .w = 10, .h = 20, .align = UI_RIGHT | UI_BOTTOM, .label = LAYOUT_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t layout_from_end[] = {
+        { .type = UI_LABEL, .x = UI_ABS_RIGHT(8), .y = UI_ABS_BOTTOM(8), .w = 10, .h = 20, .align = UI_RIGHT | UI_BOTTOM, .label = LAYOUT_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t layout_percent[] = {
+        { .type = UI_LABEL, .x = UI_PERPLUS(50, 3), .y = UI_PERPLUS(50, 2), .w = 10, .h = 20, .align = UI_CENTER | UI_MIDDLE, .label = LAYOUT_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t layout_right_flow_children[] = {
+        { .type = UI_LABEL, .align = UI_RIGHT, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .align = UI_RIGHT, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .align = UI_RIGHT, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t layout_right_flow[] = {
+        { .type = UI_DIV, .x = UI_ABS(5), .y = UI_ABS(5), .w = 40, .h = 50, .m = 3, .p = 4, .ptr = layout_right_flow_children },
+        { .type = UI_END }
+    };
+    ui_form_t layout_flow_children[] = {
+        { .type = UI_LABEL, .flags = UI_NOBR, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .flags = UI_FORCEBR, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t layout_flow[] = {
+        { .type = UI_DIV, .x = UI_ABS(5), .y = UI_ABS(5), .w = 40, .h = 50, .m = 3, .p = 4, .ptr = layout_flow_children },
+        { .type = UI_END }
+    };
     ui_form_t popup_empty_children[] = { { .type = UI_END } };
     ui_form_t popup_content_children[] = {
         { .type = UI_LABEL, .label = LABEL_TEXT }, { .type = UI_END }
@@ -540,6 +573,16 @@ int main(int argc, char **argv)
         forms = division_intrinsic;
     } else if (!strcmp(argv[1], "division-percentage")) {
         forms = division_percentage;
+    } else if (!strcmp(argv[1], "layout-alignment")) {
+        forms = layout_alignment;
+    } else if (!strcmp(argv[1], "layout-from-end")) {
+        forms = layout_from_end;
+    } else if (!strcmp(argv[1], "layout-percent")) {
+        forms = layout_percent;
+    } else if (!strcmp(argv[1], "layout-right-flow")) {
+        forms = layout_right_flow;
+    } else if (!strcmp(argv[1], "layout-flow")) {
+        forms = layout_flow;
     } else if (!strcmp(argv[1], "popup-normal")) {
         forms = popup_normal;
     } else if (!strcmp(argv[1], "popup-intrinsic")) {

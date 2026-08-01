@@ -664,9 +664,9 @@ flow_layout_positions_children_inside_divisions :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, children[0].computed_x, 15)
 	testing.expect_value(t, children[0].computed_y, 15)
-	testing.expect_value(t, children[1].computed_x, 24)
+	testing.expect_value(t, children[1].computed_x, 26)
 	testing.expect_value(t, children[1].computed_y, 15)
-	testing.expect_value(t, children[2].computed_x, 86)
+	testing.expect_value(t, children[2].computed_x, 90)
 	testing.expect_value(t, children[2].computed_y, 15)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Mouse_Left})
@@ -717,13 +717,13 @@ flow_breaks_no_break_and_alignment_match_reference :: proc(t: ^testing.T) {
 		return
 	}
 
-	testing.expect_value(t, right_children[0].computed_x, 78)
-	testing.expect_value(t, right_children[1].computed_x, 50)
-	testing.expect_value(t, right_children[2].computed_x, 38)
+	testing.expect_value(t, right_children[0].computed_x, 80)
+	testing.expect_value(t, right_children[1].computed_x, 52)
+	testing.expect_value(t, right_children[2].computed_x, 40)
 	testing.expect_value(t, right_children[2].computed_y, 18)
 	testing.expect_value(t, break_children[0].computed_y, 70)
 	testing.expect_value(t, break_children[1].computed_y, 88)
-	testing.expect_value(t, no_break_children[1].computed_x, 148)
+	testing.expect_value(t, no_break_children[1].computed_x, 150)
 	testing.expect_value(t, no_break_children[2].computed_x, 120)
 	testing.expect_value(t, no_break_children[2].computed_y, 18)
 	testing.expect_value(t, forms[3].computed_x, 40)

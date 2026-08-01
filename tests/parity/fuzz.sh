@@ -115,7 +115,12 @@ BEGIN {
     fixtures[84] = "text-input-overflow-edit"
     fixtures[85] = "multiline-normal"
     fixtures[86] = "status-normal"
-    fixture_count = 87
+    fixtures[87] = "layout-alignment"
+    fixtures[88] = "layout-flow"
+    fixtures[89] = "layout-right-flow"
+    fixtures[90] = "layout-percent"
+    fixtures[91] = "layout-from-end"
+    fixture_count = 92
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
@@ -126,8 +131,8 @@ BEGIN {
              fixture == "option-increment" || fixture == "popup-close" ||
              fixture == "text-input-overflow-edit" ||
              fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && width < 64) width = 64
-        if (fixture ~ /^division-/ && width < 64) width = 64
-        if (fixture ~ /^division-/ && height < 48) height = 48
+        if (fixture ~ /^(division|layout)-/ && width < 64) width = 64
+        if (fixture ~ /^(division|layout)-/ && height < 48) height = 48
         if (fixture == "popup-drag" || fixture == "popup-resize") {
             if (width < 96) width = 96
             if (height < 72) height = 72
