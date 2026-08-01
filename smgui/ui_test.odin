@@ -8,6 +8,10 @@ Test_Backend_State :: struct {
 	has_event: bool,
 }
 
+Test_Font_State :: struct {
+	last_text: string,
+}
+
 @(test)
 render_clears_unpainted_pixels_to_transparent_black :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
@@ -100,6 +104,54 @@ popup_wrap_uses_configured_vertical_pitch :: proc(t: ^testing.T) {
 		children[1].computed_y - children[0].computed_y,
 		children[0].computed_height + forms[0].pitch,
 	)
+}
+
+@(test)
+multiline_labels_and_status_fields_render :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test", "Hover description"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 160, 80); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font: Test_Font_State
+	if error := set_font_hooks(&ctx, test_font_bounds, recording_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+		return
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+		return
+	}
+	forms := []Form {
+		{
+			kind = .Multiline_Label,
+			flags = {.No_Break},
+			text = "one\nlonger",
+			background = 0xff332211,
+			description = 1,
+		},
+		{kind = .Status, width = 80, text = "Ready"},
+	}
+	ctx.hovered = &forms[0]
+	if error := render(&ctx, forms); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+		return
+	}
+	// Reference UI_MLINE uses the widest line and one default-font height per line.
+	testing.expect_value(t, forms[0].computed_width, 54)
+	testing.expect_value(t, forms[0].computed_height, 32)
+	// Reference UI_STATUS has no intrinsic width and uses default font height plus four pixels.
+	testing.expect_value(t, forms[1].computed_width, 80)
+	testing.expect_value(t, forms[1].computed_height, 20)
+	testing.expect_value(t, font.last_text, "Hover description")
+	testing.expect(t, ctx.screen.pixels[0] != 0)
 }
 
 @(test)
@@ -673,6 +725,34 @@ test_font_bounds :: proc(
 	left^ = 0
 	top^ = 0
 	return .None
+}
+
+@(private = "file")
+recording_font_draw :: proc(
+	font: rawptr,
+	text: string,
+	destination: []u8,
+	color: u32,
+	x, y, left, top, pitch: int,
+	crop_x0, crop_y0, crop_x1, crop_y1: int,
+) -> Error {
+	state := (^Test_Font_State)(font)
+	state.last_text = text
+	return test_font_draw(
+		font,
+		text,
+		destination,
+		color,
+		x,
+		y,
+		left,
+		top,
+		pitch,
+		crop_x0,
+		crop_y0,
+		crop_x1,
+		crop_y1,
+	)
 }
 
 @(private = "file")

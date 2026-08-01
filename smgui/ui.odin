@@ -11,7 +11,7 @@ Status:
   [x] Typed errors, slices, enums, and bit sets declared
   [x] Backend adapter seam declared
   [x] Framebuffer lifecycle and bounded event queue implemented
-  [x] Labels, buttons, checkboxes, and radio buttons render
+  [x] Labels, multiline labels, status fields, buttons, checkboxes, and radio buttons render
   [x] Buttons, checkboxes, radio buttons, and sliders mutate bound state
   [x] Integer/float displays, sliders, and progress bars render
   [x] UTF-8 text input, cursor editing, and input filters implemented
@@ -476,6 +476,7 @@ Form :: struct {
 	icon:                 ^Image,
 	value:                int,
 	label:                int,
+	text:                 string,
 	offset_x, offset_y:   int,
 	minimum_width:        int,
 	minimum_height:       int,
@@ -1122,6 +1123,50 @@ measure_form :: proc(
 		if height < 1 {
 			height = text_height + 4
 		}
+	case .Multiline_Label:
+		text, valid := multiline_form_text(ctx, field)
+		if !valid || ctx.font == nil || ctx.font_bounds == nil {
+			return 0, 0, .Invalid_Input
+		}
+		if error := ensure_default_font_metrics(ctx); error != .None {
+			return 0, 0, error
+		}
+		lines := strings.split(text, "\n")
+		defer delete(lines)
+		if len(lines) > 0 && lines[len(lines) - 1] == "" {
+			lines = lines[:len(lines) - 1]
+		}
+		text_width, text_height := 0, 0
+		for line in lines {
+			line_width, _, line_left, line_top: int
+			if bounds_error := ctx.font_bounds(
+				ctx.font,
+				line,
+				&line_width,
+				&text_height,
+				&line_left,
+				&line_top,
+			); bounds_error != .None {
+				return 0, 0, bounds_error
+			}
+			text_width = max(text_width, line_width)
+			field.left = max(field.left, line_left)
+		}
+		if width < 1 {
+			width = text_width
+		}
+		if height < 1 {
+			height = max(len(lines) * ctx.default_size, 9)
+		}
+		field.top = ctx.default_top
+	case .Status:
+		if error := ensure_default_font_metrics(ctx); error != .None {
+			return 0, 0, error
+		}
+		field.top = ctx.default_top
+		if height < 1 {
+			height = max(ctx.default_size + 4, 9)
+		}
 	case .Toggle:
 		text_width, text_height, left, top, error := measure_label(ctx, field)
 		if error != .None {
@@ -1394,6 +1439,47 @@ measure_container_content :: proc(
 }
 
 @(private = "file")
+form_text :: proc(ctx: ^Context, field: ^Form) -> (string, bool) {
+	if field != nil && len(field.text) > 0 {
+		return field.text, true
+	}
+	if ctx != nil && field != nil && field.label >= 0 && field.label < len(ctx.texts) {
+		return ctx.texts[field.label], true
+	}
+	return "", false
+}
+
+@(private = "file")
+multiline_form_text :: proc(ctx: ^Context, field: ^Form) -> (string, bool) {
+	if ctx != nil && field != nil && field.label > 0 && field.label < len(ctx.texts) {
+		return ctx.texts[field.label], true
+	}
+	if field != nil && len(field.text) > 0 {
+		return field.text, true
+	}
+	return "", false
+}
+
+@(private = "file")
+ensure_default_font_metrics :: proc(ctx: ^Context) -> Error {
+	if ctx == nil || ctx.font == nil || ctx.font_bounds == nil {
+		return .Invalid_Input
+	}
+	if ctx.default_size > 0 {
+		return .None
+	}
+	width, left: int
+	return ctx.font_bounds(
+		ctx.font,
+		"Ag",
+		&width,
+		&ctx.default_size,
+		&left,
+		&ctx.default_top,
+	)
+}
+
+@(private = "file")
 measure_label :: proc(
 	ctx: ^Context,
 	field: ^Form,
@@ -1401,13 +1487,11 @@ measure_label :: proc(
 	width, height, left, top: int,
 	error: Error,
 ) {
-	if field.label < 0 ||
-	   field.label >= len(ctx.texts) ||
-	   ctx.font == nil ||
-	   ctx.font_bounds == nil {
+	text, valid := form_text(ctx, field)
+	if !valid || ctx.font == nil || ctx.font_bounds == nil {
 		return 0, 0, 0, 0, .Invalid_Input
 	}
-	error = ctx.font_bounds(ctx.font, ctx.texts[field.label], &width, &height, &left, &top)
+	error = ctx.font_bounds(ctx.font, text, &width, &height, &left, &top)
 	return
 }
 
@@ -1570,6 +1654,14 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			if error := draw_label(ctx, &field); error != .None {
 				return error
 			}
+		case .Multiline_Label:
+			if error := draw_multiline_label(ctx, &field); error != .None {
+				return error
+			}
+		case .Status:
+			if error := draw_status(ctx, &field); error != .None {
+				return error
+			}
 		case .Button:
 			if error := draw_button(ctx, &field); error != .None {
 				return error
@@ -1691,14 +1783,10 @@ draw_toggle_triangle :: proc(ctx: ^Context, x, y: int, right: bool, color: u32) 
 
 @(private = "file")
 draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
-	if field.label < 0 ||
-	   field.label >= len(ctx.texts) ||
-	   ctx.font == nil ||
-	   ctx.font_bounds == nil ||
-	   ctx.font_draw == nil {
+	text, valid := form_text(ctx, field)
+	if !valid || ctx.font == nil || ctx.font_bounds == nil || ctx.font_draw == nil {
 		return .Invalid_Input
 	}
-	text := ctx.texts[field.label]
 	_, _, left, top, error := measure_label(ctx, field)
 	if error != .None {
 		return error
@@ -1731,6 +1819,105 @@ draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
 		0,
 		ctx.screen.width,
 		ctx.screen.height,
+	)
+}
+
+@(private = "file")
+draw_multiline_label :: proc(ctx: ^Context, field: ^Form) -> Error {
+	text, valid := multiline_form_text(ctx, field)
+	if !valid || ctx.font == nil || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	if field.background != 0 && .Disabled not_in field.flags {
+		fill_rectangle(
+			ctx,
+			field.computed_x,
+			field.computed_y,
+			field.computed_width,
+			field.computed_height,
+			field.background,
+		)
+	}
+	foreground := field.foreground
+	if foreground == 0 {
+		foreground = ctx.theme[int(Theme_Color.Foreground)]
+	}
+	if .Disabled in field.flags {
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+	}
+	y := field.computed_y
+	lines := strings.split(text, "\n")
+	defer delete(lines)
+	if len(lines) > 0 && lines[len(lines) - 1] == "" {
+		lines = lines[:len(lines) - 1]
+	}
+	for line in lines {
+		if y >= field.computed_y + field.computed_height {
+			break
+		}
+		if error := ctx.font_draw(
+			ctx.font,
+			line,
+			ctx.screen.pixels,
+			foreground,
+			field.computed_x - field.left,
+			y + 2,
+			field.left,
+			field.top,
+			ctx.screen.pitch,
+			field.computed_x,
+			field.computed_y,
+			min(field.computed_x + field.computed_width, ctx.screen.width),
+			min(field.computed_y + field.computed_height, ctx.screen.height),
+		); error != .None {
+			return error
+		}
+		y += ctx.default_size
+	}
+	return .None
+}
+
+@(private = "file")
+draw_status :: proc(ctx: ^Context, field: ^Form) -> Error {
+	if ctx.font == nil || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	fill_rectangle(
+		ctx,
+		field.computed_x,
+		field.computed_y,
+		field.computed_width,
+		field.computed_height,
+		ctx.theme[int(Theme_Color.Input_Background)],
+	)
+	text, valid := "", false
+	if ctx.hovered != nil && ctx.hovered.description > 0 &&
+	   ctx.hovered.description < len(ctx.texts) {
+		text, valid = ctx.texts[ctx.hovered.description], true
+	} else if len(field.text) > 0 {
+		text, valid = field.text, true
+	}
+	if !valid {
+		return .None
+	}
+	foreground := ctx.theme[int(Theme_Color.Foreground)]
+	if .Disabled in field.flags {
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+	}
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		foreground,
+		field.computed_x - field.left,
+		field.computed_y + 2,
+		field.left,
+		field.top,
+		ctx.screen.pitch,
+		field.computed_x,
+		field.computed_y,
+		min(field.computed_x + field.computed_width, ctx.screen.width),
+		min(field.computed_y + field.computed_height, ctx.screen.height),
 	)
 }
 

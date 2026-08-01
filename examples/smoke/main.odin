@@ -32,6 +32,7 @@ main :: proc() {
 		"one",
 		"two",
 		"three",
+		"First line\nSecond line",
 	}
 	options := texts[12:15]
 
@@ -89,6 +90,8 @@ main :: proc() {
 			maximum = 100,
 		},
 		{kind = .Decimal_Float, width = 80, binding = smgui.bind(&float_value)},
+		{kind = .Multiline_Label, label = 15},
+		{kind = .Status, width = 160, text = "Ready"},
 	}
 	active_inputs := []smgui.Form {
 		{

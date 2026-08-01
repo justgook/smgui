@@ -33,7 +33,8 @@ int main(int argc, char **argv)
         PRESS_ME,
         ONE,
         TWO,
-        THREE
+        THREE,
+        MULTILINE
     };
     char *texts[] = {
         "Widget parity smoke",
@@ -51,6 +52,7 @@ int main(int argc, char **argv)
         "one",
         "two",
         "three",
+        "First line\nSecond line",
     };
     char *options[] = { texts[ONE], texts[TWO], texts[THREE] };
 
@@ -89,6 +91,8 @@ int main(int argc, char **argv)
         { .type = UI_HEX32, .flags = UI_NOBR, .w = 36, .ptr = &integer_value },
         { .type = UI_PBAR, .flags = UI_NOBR, .x = 10, .w = 100, .ptr = &progress_value, .max = 100 },
         { .type = UI_DEC_FLOAT, .w = 80, .ptr = &float_value },
+        { .type = UI_MLINE, .label = MULTILINE },
+        { .type = UI_STATUS, .w = 160, .ptr = "Ready" },
         { .type = UI_END }
     };
     ui_form_t active_inputs[] = {

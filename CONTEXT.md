@@ -44,19 +44,37 @@ events, and framebuffer output while using Odin-native types and errors.
    public API improves safety without changing behavior; avoid independent
    redesigns that create extra parity work.
 
-## Work loop and definition of done
+## Migration milestones and work loop
 
-For each job:
+### Milestone 1 — structural migration completeness
 
-1. Name the next possible parity slice and identify its C reference.
-2. Recommend the smallest high-leverage next slice.
-3. Add or update a deterministic test that defines the expected behavior.
-4. Implement the slice without unrelated cleanup.
-5. Run `make check`, `make test`, and any slice-specific parity command.
-6. Update the checklist below and nearby module status comments.
-7. Commit in the existing style, for example
-   `✨(widget): add image and icon forms`.
-8. Report behavior delivered, tests run, commit, and the next candidate.
+Structurally translate every supported core operation, form kind, layout path,
+and event path from Reference C before hardening framebuffer parity. Preserve the
+reference algorithms and internal state where practical. During this milestone,
+a slice must compile, have focused behavioral tests, avoid placeholder-success
+paths, and update both smoke examples when user-visible; exact pixel parity is
+not required.
+
+For each structural migration job:
+
+1. Identify the corresponding declarations, measurement, rendering, control,
+   and lifecycle paths in Reference C.
+2. Translate the complete behavior without unrelated modernization.
+3. Add focused tests for supported inputs, state changes, and failure behavior.
+4. Run `make check` and `make test`.
+5. Update paired smoke examples, this checklist, and module status comments.
+6. Commit one coherent migration slice.
+
+### Milestone 2 — parity hardening
+
+After structural migration is complete, ledger the public surface and harden
+one deterministic parity slice at a time. For each parity job:
+
+1. Name the next mismatch and identify its C reference.
+2. Add or update an equivalent C/Odin fixture.
+3. Fix the mismatch without unrelated cleanup.
+4. Run `make check`, `make test`, and the slice-specific parity command.
+5. Update the checklist and commit one coherent parity slice.
 
 A parity slice is done when:
 
@@ -158,16 +176,9 @@ only their module and must agree with this list.
 - [x] Pass menu closed, menu-button, open, intrinsic, anchored, hover, disabled-item, choice, outside-close, and escape-close fixtures.
 - [x] Add reproducible bounded framebuffer-size fuzzing for completed fixtures;
   expand its Form pool only as element fixtures turn green.
-- [ ] Make the paired widget smoke framebuffer fixture match reference C.
-- [ ] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
-  and events to fixtures.
+### Milestone 1 — remaining structural migration
 
-### Core parity slices
-
-- [ ] Backfill reference parity fixtures for migrated labels, buttons, choices,
-  flow divisions, value displays, sliders, progress bars, text/numeric inputs,
-  selects/options, popups, and menus.
-- [ ] Migrate multiline labels and status fields.
+- [x] Migrate multiline labels and status fields.
 - [ ] Migrate image and icon fields.
 - [ ] Migrate color input.
 - [ ] Migrate toggle buttons and icon buttons.
@@ -177,6 +188,15 @@ only their module and must agree with this list.
 - [ ] Complete drop, resize, wheel, gamepad, and remaining event processing.
 - [ ] Migrate custom-form callbacks and lifecycle behavior.
 - [ ] Implement software cursor and PNG skin loading.
+
+### Milestone 2 — parity hardening
+
+- [ ] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
+  and events to fixtures.
+- [ ] Backfill reference parity fixtures for migrated labels, buttons, choices,
+  flow divisions, value displays, sliders, progress bars, text/numeric inputs,
+  selects/options, popups, and menus.
+- [ ] Make the paired widget smoke framebuffer fixture match reference C.
 
 ### Packages and adapters
 
