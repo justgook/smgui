@@ -25,7 +25,7 @@ Status:
   [x] Reference flow breaks, offsets, wrapping, and alignment implemented
   [x] Wheel routing, event consumption, and drop/resize/gamepad passthrough implemented
   [x] Custom bounds, view, control, popup, and finalization callbacks implemented
-  [ ] Software cursor and PNG skin loading implemented
+  [x] Software cursor and PNG skin loading implemented
 
 Definition of done:
   - `make check` passes
@@ -34,10 +34,12 @@ Definition of done:
   - No operation reports success before doing its documented work
 */
 
+import "core:c"
 import "core:fmt"
 import "core:math"
 import "core:strconv"
 import "core:strings"
+import stbi "vendor:stb/image"
 
 Error :: enum {
 	None,
@@ -540,6 +542,7 @@ Context :: struct {
 	skin:           [SKIN_IMAGE_COUNT]Image,
 	backend:        Backend,
 	skin_buffer:    []u8,
+	software_cursor: Image,
 	theme:          [THEME_COLOR_COUNT]u32,
 	texts:          []string,
 	font:           rawptr,
@@ -701,18 +704,36 @@ set_font :: proc(ctx: ^Context, font: rawptr) -> Error {
 
 @(require_results, tag = "reference:ui_swcursor")
 set_software_cursor :: proc(ctx: ^Context, cursor: ^Image) -> Error {
-	if ctx == nil || cursor == nil {
+	if ctx == nil || cursor == nil || !image_valid(cursor) {
+		if ctx != nil {
+			ctx.software_cursor = {}
+		}
 		return .Invalid_Input
 	}
-	return .Not_Implemented
+	ctx.software_cursor = cursor^
+	if ctx.backend.hide_cursor != nil {
+		if error := ctx.backend.hide_cursor(ctx.backend.data); error != .None {
+			ctx.software_cursor = {}
+			return error
+		}
+	}
+	ctx.flags += {.Refresh}
+	return .None
 }
 
 @(require_results, tag = "reference:ui_hwcursor")
 use_hardware_cursor :: proc(ctx: ^Context) -> Error {
-	if ctx == nil || ctx.backend.show_cursor == nil {
+	if ctx == nil {
 		return .Invalid_Input
 	}
-	return ctx.backend.show_cursor(ctx.backend.data)
+	ctx.software_cursor = {}
+	if ctx.backend.show_cursor != nil {
+		if error := ctx.backend.show_cursor(ctx.backend.data); error != .None {
+			return error
+		}
+	}
+	ctx.flags += {.Refresh}
+	return .None
 }
 
 @(require_results, tag = "reference:ui_theme")
@@ -744,15 +765,154 @@ set_skin :: proc(ctx: ^Context, skin: []Image) -> Error {
 			ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Right)].height,
 		),
 	)
+	cursor := &ctx.skin[int(Skin_Image.Cursor)]
+	if image_valid(cursor) {
+		_ = set_software_cursor(ctx, cursor)
+	} else {
+		ctx.software_cursor = {}
+	}
 	return refresh(ctx)
 }
 
 @(require_results, tag = "reference:ui_pngskin")
 set_png_skin :: proc(ctx: ^Context, png: []u8) -> Error {
-	if ctx == nil || len(png) == 0 {
+	if ctx == nil || len(png) < 16 {
 		return .Invalid_Input
 	}
-	return .Not_Implemented
+	width, height, channels: c.int
+	decoded := stbi.load_from_memory(raw_data(png), c.int(len(png)), &width, &height, &channels, 4)
+	if decoded == nil || width < 1 || height < 1 {
+		return .Invalid_Input
+	}
+	defer stbi.image_free(decoded)
+	pixel_count := int(width) * int(height) * 4
+	owned := make([]u8, pixel_count) or_else nil
+	if owned == nil {
+		return .Out_Of_Memory
+	}
+	for index in 0 ..< pixel_count {
+		owned[index] = decoded[index]
+	}
+	comment, comment_owned, found := png_skin_comment(png)
+	if !found {
+		delete(owned)
+		return .Invalid_Input
+	}
+	if comment_owned != nil {
+		defer delete(comment_owned)
+	}
+
+	skin: [SKIN_IMAGE_COUNT]Image
+	position := 0
+	atlas_width := int(width)
+	atlas_height := int(height)
+	skin_index := 0
+	for skin_index < SKIN_IMAGE_COUNT {
+		x, ok_x := parse_skin_number(comment, &position)
+		y, ok_y := parse_skin_number(comment, &position)
+		image_width, ok_width := parse_skin_number(comment, &position)
+		image_height, ok_height := parse_skin_number(comment, &position)
+		if !ok_x || !ok_y || !ok_width || !ok_height {
+			break
+		}
+		for position < len(comment) && comment[position] != '\n' && comment[position] != ')' &&
+		    comment[position] != ']' && comment[position] != '}' && comment[position] != '>' {
+			position += 1
+		}
+		if image_width > 0 && image_height > 0 && x >= 0 && y >= 0 &&
+		   x + image_width <= atlas_width && y + image_height <= atlas_height {
+			offset := (y * atlas_width + x) * 4
+			skin[skin_index] = {
+				width = image_width,
+				height = image_height,
+				pitch = atlas_width * 4,
+				pixels = owned[offset:],
+			}
+			skin_index += 1
+		}
+	}
+	old_buffer := ctx.skin_buffer
+	if error := set_skin(ctx, skin[:]); error != .None {
+		delete(owned)
+		return error
+	}
+	ctx.skin_buffer = owned
+	if old_buffer != nil {
+		delete(old_buffer)
+	}
+	return .None
+}
+
+@(private = "file")
+png_u32_be :: proc(bytes: []u8, offset: int) -> (u32, bool) {
+	if offset < 0 || offset + 4 > len(bytes) {
+		return 0, false
+	}
+	return u32(bytes[offset]) << 24 | u32(bytes[offset + 1]) << 16 |
+	       u32(bytes[offset + 2]) << 8 | u32(bytes[offset + 3]), true
+}
+
+@(private = "file")
+png_skin_comment :: proc(png: []u8) -> (comment: []u8, owned: []u8, found: bool) {
+	position := 8
+	for position + 12 <= len(png) {
+		length_u32, valid := png_u32_be(png, position)
+		if !valid || u64(length_u32) > u64(len(png)) {
+			return nil, nil, false
+		}
+		length := int(length_u32)
+		data_start := position + 8
+		data_end := data_start + length
+		if data_end + 4 > len(png) {
+			return nil, nil, false
+		}
+		chunk_type := string(png[position + 4:position + 8])
+		data := png[data_start:data_end]
+		if chunk_type == "tEXt" && len(data) >= 8 && string(data[:8]) == "Comment\x00" {
+			return data[8:], nil, true
+		}
+		if chunk_type == "zTXt" && len(data) >= 9 && string(data[:8]) == "Comment\x00" && data[8] == 0 {
+			decoded_length: c.int
+			decoded := stbi.zlib_decode_malloc_guesssize_headerflag(
+				raw_data(data[9:]),
+				c.int(len(data) - 9),
+				65536,
+				&decoded_length,
+				true,
+			)
+			if decoded == nil || decoded_length < 0 {
+				return nil, nil, false
+			}
+			owned = make([]u8, int(decoded_length)) or_else nil
+			if owned == nil {
+				stbi.image_free(decoded)
+				return nil, nil, false
+			}
+			for index in 0 ..< len(owned) {
+				owned[index] = decoded[index]
+			}
+			stbi.image_free(decoded)
+			return owned, owned, true
+		}
+		position = data_end + 4
+	}
+	return nil, nil, false
+}
+
+@(private = "file")
+parse_skin_number :: proc(text: []u8, position: ^int) -> (int, bool) {
+	for position^ < len(text) && (text[position^] < '0' || text[position^] > '9') {
+		position^ += 1
+	}
+	if position^ >= len(text) {
+		return 0, false
+	}
+	value := 0
+	for position^ < len(text) && text[position^] >= '0' && text[position^] <= '9' {
+		value = value * 10 + int(text[position^] - '0')
+		position^ += 1
+	}
+	return value, true
 }
 
 @(require_results, tag = "reference:ui_refresh")
@@ -911,6 +1071,9 @@ deinit :: proc(ctx: ^Context) -> Error {
 	if ctx.screen.pixels != nil {
 		delete(ctx.screen.pixels)
 	}
+	if ctx.skin_buffer != nil {
+		delete(ctx.skin_buffer)
+	}
 	text_buffer_deinit(&ctx.edit_buffer)
 	ctx^ = {}
 	return backend_error
@@ -977,6 +1140,18 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 				return error
 			}
 		}
+	}
+	if image_valid(&ctx.software_cursor) {
+		cursor := &ctx.software_cursor
+		blit_tiled_image(
+			ctx,
+			ctx.mouse_x - cursor.width / 2,
+			ctx.mouse_y - cursor.height / 2,
+			cursor.width,
+			cursor.height,
+			cursor,
+			false,
+		)
 	}
 	ctx.flags -= {.Refresh, .Recalculate}
 	return .None
@@ -2262,7 +2437,7 @@ image_valid :: proc(image: ^Image) -> bool {
 	       image.width > 0 &&
 	       image.height > 0 &&
 	       image.pitch >= image.width * 4 &&
-	       len(image.pixels) >= image.pitch * image.height
+	       len(image.pixels) >= (image.height - 1) * image.pitch + image.width * 4
 }
 
 @(private = "file")

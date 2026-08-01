@@ -3,9 +3,11 @@ package smgui
 import "core:testing"
 
 Test_Backend_State :: struct {
-	ctx:       ^Context,
-	pending:   Event,
-	has_event: bool,
+	ctx:        ^Context,
+	pending:    Event,
+	has_event:  bool,
+	hide_calls: int,
+	show_calls: int,
 }
 
 Test_Font_State :: struct {
@@ -968,6 +970,87 @@ select_and_option_controls_choose_bound_values :: proc(t: ^testing.T) {
 }
 
 @(test)
+software_cursor_draws_and_hardware_cursor_restores_backend_cursor :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	if error := init(&ctx, test_backend(&backend_state), []string{"test"}, 12, 12); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer { _ = deinit(&ctx) }
+	pixels := []u8 {
+		0x11, 0x22, 0x33, 0xff, 0x11, 0x22, 0x33, 0xff,
+		0x11, 0x22, 0x33, 0xff, 0x11, 0x22, 0x33, 0xff,
+	}
+	cursor := Image{width = 2, height = 2, pitch = 8, pixels = pixels}
+	testing.expect_value(t, set_software_cursor(&ctx, &cursor), Error.None)
+	testing.expect_value(t, backend_state.hide_calls, 1)
+	ctx.mouse_x, ctx.mouse_y = 5, 5
+	testing.expect_value(t, render(&ctx, nil), Error.None)
+	pixel := 4 * ctx.screen.pitch + 4 * 4
+	testing.expect_value(t, ctx.screen.pixels[pixel + 0], u8(0x10))
+	testing.expect_value(t, ctx.screen.pixels[pixel + 1], u8(0x21))
+	testing.expect_value(t, ctx.screen.pixels[pixel + 2], u8(0x32))
+	testing.expect_value(t, ctx.screen.pixels[pixel + 3], u8(0xfe))
+
+	testing.expect_value(t, use_hardware_cursor(&ctx), Error.None)
+	testing.expect_value(t, backend_state.show_calls, 1)
+	testing.expect_value(t, render(&ctx, nil), Error.None)
+	testing.expect_value(t, ctx.screen.pixels[pixel + 3], u8(0))
+}
+
+@(test)
+png_skin_decodes_atlas_comment_and_replaces_owned_pixels :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	if error := init(&ctx, test_backend(&backend_state), []string{"test"}, 12, 12); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer { _ = deinit(&ctx) }
+	png := []u8 {
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+		0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0xf4, 0x22, 0x7f, 0x8a, 0x00, 0x00, 0x00, 0x18,
+		0x74, 0x45, 0x58, 0x74, 0x43, 0x6f, 0x6d, 0x6d, 0x65, 0x6e, 0x74, 0x00,
+		0x30, 0x20, 0x30, 0x20, 0x31, 0x20, 0x31, 0x0a, 0x31, 0x20, 0x30, 0x20,
+		0x31, 0x20, 0x31, 0x0a, 0xda, 0xa6, 0xa7, 0x48, 0x00, 0x00, 0x00, 0x0e,
+		0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0xf0, 0x1f,
+		0x04, 0x01, 0x10, 0xf8, 0x03, 0xfd, 0x4e, 0x95, 0xc1, 0x6f, 0x00, 0x00,
+		0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+	}
+	testing.expect_value(t, set_png_skin(&ctx, png), Error.None)
+	cursor := &ctx.skin[int(Skin_Image.Cursor)]
+	popup_corner := &ctx.skin[int(Skin_Image.Popup_Top_Left)]
+	testing.expect_value(t, cursor.width, 1)
+	testing.expect_value(t, cursor.height, 1)
+	testing.expect_value(t, cursor.pixels[0], u8(0xff))
+	testing.expect_value(t, cursor.pixels[1], u8(0x00))
+	testing.expect_value(t, popup_corner.width, 1)
+	testing.expect_value(t, popup_corner.pixels[0], u8(0x00))
+	testing.expect_value(t, popup_corner.pixels[1], u8(0xff))
+	testing.expect_value(t, backend_state.hide_calls, 1)
+	testing.expect(t, len(ctx.skin_buffer) == 8)
+	testing.expect_value(t, set_png_skin(&ctx, png), Error.None)
+	testing.expect_value(t, backend_state.hide_calls, 2)
+	compressed_comment_png := []u8 {
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+		0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x19,
+		0x7a, 0x54, 0x58, 0x74, 0x43, 0x6f, 0x6d, 0x6d, 0x65, 0x6e, 0x74, 0x00,
+		0x00, 0x78, 0x9c, 0x33, 0x50, 0x30, 0x50, 0x30, 0x54, 0x30, 0xe4, 0x02, 0x00,
+		0x05, 0xb8, 0x01, 0x2d, 0x99, 0x67, 0x93, 0xaa, 0x00, 0x00, 0x00, 0x0d, 0x49,
+		0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0xf0, 0x1f, 0x00, 0x05,
+		0x00, 0x01, 0xff, 0x89, 0x99, 0x3d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+		0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+	}
+	testing.expect_value(t, set_png_skin(&ctx, compressed_comment_png), Error.None)
+	testing.expect_value(t, backend_state.hide_calls, 3)
+	testing.expect_value(t, len(ctx.skin_buffer), 4)
+	testing.expect_value(t, set_png_skin(&ctx, []u8{1, 2, 3}), Error.Invalid_Input)
+}
+
+@(test)
 custom_forms_measure_draw_control_popup_and_finalize :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context
@@ -1258,6 +1341,8 @@ test_backend :: proc(state: ^Test_Backend_State) -> Backend {
 		deinit = test_backend_operation,
 		poll = test_backend_poll,
 		redraw = test_backend_operation,
+		hide_cursor = test_backend_hide_cursor,
+		show_cursor = test_backend_show_cursor,
 	}
 }
 
@@ -1281,6 +1366,20 @@ test_backend_init :: proc(
 @(private = "file")
 test_backend_operation :: proc(data: rawptr) -> Error {
 	_ = data
+	return .None
+}
+
+@(private = "file")
+test_backend_hide_cursor :: proc(data: rawptr) -> Error {
+	state := (^Test_Backend_State)(data)
+	state.hide_calls += 1
+	return .None
+}
+
+@(private = "file")
+test_backend_show_cursor :: proc(data: rawptr) -> Error {
+	state := (^Test_Backend_State)(data)
+	state.show_calls += 1
 	return .None
 }
 

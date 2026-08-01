@@ -248,6 +248,12 @@ main :: proc() {
 	vertical_connector := []i16{350, 350, 390, 390}
 	horizontal_connector := []i16{400, 350, 440, 390}
 	curve_points := []i16{300, 410, 440, 430, 340, 450, 400, 390}
+	cursor_pixels := []u8 {
+		0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0x20, 0x20, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff,
+	}
+	software_cursor := smgui.Image{width = 3, height = 3, pitch = 12, pixels = cursor_pixels}
 	forms := []smgui.Form {
 		{
 			kind = .Popup,
@@ -327,6 +333,9 @@ main :: proc() {
 		if error := smgui.deinit(&ctx); error != .None {
 			fmt.eprintln("SMGUI shutdown failed:", error)
 		}
+	}
+	if error := smgui.set_software_cursor(&ctx, &software_cursor); error != .None {
+		fail("configuring the software cursor", error)
 	}
 
 	font, error := psf2.default_font()

@@ -188,7 +188,7 @@ only their module and must agree with this list.
 - [x] Migrate remaining flow and alignment behavior.
 - [x] Complete drop, resize, wheel, gamepad, and remaining event processing.
 - [x] Migrate custom-form callbacks and lifecycle behavior.
-- [ ] Implement software cursor and PNG skin loading.
+- [x] Implement software cursor and PNG skin loading.
 
 ### Milestone 2 — parity hardening
 

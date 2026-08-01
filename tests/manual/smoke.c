@@ -183,6 +183,12 @@ int main(int argc, char **argv)
     int16_t vertical_connector[] = { 350, 350, 390, 390 };
     int16_t horizontal_connector[] = { 400, 350, 440, 390 };
     int16_t curve_points[] = { 300, 410, 440, 430, 340, 450, 400, 390 };
+    uint8_t cursor_pixels[] = {
+        0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0x20, 0x20, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff
+    };
+    ui_image_t software_cursor = { .w = 3, .h = 3, .p = 12, .buf = cursor_pixels };
     label_fields[10].ptr = &label_fields[11];
 
     ui_form_t forms[] = {
@@ -223,6 +229,8 @@ int main(int argc, char **argv)
     (void)argv;
 #endif
     ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, 640, 480, NULL);
+    context.skin[UI_CURSOR] = software_cursor;
+    ui_swcursor(&context, &software_cursor);
     while (ui_event(&context, forms)) {
         if (button_option) {
             printf("button option %d selected\n", button_option);
