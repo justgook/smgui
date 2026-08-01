@@ -24,7 +24,8 @@ Status:
   [x] Popup dragging, resizing, and container scrolling implemented
   [x] Reference flow breaks, offsets, wrapping, and alignment implemented
   [x] Wheel routing, event consumption, and drop/resize/gamepad passthrough implemented
-  [ ] Remaining built-in widgets implemented
+  [x] Custom bounds, view, control, popup, and finalization callbacks implemented
+  [ ] Software cursor and PNG skin loading implemented
 
 Definition of done:
   - `make check` passes
@@ -902,6 +903,7 @@ deinit :: proc(ctx: ^Context) -> Error {
 	if ctx == nil {
 		return .Invalid_Input
 	}
+	finalize_forms(ctx, ctx.form)
 	backend_error := Error.None
 	if ctx.backend.deinit != nil {
 		backend_error = ctx.backend.deinit(ctx.backend.data)
@@ -914,11 +916,27 @@ deinit :: proc(ctx: ^Context) -> Error {
 	return backend_error
 }
 
+@(private = "file")
+finalize_forms :: proc(ctx: ^Context, forms: []Form) {
+	for &field in forms {
+		if field.kind == .End {
+			break
+		}
+		if field.kind == .Custom && field.custom.finalize != nil {
+			field.custom.finalize(ctx, &field)
+		}
+		if len(field.children) > 0 {
+			finalize_forms(ctx, field.children)
+		}
+	}
+}
+
 @(require_results)
 render :: proc(ctx: ^Context, form: []Form) -> Error {
 	if ctx == nil || len(ctx.screen.pixels) == 0 {
 		return .Invalid_Input
 	}
+	ctx.form = form
 	// Match reference-c `_ui_redraw`: untouched UI-layer pixels remain
 	// transparent so the presentation adapter may supply the window background.
 	ctx.clip_x0 = 0
@@ -945,6 +963,17 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 			}
 		} else if ctx.popup.kind == .Color {
 			if error := draw_color_popup(ctx, ctx.popup); error != .None {
+				return error
+			}
+		} else if ctx.popup.kind == .Custom && ctx.popup.custom.view != nil {
+			if error := draw_custom_at(
+				ctx,
+				ctx.popup,
+				ctx.popup_x,
+				ctx.popup_y,
+				ctx.popup_width,
+				ctx.popup_height,
+			); error != .None {
 				return error
 			}
 		}
@@ -1028,10 +1057,6 @@ layout_forms :: proc(
 		if .Hidden in field.flags {
 			continue
 		}
-		field_width, field_height, measure_error := measure_form(ctx, &field, width, height)
-		if measure_error != .None {
-			return 0, 0, measure_error
-		}
 		is_overlay := field.kind == .Popup || field.kind == .Menu
 		is_flow := field.x.mode == .Relative && field.y.mode == .Relative && !is_overlay
 		field_x, field_y: int
@@ -1041,6 +1066,19 @@ layout_forms :: proc(
 		} else {
 			field_x = x + resolve_position(field.x, width)
 			field_y = y + resolve_position(field.y, height)
+		}
+		field_width, field_height, measure_error := measure_form(
+			ctx,
+			&field,
+			field_x,
+			field_y,
+			width,
+			height,
+		)
+		if measure_error != .None {
+			return 0, 0, measure_error
+		}
+		if !is_flow {
 			if field.kind == .Menu && previous != nil && previous.kind == .Toggle &&
 			   field.x.mode == .Relative && field.x.value == 0 && field.x.offset == 0 &&
 			   field.y.mode == .Relative && field.y.value == 0 && field.y.offset == 0 {
@@ -1224,6 +1262,7 @@ layout_forms :: proc(
 measure_form :: proc(
 	ctx: ^Context,
 	field: ^Form,
+	x, y: int,
 	available_width, available_height: int,
 ) -> (
 	int,
@@ -1533,6 +1572,24 @@ measure_form :: proc(
 		}
 		if height < 1 {
 			height = text_height + 4
+		}
+	case .Custom:
+		if field.custom.bounds != nil {
+			desired_width, desired_height := 0, 0
+			if bounds_error := field.custom.bounds(
+				ctx,
+				x,
+				y,
+				width,
+				height,
+				field,
+				&desired_width,
+				&desired_height,
+			); bounds_error != .None {
+				return 0, 0, bounds_error
+			}
+			width = max(width, desired_width)
+			height = max(height, desired_height)
 		}
 	case .Popup, .Menu:
 		content_available_width := 4
@@ -1933,6 +1990,10 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			if error := draw_progress_bar(ctx, &field); error != .None {
 				return error
 			}
+		case .Custom:
+			if error := draw_custom(ctx, &field); error != .None {
+				return error
+			}
 		case .Decimal_8,
 		     .Decimal_16,
 		     .Decimal_32,
@@ -1948,6 +2009,35 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 		}
 	}
 	return .None
+}
+
+@(private = "file")
+draw_custom :: proc(ctx: ^Context, field: ^Form) -> Error {
+	return draw_custom_at(
+		ctx,
+		field,
+		field.computed_x,
+		field.computed_y,
+		field.computed_width,
+		field.computed_height,
+	)
+}
+
+@(private = "file")
+draw_custom_at :: proc(ctx: ^Context, field: ^Form, x, y, width, height: int) -> Error {
+	if field.custom.view == nil {
+		return .None
+	}
+	old_x0, old_y0 := ctx.clip_x0, ctx.clip_y0
+	old_x1, old_y1 := ctx.clip_x1, ctx.clip_y1
+	ctx.clip_x0 = max(ctx.clip_x0, x)
+	ctx.clip_y0 = max(ctx.clip_y0, y)
+	ctx.clip_x1 = min(ctx.clip_x1, x + width)
+	ctx.clip_y1 = min(ctx.clip_y1, y + height)
+	error := field.custom.view(ctx, x, y, width, height, field)
+	ctx.clip_x0, ctx.clip_y0 = old_x0, old_y0
+	ctx.clip_x1, ctx.clip_y1 = old_x1, old_y1
+	return error
 }
 
 @(private = "file")
@@ -3985,6 +4075,75 @@ is_wheel_event :: proc(event: ^Event) -> bool {
 }
 
 @(private = "file")
+invoke_custom_control :: proc(ctx: ^Context, field: ^Form, event: ^Event) -> Error {
+	if field == nil || field.custom.control == nil {
+		return .None
+	}
+	ctx.popup_x = field.computed_x
+	ctx.popup_y = field.computed_y
+	ctx.popup_width = field.computed_width
+	ctx.popup_height = field.computed_height
+	error := field.custom.control(
+		ctx,
+		field.computed_x,
+		field.computed_y,
+		field.computed_width,
+		field.computed_height,
+		field,
+		event,
+	)
+	if error == .None {
+		ctx.flags += {.Refresh}
+	}
+	return error
+}
+
+@(private = "file")
+close_custom_popup :: proc(ctx: ^Context) {
+	if ctx.popup != nil && ctx.popup.kind == .Custom && ctx.popup.custom.finalize != nil {
+		ctx.popup.custom.finalize(ctx, ctx.popup)
+	}
+	ctx.popup = nil
+	ctx.flags -= {.Close}
+	ctx.flags += {.Refresh}
+}
+
+@(private = "file")
+process_custom_popup_event :: proc(ctx: ^Context, event: ^Event) -> Error {
+	field := ctx.popup
+	if field == nil || field.kind != .Custom {
+		return .Invalid_Input
+	}
+	outside := event.kind == .Mouse && .Released not_in event.buttons &&
+	           (event.x < ctx.popup_x || event.x >= ctx.popup_x + ctx.popup_width ||
+	            event.y < ctx.popup_y || event.y >= ctx.popup_y + ctx.popup_height)
+	if .Close in ctx.flags || field.custom.control == nil || outside {
+		close_custom_popup(ctx)
+		consume_event(event)
+		return .None
+	}
+	error := field.custom.control(
+		ctx,
+		ctx.popup_x,
+		ctx.popup_y,
+		ctx.popup_width,
+		ctx.popup_height,
+		field,
+		event,
+	)
+	if error != .None {
+		return error
+	}
+	if .Close in ctx.flags {
+		close_custom_popup(ctx)
+	} else {
+		ctx.flags += {.Refresh}
+	}
+	consume_event(event)
+	return .None
+}
+
+@(private = "file")
 process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 	if event.kind == .Mouse ||
 	   (event.kind == .Key && (event.x != 0 || event.y != 0)) {
@@ -3992,6 +4151,9 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.mouse_y = event.y
 	}
 	if ctx.popup != nil {
+		if ctx.popup.kind == .Custom {
+			return process_custom_popup_event(ctx, event)
+		}
 		error := Error.None
 		if ctx.popup.kind == .Select {
 			error = process_select_popup_event(ctx, event)
@@ -4012,15 +4174,26 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			return .None
 		}
 		if ctx.text_field != nil {
+			active := ctx.text_field
 			error := process_text_key(ctx, event)
+			if error == .None && active.kind == .Custom && active.custom.control != nil {
+				error = invoke_custom_control(ctx, active, event)
+			}
 			if error == .None {
 				consume_event(event)
 			}
 			return error
 		}
+		if ctx.hovered != nil && ctx.hovered.kind == .Custom && .Disabled not_in ctx.hovered.flags {
+			return invoke_custom_control(ctx, ctx.hovered, event)
+		}
 		return .None
 	}
 	if event.kind != .Mouse {
+		update_hover(ctx, form)
+		if ctx.hovered != nil && ctx.hovered.kind == .Custom && .Disabled not_in ctx.hovered.flags {
+			return invoke_custom_control(ctx, ctx.hovered, event)
+		}
 		return .None
 	}
 	if ctx.text_field != nil {
@@ -4081,6 +4254,15 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		return .None
 	}
 	update_hover(ctx, form)
+	if ctx.hovered != nil && ctx.hovered.kind == .Custom && .Disabled not_in ctx.hovered.flags &&
+	   ctx.hovered.custom.control != nil {
+		error := invoke_custom_control(ctx, ctx.hovered, event)
+		if error == .None {
+			ctx.flags += {.Refresh}
+			consume_event(event)
+		}
+		return error
+	}
 	inside_overlay := ctx.menu != nil && point_inside(ctx.menu, event.x, event.y)
 	if !inside_overlay {
 		for &field in form {

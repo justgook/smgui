@@ -16,6 +16,24 @@
 #include <ui.h>
 #endif
 
+static int smoke_custom_bounds(
+    ui_t *ctx, int x, int y, int width, int height, ui_form_t *form,
+    int *desired_width, int *desired_height)
+{
+    (void)ctx; (void)x; (void)y; (void)width; (void)height; (void)form;
+    *desired_width = 30;
+    *desired_height = 16;
+    return UI_OK;
+}
+
+static int smoke_custom_view(
+    ui_t *ctx, int x, int y, int width, int height, ui_form_t *form)
+{
+    (void)form;
+    _ui_frect(ctx, x, y, width, height, 0xff406080);
+    return UI_OK;
+}
+
 int main(int argc, char **argv)
 {
     enum {
@@ -189,6 +207,7 @@ int main(int argc, char **argv)
         { .type = UI_VSCRBAR, .x = UI_ABS(430), .y = UI_ABS(200), .h = 100, .max = 300, .ptr = &vertical_scroll },
         { .type = UI_BUTTON, .align = UI_RIGHT, .w = 60, .label = ITEM_1 },
         { .type = UI_BUTTON, .align = UI_RIGHT, .w = 60, .label = ITEM_2 },
+        { .type = UI_CUSTOM, .x = UI_ABS(460), .y = UI_ABS(400), .bbox = &smoke_custom_bounds, .view = &smoke_custom_view },
         { .type = UI_END }
     };
 

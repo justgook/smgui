@@ -187,7 +187,7 @@ only their module and must agree with this list.
 - [x] Migrate popup container scrolling and scrollbar event routing.
 - [x] Migrate remaining flow and alignment behavior.
 - [x] Complete drop, resize, wheel, gamepad, and remaining event processing.
-- [ ] Migrate custom-form callbacks and lifecycle behavior.
+- [x] Migrate custom-form callbacks and lifecycle behavior.
 - [ ] Implement software cursor and PNG skin loading.
 
 ### Milestone 2 — parity hardening

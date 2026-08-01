@@ -12,6 +12,73 @@ Test_Font_State :: struct {
 	last_text: string,
 }
 
+Custom_Test_State :: struct {
+	bounds_calls:   int,
+	view_calls:     int,
+	control_calls:  int,
+	finalize_calls: int,
+	last_x:         int,
+	last_y:         int,
+	last_width:     int,
+	last_height:    int,
+	last_event:     Event_Kind,
+	clip_matches:   bool,
+	open_popup:     bool,
+}
+
+custom_test_bounds :: proc(
+	ctx: ^Context,
+	x, y, width, height: int,
+	form: ^Form,
+	desired_width, desired_height: ^int,
+) -> Error {
+	_ = ctx
+	state := (^Custom_Test_State)(form.custom.data)
+	state.bounds_calls += 1
+	state.last_x, state.last_y = x, y
+	state.last_width, state.last_height = width, height
+	desired_width^ = 40
+	desired_height^ = 20
+	return .None
+}
+
+custom_test_view :: proc(ctx: ^Context, x, y, width, height: int, form: ^Form) -> Error {
+	state := (^Custom_Test_State)(form.custom.data)
+	state.view_calls += 1
+	state.last_x, state.last_y = x, y
+	state.last_width, state.last_height = width, height
+	state.clip_matches = ctx.clip_x0 == x && ctx.clip_y0 == y &&
+	                     ctx.clip_x1 == x + width && ctx.clip_y1 == y + height
+	return .None
+}
+
+custom_test_control :: proc(
+	ctx: ^Context,
+	x, y, width, height: int,
+	form: ^Form,
+	event: ^Event,
+) -> Error {
+	state := (^Custom_Test_State)(form.custom.data)
+	state.control_calls += 1
+	state.last_x, state.last_y = x, y
+	state.last_width, state.last_height = width, height
+	state.last_event = event.kind
+	if state.open_popup && event.kind == .Mouse && .Mouse_Left in event.buttons {
+		ctx.popup = form
+		ctx.popup_x = 60
+		ctx.popup_y = 30
+		ctx.popup_width = 50
+		ctx.popup_height = 25
+	}
+	return .None
+}
+
+custom_test_finalize :: proc(ctx: ^Context, form: ^Form) {
+	_ = ctx
+	state := (^Custom_Test_State)(form.custom.data)
+	state.finalize_calls += 1
+}
+
 @(test)
 render_clears_unpainted_pixels_to_transparent_black :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
@@ -898,6 +965,84 @@ select_and_option_controls_choose_bound_values :: proc(t: ^testing.T) {
 	testing.expect_value(t, selected, 2)
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 15, 95, {.Mouse_Left})
 	testing.expect_value(t, selected, 1)
+}
+
+@(test)
+custom_forms_measure_draw_control_popup_and_finalize :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	if error := init(&ctx, test_backend(&backend_state), []string{"test"}, 140, 90); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	state: Custom_Test_State
+	forms := []Form {
+		{
+			kind = .Custom,
+			x = absolute(10),
+			y = absolute(10),
+			custom = {
+				bounds = custom_test_bounds,
+				view = custom_test_view,
+				control = custom_test_control,
+				finalize = custom_test_finalize,
+				data = &state,
+			},
+		},
+	}
+	if error := render(&ctx, forms); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+		_ = deinit(&ctx)
+		return
+	}
+	testing.expect(t, state.bounds_calls > 0)
+	testing.expect_value(t, forms[0].computed_x, 10)
+	testing.expect_value(t, forms[0].computed_y, 10)
+	testing.expect_value(t, forms[0].computed_width, 40)
+	testing.expect_value(t, forms[0].computed_height, 20)
+	testing.expect_value(t, state.view_calls, 1)
+	testing.expect(t, state.clip_matches)
+
+	backend_state.pending = {kind = .Mouse, x = 15, y = 15}
+	backend_state.has_event = true
+	returned, _, error := poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.None)
+	testing.expect_value(t, state.control_calls, 1)
+	testing.expect_value(t, state.last_event, Event_Kind.Mouse)
+
+	gamepad := Event{kind = .Gamepad, buttons = {.Gamepad_A}, x = 123, y = -456}
+	testing.expect_value(t, push_event(&ctx, gamepad), Error.None)
+	returned, _, error = poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.Gamepad)
+	testing.expect_value(t, state.control_calls, 2)
+	testing.expect_value(t, state.last_event, Event_Kind.Gamepad)
+
+	state.open_popup = true
+	backend_state.pending = {kind = .Mouse, buttons = {.Mouse_Left}, x = 15, y = 15}
+	backend_state.has_event = true
+	returned, _, error = poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.None)
+	testing.expect(t, ctx.popup == &forms[0])
+	poll_for_test(t, &ctx, forms)
+	testing.expect(t, state.view_calls >= 5)
+	testing.expect_value(t, state.last_x, 60)
+	testing.expect_value(t, state.last_y, 30)
+	testing.expect_value(t, state.last_width, 50)
+	testing.expect_value(t, state.last_height, 25)
+
+	backend_state.pending = {kind = .Mouse, buttons = {.Mouse_Left}, x = 1, y = 1}
+	backend_state.has_event = true
+	returned, _, error = poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.None)
+	testing.expect(t, ctx.popup == nil)
+	testing.expect_value(t, state.finalize_calls, 1)
+
+	testing.expect_value(t, deinit(&ctx), Error.None)
+	testing.expect_value(t, state.finalize_calls, 2)
 }
 
 @(test)

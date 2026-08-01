@@ -15,6 +15,41 @@ import raylib_backend "../../smgui/raylib"
 import "core:fmt"
 import "core:os"
 
+smoke_custom_bounds :: proc(
+	ctx: ^smgui.Context,
+	x, y, width, height: int,
+	form: ^smgui.Form,
+	desired_width, desired_height: ^int,
+) -> smgui.Error {
+	_ = ctx
+	_ = x
+	_ = y
+	_ = width
+	_ = height
+	_ = form
+	desired_width^ = 30
+	desired_height^ = 16
+	return .None
+}
+
+smoke_custom_view :: proc(
+	ctx: ^smgui.Context,
+	x, y, width, height: int,
+	form: ^smgui.Form,
+) -> smgui.Error {
+	_ = form
+	for row in max(y, ctx.clip_y0) ..< min(y + height, ctx.clip_y1) {
+		for column in max(x, ctx.clip_x0) ..< min(x + width, ctx.clip_x1) {
+			pixel := row * ctx.screen.pitch + column * 4
+			ctx.screen.pixels[pixel + 0] = 0x80
+			ctx.screen.pixels[pixel + 1] = 0x60
+			ctx.screen.pixels[pixel + 2] = 0x40
+			ctx.screen.pixels[pixel + 3] = 0xff
+		}
+	}
+	return .None
+}
+
 main :: proc() {
 	texts := []string {
 		"Widget parity smoke",
@@ -245,6 +280,12 @@ main :: proc() {
 		{kind = .Vertical_Scrollbar, x = smgui.absolute(430), y = smgui.absolute(200), height = 100, maximum = 300, binding = smgui.bind(&vertical_scroll)},
 		{kind = .Button, horizontal_alignment = .Right, width = 60, label = 4},
 		{kind = .Button, horizontal_alignment = .Right, width = 60, label = 5},
+		{
+			kind = .Custom,
+			x = smgui.absolute(460),
+			y = smgui.absolute(400),
+			custom = {bounds = smoke_custom_bounds, view = smoke_custom_view},
+		},
 	}
 	forms[1].binding = smgui.bind(&forms[2])
 	forms[3].binding = smgui.bind(&forms[4])

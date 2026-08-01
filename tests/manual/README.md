@@ -13,7 +13,7 @@ make smoke-odin
 
 Compare the initial layout and then exercise menus, collapsible sections, text
 and numeric inputs, selection controls, sliders, scrollbars, scrollable popups,
-wheel routing, choices, and buttons. Close one
+wheel routing, custom-form rendering, choices, and buttons. Close one
 window before starting the other unless the platform supports running both from
 separate terminals.
 
