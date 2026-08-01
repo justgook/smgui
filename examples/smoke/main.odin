@@ -77,6 +77,15 @@ main :: proc() {
 	checkbox_option := false
 	radio_option := 0
 	integer_value := 26
+	decimal_8_value := -8
+	decimal_16_value := -16
+	decimal_64_value := -64
+	hex_8_value := 0x08
+	hex_16_value := 0x16
+	hex_64_value := 0x64
+	integer_8_value := 8
+	integer_16_value := 16
+	integer_64_value := 64
 	option_value := 0
 	progress_value := 42
 	horizontal_scroll := 40
@@ -127,8 +136,14 @@ main :: proc() {
 	}
 	label_fields := []smgui.Form {
 		{kind = .Label, flags = {.No_Break}, label = 4},
+		{kind = .Decimal_8, flags = {.No_Break}, width = 28, binding = smgui.bind(&decimal_8_value)},
+		{kind = .Decimal_16, flags = {.No_Break}, width = 28, binding = smgui.bind(&decimal_16_value)},
 		{kind = .Decimal_32, flags = {.No_Break}, width = 28, binding = smgui.bind(&integer_value)},
+		{kind = .Decimal_64, flags = {.No_Break}, width = 28, binding = smgui.bind(&decimal_64_value)},
+		{kind = .Hexadecimal_8, flags = {.No_Break}, width = 28, binding = smgui.bind(&hex_8_value)},
+		{kind = .Hexadecimal_16, flags = {.No_Break}, width = 28, binding = smgui.bind(&hex_16_value)},
 		{kind = .Hexadecimal_32, flags = {.No_Break}, width = 36, binding = smgui.bind(&integer_value)},
+		{kind = .Hexadecimal_64, flags = {.No_Break}, width = 36, binding = smgui.bind(&hex_64_value)},
 		{
 			kind = .Progress_Bar,
 			flags = {.No_Break},
@@ -175,14 +190,38 @@ main :: proc() {
 			options = options,
 		},
 		{
-			kind = .Integer_32,
+			kind = .Integer_8,
 			flags = {.No_Break},
 			x = smgui.relative(10),
 			margin = 17,
-			width = 72,
+			width = 54,
+			binding = smgui.bind(&integer_8_value),
+			minimum = 1,
+			maximum = 32,
+		},
+		{
+			kind = .Integer_16,
+			flags = {.No_Break},
+			width = 54,
+			binding = smgui.bind(&integer_16_value),
+			minimum = 1,
+			maximum = 32,
+		},
+		{
+			kind = .Integer_32,
+			flags = {.No_Break},
+			width = 54,
 			binding = smgui.bind(&integer_value),
 			minimum = 1,
 			maximum = 32,
+		},
+		{
+			kind = .Integer_64,
+			flags = {.No_Break},
+			width = 54,
+			binding = smgui.bind(&integer_64_value),
+			minimum = 1,
+			maximum = 100,
 		},
 		{
 			kind = .Float_Input,
@@ -304,7 +343,7 @@ main :: proc() {
 	input_fields[2].binding = smgui.bind(&input_fields[3])
 	button_fields[0].binding = smgui.bind(&button_fields[1])
 	button_fields[2].binding = smgui.bind(&button_fields[3])
-	label_fields[10].binding = smgui.bind(&label_fields[11])
+	label_fields[16].binding = smgui.bind(&label_fields[17])
 
 	backend: smgui.Backend
 	raylib_state: raylib_backend.State

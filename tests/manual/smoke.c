@@ -80,6 +80,15 @@ int main(int argc, char **argv)
     int checkbox_option = 0;
     int radio_option = 0;
     int integer_value = 26;
+    int8_t decimal_8_value = -8;
+    int16_t decimal_16_value = -16;
+    int64_t decimal_64_value = -64;
+    uint8_t hex_8_value = 0x08;
+    uint16_t hex_16_value = 0x16;
+    uint64_t hex_64_value = 0x64;
+    int8_t integer_8_value = 8;
+    int16_t integer_16_value = 16;
+    int64_t integer_64_value = 64;
     int option_value = 0;
     int64_t progress_value = 42;
     int horizontal_scroll = 40;
@@ -118,8 +127,14 @@ int main(int argc, char **argv)
     };
     ui_form_t label_fields[] = {
         { .type = UI_LABEL, .flags = UI_NOBR, .label = ITEM_1 },
+        { .type = UI_DEC8, .flags = UI_NOBR, .w = 28, .ptr = &decimal_8_value },
+        { .type = UI_DEC16, .flags = UI_NOBR, .w = 28, .ptr = &decimal_16_value },
         { .type = UI_DEC32, .flags = UI_NOBR, .w = 28, .ptr = &integer_value },
+        { .type = UI_DEC64, .flags = UI_NOBR, .w = 28, .ptr = &decimal_64_value },
+        { .type = UI_HEX8, .flags = UI_NOBR, .w = 28, .ptr = &hex_8_value },
+        { .type = UI_HEX16, .flags = UI_NOBR, .w = 28, .ptr = &hex_16_value },
         { .type = UI_HEX32, .flags = UI_NOBR, .w = 36, .ptr = &integer_value },
+        { .type = UI_HEX64, .flags = UI_NOBR, .w = 36, .ptr = &hex_64_value },
         { .type = UI_PBAR, .flags = UI_NOBR, .x = 10, .w = 100, .ptr = &progress_value, .max = 100 },
         { .type = UI_DEC_FLOAT, .w = 80, .ptr = &float_value },
         { .type = UI_MLINE, .label = MULTILINE },
@@ -137,7 +152,10 @@ int main(int argc, char **argv)
         { .type = UI_SELECT, .flags = UI_NOBR, .x = 10, .m = 17, .w = 80, .ptr = &option_value, .optc = 3, .optv = options },
         /* Wheel events over option and numeric inputs exercise control-first routing. */
         { .type = UI_OPTION, .flags = UI_NOBR, .x = 10, .m = 17, .w = 90, .ptr = &option_value, .optc = 3, .optv = options },
-        { .type = UI_INT32, .flags = UI_NOBR, .x = 10, .m = 17, .w = 72, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_INT8, .flags = UI_NOBR, .x = 10, .m = 17, .w = 54, .ptr = &integer_8_value, .min = 1, .max = 32 },
+        { .type = UI_INT16, .flags = UI_NOBR, .w = 54, .ptr = &integer_16_value, .min = 1, .max = 32 },
+        { .type = UI_INT32, .flags = UI_NOBR, .w = 54, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_INT64, .flags = UI_NOBR, .w = 54, .ptr = &integer_64_value, .min = 1, .max = 100 },
         { .type = UI_FLOAT, .flags = UI_NOBR, .x = 10, .m = 17, .w = 100, .ptr = &float_value, .fmin = 1, .fmax = 32, .finc = 0.25f },
         { .type = UI_SLIDER, .x = 10, .w = 60, .ptr = &integer_value, .min = 1, .max = 32 },
         { .type = UI_END }
@@ -146,7 +164,10 @@ int main(int argc, char **argv)
         { .type = UI_TEXT, .flags = UI_DISABLED | UI_NOBR, .w = 130, .ptr = &text_value, .max = sizeof(text_value) },
         { .type = UI_SELECT, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 80, .ptr = &option_value, .optc = 3, .optv = options },
         { .type = UI_OPTION, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 90, .ptr = &option_value, .optc = 3, .optv = options },
-        { .type = UI_INT32, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 72, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_INT8, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 54, .ptr = &integer_8_value, .min = 1, .max = 32 },
+        { .type = UI_INT16, .flags = UI_DISABLED | UI_NOBR, .w = 54, .ptr = &integer_16_value, .min = 1, .max = 32 },
+        { .type = UI_INT32, .flags = UI_DISABLED | UI_NOBR, .w = 54, .ptr = &integer_value, .min = 1, .max = 32 },
+        { .type = UI_INT64, .flags = UI_DISABLED | UI_NOBR, .w = 54, .ptr = &integer_64_value, .min = 1, .max = 100 },
         { .type = UI_FLOAT, .flags = UI_DISABLED | UI_NOBR, .x = 10, .m = 17, .w = 100, .ptr = &float_value, .fmin = 1, .fmax = 32, .finc = 0.25f },
         { .type = UI_SLIDER, .flags = UI_DISABLED, .x = 10, .w = 60, .ptr = &integer_value, .min = 1, .max = 32 },
         { .type = UI_END }
@@ -189,7 +210,7 @@ int main(int argc, char **argv)
         0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff
     };
     ui_image_t software_cursor = { .w = 3, .h = 3, .p = 12, .buf = cursor_pixels };
-    label_fields[10].ptr = &label_fields[11];
+    label_fields[16].ptr = &label_fields[17];
 
     ui_form_t forms[] = {
         { .type = UI_POPUP, .flags = UI_SCROLL | UI_DRAGGABLE | UI_RESIZABLE, .x = UI_ABS(455), .y = UI_ABS(315), .w = 110, .h = 90, .m = 10, .p = 10, .ptr = &popup_children },

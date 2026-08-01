@@ -3,6 +3,8 @@
 The smoke test is a project-owned, side-by-side form fixture inspired by
 `tmp/screen1.png` / `reference-c/docs/screen1.png`. It uses the same strings,
 initial values, 640×480 window, and supported form tree in both implementations.
+Every core form kind is represented, including all 8/16/32/64-bit decimal,
+hexadecimal, and integer-input variants.
 
 Run each version from the Nix/direnv development shell:
 
@@ -17,9 +19,9 @@ wheel routing, custom-form rendering, the software cursor, choices, and buttons.
 window before starting the other unless the platform supports running both from
 separate terminals.
 
-The fixture currently excludes the custom file widget, which is not yet
-implemented by the Odin port. Add it to **both** smoke examples when its
-structural migration slice lands.
+The fixture excludes higher-level Odin-only widgets that have no Reference C
+form counterpart. Core `ui.h` form coverage must remain paired: additions or
+changes belong in **both** smoke examples.
 
 Generate deterministic PNGs directly from the two software framebuffers:
 

@@ -60,16 +60,16 @@ observable behavior belongs to the corresponding form and event rows below.
 | `UI_PBAR` | `Progress_Bar` | Green | minimum/midpoint/maximum/disabled fixtures. |
 | `UI_IMAGE` | `Image` | Focused, Smoke | `image_and_icon_fields_render_and_activate`. |
 | `UI_ICON` | `Icon` | Focused, Smoke | `image_and_icon_fields_render_and_activate`. |
-| `UI_DEC8/16/32` | `Decimal_8/16/32` | Missing | Add width/signed-value fixtures for each binding width. |
-| `UI_DEC64` | `Decimal_64` | Green | `decimal-normal`, negative, explicit-size, disabled. |
-| `UI_HEX8/16/32` | `Hexadecimal_8/16/32` | Missing | Add truncation/format fixtures for each width. |
-| `UI_HEX64` | `Hexadecimal_64` | Green | `hex-normal`, zero, explicit-size, disabled. |
+| `UI_DEC8/16/32` | `Decimal_8/16/32` | Smoke | Paired all-components smoke; add width/signed-value fixtures for each binding width. |
+| `UI_DEC64` | `Decimal_64` | Green, Smoke | `decimal-normal`, negative, explicit-size, disabled; paired smoke. |
+| `UI_HEX8/16/32` | `Hexadecimal_8/16/32` | Smoke | Paired all-components smoke; add truncation/format fixtures for each width. |
+| `UI_HEX64` | `Hexadecimal_64` | Green, Smoke | `hex-normal`, zero, explicit-size, disabled; paired smoke. |
 | `UI_TXTINP` | `Text_Input` | Green | normal/empty/explicit/edit/overflowing-active/disabled fixtures; filters need rows below. |
 | `UI_SELECT` | `Select` | Green | normal/explicit/pressed/open/choice/disabled fixtures. |
 | `UI_OPTION` | `Option` | Green | normal/explicit/decrement/increment/disabled; wraparound is covered by focused tests only. |
 | `UI_FLOAT` | `Float_Input` | Focused, Smoke | Numeric focused tests exercise commit/step; add deterministic C/Odin fixture. |
-| `UI_INT8/16/32` | `Integer_8/16/32` | Missing | Add bounds, commit, and step fixtures for each width. |
-| `UI_INT64` | `Integer_64` | Green | normal/explicit/decrement/increment/disabled fixtures. |
+| `UI_INT8/16/32` | `Integer_8/16/32` | Smoke | Paired all-components smoke; add bounds, commit, and step fixtures for each width. |
+| `UI_INT64` | `Integer_64` | Green, Smoke | normal/explicit/decrement/increment/disabled fixtures; paired smoke. |
 | `UI_SLIDER` | `Slider` | Green | minimum/midpoint/maximum/interaction/disabled fixtures. |
 | `UI_VSCRBAR` | `Vertical_Scrollbar` | Focused, Smoke | `vertical_and_horizontal_scrollbars_render_and_drag`. |
 | `UI_HSCRBAR` | `Horizontal_Scrollbar` | Focused, Smoke | `vertical_and_horizontal_scrollbars_render_and_drag`. |

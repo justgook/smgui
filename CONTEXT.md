@@ -122,7 +122,7 @@ only their module and must agree with this list.
 - [x] Provide a reproducible Nix/direnv environment for Odin and C.
 - [x] Implement the Odin public types, backend seam, framebuffer lifecycle, and
   bounded event queue.
-- [x] Add paired C/Odin manual smoke examples for currently migrated widgets.
+- [x] Keep paired C/Odin smoke examples covering every core `ui.h` form kind, including all numeric widths.
 - [x] Make the screen1-derived Odin fixture and upstream C widgets reference the default `make run` / `make c-run` targets.
 - [x] Match the widgets demo spacing inputs and make the Raylib target resize its framebuffer with the window.
 - [x] Build headless stb image adapters and decoded-RGBA comparison tooling.
