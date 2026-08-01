@@ -113,7 +113,9 @@ BEGIN {
     fixtures[82] = "popup-drag"
     fixtures[83] = "popup-resize"
     fixtures[84] = "text-input-overflow-edit"
-    fixture_count = 85
+    fixtures[85] = "multiline-normal"
+    fixtures[86] = "status-normal"
+    fixture_count = 87
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

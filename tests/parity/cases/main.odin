@@ -22,6 +22,8 @@ main :: proc() {
 	}
 
 	label_normal := []smgui.Form{{kind = .Label, label = 1}}
+	multiline_normal := []smgui.Form{{kind = .Multiline_Label, label = 9}}
+	status_normal := []smgui.Form{{kind = .Status, width = 52, text = "Ready"}}
 	button_normal := []smgui.Form{{kind = .Button, label = 2}}
 	button_explicit_size := []smgui.Form{{kind = .Button, label = 3, width = 58, height = 28}}
 	button_hover := []smgui.Form{{kind = .Button, label = 2}}
@@ -488,6 +490,10 @@ main :: proc() {
 		forms = nil
 	case "label-normal":
 		forms = label_normal
+	case "multiline-normal":
+		forms = multiline_normal
+	case "status-normal":
+		forms = status_normal
 	case "button-normal":
 		forms = button_normal
 	case "button-explicit-size":
@@ -659,7 +665,7 @@ main :: proc() {
 		os.exit(2)
 	}
 
-	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open"}
+	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open", "Alpha\nBeta"}
 	interaction_case :=
 		os.args[1] == "button-hover" ||
 		os.args[1] == "button-pressed" ||

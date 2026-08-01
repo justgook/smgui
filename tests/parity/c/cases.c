@@ -17,8 +17,8 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
 
 int main(int argc, char **argv)
 {
-    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT, RADIO_TEXT, POPUP_TEXT, MENU_TEXT, MENU_ITEM_TEXT };
-    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open" };
+    enum { WINDOW_TITLE, LABEL_TEXT, BUTTON_TEXT, BUTTON_SHORT_TEXT, CHECKBOX_TEXT, RADIO_TEXT, POPUP_TEXT, MENU_TEXT, MENU_ITEM_TEXT, MULTILINE_TEXT };
+    char *texts[] = { "Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open", "Alpha\nBeta" };
     int checked = 0;
     int radio_value = 0;
     int selected_radio_value = 1;
@@ -58,6 +58,14 @@ int main(int argc, char **argv)
     };
     ui_form_t label_normal[] = {
         { .type = UI_LABEL, .label = LABEL_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t multiline_normal[] = {
+        { .type = UI_MLINE, .label = MULTILINE_TEXT },
+        { .type = UI_END }
+    };
+    ui_form_t status_normal[] = {
+        { .type = UI_STATUS, .w = 52, .ptr = "Ready" },
         { .type = UI_END }
     };
     ui_form_t button_normal[] = {
@@ -408,6 +416,10 @@ int main(int argc, char **argv)
         forms = empty;
     } else if (!strcmp(argv[1], "label-normal")) {
         forms = label_normal;
+    } else if (!strcmp(argv[1], "multiline-normal")) {
+        forms = multiline_normal;
+    } else if (!strcmp(argv[1], "status-normal")) {
+        forms = status_normal;
     } else if (!strcmp(argv[1], "button-normal")) {
         forms = button_normal;
     } else if (!strcmp(argv[1], "button-explicit-size")) {

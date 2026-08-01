@@ -23,7 +23,7 @@ make parity
 
 `parity-case` renders one named C/Odin case and compares decoded RGBA pixels.
 `parity` runs the registry of completed, expected-green cases. Current green
-cases are `empty`, `label-normal`, `button-normal`, and
+cases are `empty`, `label-normal`, `multiline-normal`, `status-normal`, `button-normal`, and
 `button-explicit-size`, `button-hover`, `button-pressed`, `button-disabled`, and
 `checkbox-normal`, `checkbox-checked`, `checkbox-hover`, `checkbox-pressed`, and
 `checkbox-disabled`, `radio-normal`, `radio-selected`, `radio-hover`, and
@@ -70,6 +70,7 @@ Fuzzing uses the same C/Odin image and comparison path. Generation is bounded
 and deterministic: every run prints its seed, case number, dimensions, and an
 exact replay command on failure. The current pool varies framebuffer dimensions
 from 32–256 by 24–192 across the completed `empty`, `label-normal`,
+`multiline-normal`, `status-normal`,
 `button-normal`, `button-explicit-size`, `button-hover`, `button-pressed`, and
 `button-disabled`, `checkbox-normal`, `checkbox-checked`, `checkbox-hover`, and
 `checkbox-pressed`, `checkbox-disabled`, `radio-normal`, `radio-selected`, and

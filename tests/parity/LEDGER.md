@@ -54,8 +54,8 @@ observable behavior belongs to the corresponding form and event rows below.
 | `UI_MENU` | `Menu` | Green | `menu-closed` through `menu-escape-close`. |
 | `UI_DIV` | `Division` | Green | `division-intrinsic`, `division-percentage`; advanced flow/alignment is Focused. |
 | `UI_LABEL` | `Label` | Green | `label-normal`; disabled/menu variants are covered by menu fixtures. |
-| `UI_MLINE` | `Multiline_Label` | Focused, Smoke | `multiline_labels_and_status_fields_render`. |
-| `UI_STATUS` | `Status` | Focused, Smoke | `multiline_labels_and_status_fields_render`. |
+| `UI_MLINE` | `Multiline_Label` | Green, Focused, Smoke | `multiline-normal`; `multiline_labels_and_status_fields_render`. Explicit sizing, wrapping, and alignment remain to cover. |
+| `UI_STATUS` | `Status` | Green, Focused, Smoke | `status-normal`; `multiline_labels_and_status_fields_render`. Hover-description placement remains to cover. |
 | `UI_DEC_FLOAT` | `Decimal_Float` | Green | `float-normal`, `float-magnitude`, explicit-size, disabled. |
 | `UI_PBAR` | `Progress_Bar` | Green | minimum/midpoint/maximum/disabled fixtures. |
 | `UI_IMAGE` | `Image` | Focused, Smoke | `image_and_icon_fields_render_and_activate`. |
@@ -164,7 +164,7 @@ hardening even though they are not separate C operations.
 
 Work top-down from the smallest unsupported surfaces:
 
-1. Multiline label and status deterministic fixtures.
+1. Multiline explicit sizing/wrapping/alignment and status hover-description fixtures.
 2. Image and icon intrinsic/scaled/grayscale/activation fixtures.
 3. Color input closed/open/commit/cancel fixtures.
 4. Toggle, toggle-button, and icon-button state fixtures.
