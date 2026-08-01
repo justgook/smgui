@@ -42,7 +42,8 @@ cases are `empty`, `label-normal`, `multiline-normal`, `status-normal`, `button-
 `popup-resizable`, `popup-hidden`, `popup-close`, `popup-drag`, `popup-resize`,
 `menu-closed`, `menu-button-closed`, `menu-button-open`, `menu-open`,
 `menu-intrinsic`, `menu-anchored`, `menu-hover`, `menu-disabled`, `menu-choice`,
-`menu-outside-close`, and `menu-escape-close`.
+`menu-outside-close`, and `menu-escape-close`. `layout-hidden-flow` additionally
+covers break semantics across hidden forms.
 
 ## Widget smoke fixture
 
@@ -55,10 +56,10 @@ Both adapters encode their software framebuffer with the pinned
 `stb_image_write` implementation. `tests/parity/compare` decodes both outputs
 to RGBA before comparison, so parity does not depend on compressed PNG bytes.
 
-The fixture deliberately records remaining composition differences. Division
-intrinsic sizing and transparent rendering now match; the current first
-mismatch is in root menu spacing at `(80,4)`. This is parity work, not
-image-adapter behavior.
+The fixture deliberately records remaining composition differences. Root flow
+spacing and hidden-form break boundaries now match; the current first mismatch
+is in label-content layout at `(317,44)`. This is parity work, not image-adapter
+behavior.
 
 ## Seeded fuzz fixtures
 

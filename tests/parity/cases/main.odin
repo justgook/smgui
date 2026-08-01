@@ -425,6 +425,12 @@ main :: proc() {
 	layout_flow := []smgui.Form {
 		{kind = .Division, x = smgui.absolute(5), y = smgui.absolute(5), width = 40, height = 50, margin = 3, pitch = 4, children = layout_flow_children},
 	}
+	layout_hidden_flow := []smgui.Form {
+		{kind = .Label, flags = {.No_Break}, width = 10, height = 20, label = 10},
+		{kind = .Label, flags = {.Hidden}, label = 10},
+		{kind = .Label, flags = {.Force_Break}, width = 10, height = 20, label = 10},
+		{kind = .Label, flags = {.Force_Break}, width = 10, height = 20, label = 10},
+	}
 	popup_empty_children := []smgui.Form{}
 	popup_content_children := []smgui.Form{{kind = .Label, label = 1}}
 	popup_normal := []smgui.Form {
@@ -650,6 +656,8 @@ main :: proc() {
 		forms = layout_right_flow
 	case "layout-flow":
 		forms = layout_flow
+	case "layout-hidden-flow":
+		forms = layout_hidden_flow
 	case "popup-normal":
 		forms = popup_normal
 	case "popup-intrinsic":

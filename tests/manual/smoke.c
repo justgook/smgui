@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     };
 
     ui_form_t popup_children[] = {
-        { .type = UI_BUTTON, .flags = UI_NOBR, .ptr = &button_option, .value = 1, .label = PRESS_ME },
+        { .type = UI_BUTTON, .ptr = &button_option, .value = 1, .label = PRESS_ME },
         { .type = UI_BUTTON, .flags = UI_DISABLED, .ptr = &button_option, .value = 2, .label = PRESS_ME },
         { .type = UI_END }
     };

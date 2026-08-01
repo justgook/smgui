@@ -1114,7 +1114,7 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 	for &pixel in ctx.screen.pixels {
 		pixel = 0
 	}
-	if _, _, error := layout_forms(ctx, form, 0, 0, ctx.screen.width, ctx.screen.height, 8, 0);
+	if _, _, error := layout_forms(ctx, form, 0, 0, ctx.screen.width, ctx.screen.height, 0, 0);
 	   error != .None {
 		return error
 	}
@@ -1237,6 +1237,9 @@ layout_forms :: proc(
 			break
 		}
 		if .Hidden in field.flags {
+			// Reference C excludes hidden forms from flow, but they still become
+			// `last`; this prevents No_Break leaking across hidden containers.
+			previous = &field
 			continue
 		}
 		is_overlay := field.kind == .Popup || field.kind == .Menu

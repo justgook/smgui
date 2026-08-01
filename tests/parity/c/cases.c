@@ -326,6 +326,13 @@ int main(int argc, char **argv)
         { .type = UI_DIV, .x = UI_ABS(5), .y = UI_ABS(5), .w = 40, .h = 50, .m = 3, .p = 4, .ptr = layout_flow_children },
         { .type = UI_END }
     };
+    ui_form_t layout_hidden_flow[] = {
+        { .type = UI_LABEL, .flags = UI_NOBR, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .flags = UI_HIDDEN, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .flags = UI_FORCEBR, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_LABEL, .flags = UI_FORCEBR, .w = 10, .h = 20, .label = LAYOUT_TEXT },
+        { .type = UI_END }
+    };
     ui_form_t popup_empty_children[] = { { .type = UI_END } };
     ui_form_t popup_content_children[] = {
         { .type = UI_LABEL, .label = LABEL_TEXT }, { .type = UI_END }
@@ -583,6 +590,8 @@ int main(int argc, char **argv)
         forms = layout_right_flow;
     } else if (!strcmp(argv[1], "layout-flow")) {
         forms = layout_flow;
+    } else if (!strcmp(argv[1], "layout-hidden-flow")) {
+        forms = layout_hidden_flow;
     } else if (!strcmp(argv[1], "popup-normal")) {
         forms = popup_normal;
     } else if (!strcmp(argv[1], "popup-intrinsic")) {

@@ -95,11 +95,11 @@ than numeric values.
 
 | Reference C | Odin `Form_Flag` | Status | Evidence / next fixture |
 |---|---|---|---|
-| `UI_HIDDEN` | `Hidden` | Green | `popup-hidden`, menu closed/open fixtures. |
+| `UI_HIDDEN` | `Hidden` | Green | `popup-hidden`, menu closed/open, and `layout-hidden-flow` fixtures. |
 | `UI_NOBULLET` | `No_Bullet` | Focused, Smoke | Toggle focused test; add toggle parity fixture. |
 | `UI_NOHEADER` | `No_Header` | Focused, Smoke | Popup/container focused coverage; add titled no-header fixture. |
-| `UI_NOBR` | `No_Break` | Green, Focused | `layout-flow`; `flow_breaks_no_break_and_alignment_match_reference`. |
-| `UI_FORCEBR` | `Force_Break` | Green, Focused | `layout-flow`; same focused flow test. |
+| `UI_NOBR` | `No_Break` | Green, Focused | `layout-flow`, `layout-hidden-flow`; `flow_breaks_no_break_and_alignment_match_reference`. |
+| `UI_FORCEBR` | `Force_Break` | Green, Focused | `layout-flow`, `layout-hidden-flow`; same focused flow test. |
 | `UI_POINTER` | `Pointer` | Focused, Smoke | Image activation focused test; add pointer/selection fixture. |
 | `UI_NOBORDER` | `No_Border` | Green | `popup-no-border`. |
 | `UI_NOSHADOW` | `No_Shadow` | Green | `popup-no-shadow`. |

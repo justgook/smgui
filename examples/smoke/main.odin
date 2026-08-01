@@ -110,7 +110,6 @@ main :: proc() {
 	popup_children := []smgui.Form {
 		{
 			kind = .Button,
-			flags = {.No_Break},
 			label = 11,
 			binding = smgui.bind(&button_option),
 			value = 1,
