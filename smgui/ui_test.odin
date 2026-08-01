@@ -155,6 +155,57 @@ multiline_labels_and_status_fields_render :: proc(t: ^testing.T) {
 }
 
 @(test)
+image_and_icon_fields_render_and_activate :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 24, 16); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	pixels := []u8 {
+		10, 20, 30, 255, 40, 50, 60, 255,
+		70, 80, 90, 255, 100, 110, 120, 255,
+	}
+	image := Image{width = 2, height = 2, pitch = 8, pixels = pixels}
+	selected := 0
+	forms := []Form {
+		{
+			kind = .Image,
+			flags = {.No_Break},
+			width = 4,
+			height = 2,
+			icon = &image,
+			binding = bind(&selected),
+			value = 7,
+		},
+		{kind = .Icon, flags = {.Disabled}, width = 4, height = 4, icon = &image},
+	}
+	if error := render(&ctx, forms); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+		return
+	}
+	// UI_IMAGE tiles its source when the form is larger than the source image.
+	testing.expect_value(t, ctx.screen.pixels[0], ctx.screen.pixels[8])
+	testing.expect_value(t, forms[0].computed_width, 4)
+	testing.expect_value(t, forms[0].computed_height, 2)
+	// UI_ICON preserves aspect ratio and bilinearly scales into its explicit box.
+	icon_pixel := forms[1].computed_y * ctx.screen.pitch + forms[1].computed_x * 4
+	testing.expect(t, ctx.screen.pixels[icon_pixel + 3] != 0)
+	testing.expect_value(t, ctx.screen.pixels[icon_pixel], ctx.screen.pixels[icon_pixel + 1])
+	testing.expect_value(t, ctx.screen.pixels[icon_pixel + 1], ctx.screen.pixels[icon_pixel + 2])
+
+	poll_for_test(t, &ctx, forms)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 1, 1, {.Mouse_Left})
+	testing.expect_value(t, selected, 7)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context

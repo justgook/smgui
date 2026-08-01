@@ -179,7 +179,7 @@ only their module and must agree with this list.
 ### Milestone 1 — remaining structural migration
 
 - [x] Migrate multiline labels and status fields.
-- [ ] Migrate image and icon fields.
+- [x] Migrate image and icon fields.
 - [ ] Migrate color input.
 - [ ] Migrate toggle buttons and icon buttons.
 - [ ] Migrate line, connector, and curve drawing fields.

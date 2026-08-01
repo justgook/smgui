@@ -65,6 +65,11 @@ int main(int argc, char **argv)
     int64_t progress_value = 42;
     float float_value = 3.141f;
     char text_value[64] = { 0 };
+    uint8_t image_pixels[] = {
+        0x20, 0x60, 0xd0, 0xff, 0xd0, 0x80, 0x20, 0xff,
+        0x40, 0xc0, 0x60, 0xff, 0xd0, 0x30, 0x80, 0xff,
+    };
+    ui_image_t sample_image = { .w = 2, .h = 2, .p = 8, .buf = image_pixels };
 
     ui_form_t popup_children[] = {
         { .type = UI_BUTTON, .flags = UI_NOBR, .ptr = &button_option, .value = 1, .label = PRESS_ME },
@@ -93,6 +98,8 @@ int main(int argc, char **argv)
         { .type = UI_DEC_FLOAT, .w = 80, .ptr = &float_value },
         { .type = UI_MLINE, .label = MULTILINE },
         { .type = UI_STATUS, .w = 160, .ptr = "Ready" },
+        { .type = UI_IMAGE, .flags = UI_NOBR, .w = 32, .h = 16, .icon = &sample_image },
+        { .type = UI_ICON, .w = 32, .h = 24, .icon = &sample_image },
         { .type = UI_END }
     };
     ui_form_t active_inputs[] = {

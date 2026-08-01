@@ -11,8 +11,8 @@ Status:
   [x] Typed errors, slices, enums, and bit sets declared
   [x] Backend adapter seam declared
   [x] Framebuffer lifecycle and bounded event queue implemented
-  [x] Labels, multiline labels, status fields, buttons, checkboxes, and radio buttons render
-  [x] Buttons, checkboxes, radio buttons, and sliders mutate bound state
+  [x] Labels, multiline labels, status fields, images, icons, buttons, checkboxes, and radio buttons render
+  [x] Buttons, checkboxes, radio buttons, sliders, images, and icons mutate bound state
   [x] Integer/float displays, sliders, and progress bars render
   [x] UTF-8 text input, cursor editing, and input filters implemented
   [x] Integer and floating-point text/stepper inputs implemented
@@ -1167,6 +1167,17 @@ measure_form :: proc(
 		if height < 1 {
 			height = max(ctx.default_size + 4, 9)
 		}
+	case .Image:
+		if image_valid(field.icon) {
+			if width < 1 {
+				width = field.icon.width
+			}
+			if height < 1 {
+				height = field.icon.height
+			}
+		}
+	case .Icon:
+		// UI_ICON has no intrinsic size; its explicit box controls scaling.
 	case .Toggle:
 		text_width, text_height, left, top, error := measure_label(ctx, field)
 		if error != .None {
@@ -1662,6 +1673,10 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			if error := draw_status(ctx, &field); error != .None {
 				return error
 			}
+		case .Image:
+			draw_image(ctx, &field)
+		case .Icon:
+			draw_icon(ctx, &field)
 		case .Button:
 			if error := draw_button(ctx, &field); error != .None {
 				return error
@@ -1919,6 +1934,140 @@ draw_status :: proc(ctx: ^Context, field: ^Form) -> Error {
 		min(field.computed_x + field.computed_width, ctx.screen.width),
 		min(field.computed_y + field.computed_height, ctx.screen.height),
 	)
+}
+
+@(private = "file")
+image_valid :: proc(image: ^Image) -> bool {
+	return image != nil &&
+	       image.width > 0 &&
+	       image.height > 0 &&
+	       image.pitch >= image.width * 4 &&
+	       len(image.pixels) >= image.pitch * image.height
+}
+
+@(private = "file")
+blend_image_pixel :: proc(ctx: ^Context, x, y: int, image: ^Image, source_x, source_y: int, grayscale: bool) {
+	if !image_valid(image) ||
+	   x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height ||
+	   source_x < 0 || source_y < 0 || source_x >= image.width || source_y >= image.height {
+		return
+	}
+	source := source_y * image.pitch + source_x * 4
+	blue := u32(image.pixels[source])
+	green := u32(image.pixels[source + 1])
+	red := u32(image.pixels[source + 2])
+	alpha := u32(image.pixels[source + 3])
+	if grayscale {
+		gray := (red + green + blue) >> 3
+		red, green, blue = gray, gray, gray
+	}
+	blend_pixel(ctx, x, y, blue | green << 8 | red << 16 | alpha << 24)
+}
+
+@(private = "file")
+draw_image :: proc(ctx: ^Context, field: ^Form) {
+	if !image_valid(field.icon) {
+		return
+	}
+	x0 := clamp(field.computed_x, 0, ctx.screen.width)
+	y0 := clamp(field.computed_y, 0, ctx.screen.height)
+	x1 := clamp(field.computed_x + field.computed_width, 0, ctx.screen.width)
+	y1 := clamp(field.computed_y + field.computed_height, 0, ctx.screen.height)
+	for y in y0 ..< y1 {
+		for x in x0 ..< x1 {
+			blend_image_pixel(
+				ctx,
+				x,
+				y,
+				field.icon,
+				(x - field.computed_x) % field.icon.width,
+				(y - field.computed_y) % field.icon.height,
+				.Disabled in field.flags,
+			)
+		}
+	}
+}
+
+@(private = "file")
+interpolate_channel :: proc(a, b: int, fraction: int) -> int {
+	return a + ((b - a) * fraction >> 16)
+}
+
+@(private = "file")
+sample_scaled_channel :: proc(
+	image: ^Image,
+	x0, y0, x1, y1, fraction_x, fraction_y, channel: int,
+) -> u8 {
+	c00 := int(image.pixels[y0 * image.pitch + x0 * 4 + channel])
+	c01 := int(image.pixels[y0 * image.pitch + x1 * 4 + channel])
+	c10 := int(image.pixels[y1 * image.pitch + x0 * 4 + channel])
+	c11 := int(image.pixels[y1 * image.pitch + x1 * 4 + channel])
+	top := interpolate_channel(c00, c01, fraction_x)
+	bottom := interpolate_channel(c10, c11, fraction_x)
+	result := interpolate_channel(top, bottom, fraction_y)
+	if channel == 3 && result == 254 {
+		result = 255
+	}
+	return u8(clamp(result, 0, 255))
+}
+
+@(private = "file")
+draw_icon :: proc(ctx: ^Context, field: ^Form) {
+	image := field.icon
+	if !image_valid(image) || field.computed_width < 2 || field.computed_height < 2 {
+		return
+	}
+	width := field.computed_width
+	height := image.height * width / image.width
+	if height > field.computed_height {
+		height = field.computed_height
+		width = image.width * height / image.height
+	}
+	if width < 2 || height < 2 || width >= 4096 || height >= 4096 {
+		return
+	}
+	x := field.computed_x + (field.computed_width - width) / 2
+	y := field.computed_y + (field.computed_height - height) / 2
+	for destination_y in 0 ..< height - 1 {
+		pixel_y := y + destination_y
+		if pixel_y < 0 || pixel_y >= ctx.screen.height {
+			continue
+		}
+		source_y_fixed := destination_y * 65536 * image.height / height
+		source_y := min(source_y_fixed >> 16, image.height - 1)
+		next_source_y := min(source_y + 1, image.height - 1)
+		fraction_y := source_y_fixed & 0xffff
+		for destination_x in 0 ..< width - 1 {
+			pixel_x := x + destination_x
+			if pixel_x < 0 || pixel_x >= ctx.screen.width {
+				continue
+			}
+			source_x_fixed := destination_x * 65536 * image.width / width
+			source_x := min(source_x_fixed >> 16, image.width - 1)
+			next_source_x := min(source_x + 1, image.width - 1)
+			fraction_x := source_x_fixed & 0xffff
+			channels: [4]u8
+			for channel in 0 ..< 4 {
+				channels[channel] = sample_scaled_channel(
+					image,
+					source_x,
+					source_y,
+					next_source_x,
+					next_source_y,
+					fraction_x,
+					fraction_y,
+					channel,
+				)
+			}
+			blue, green, red := u32(channels[0]), u32(channels[1]), u32(channels[2])
+			alpha := u32(channels[3])
+			if .Disabled in field.flags {
+				gray := (red + green + blue) >> 3
+				red, green, blue = gray, gray, gray
+			}
+			blend_pixel(ctx, pixel_x, pixel_y, blue | green << 8 | red << 16 | alpha << 24)
+		}
+	}
 }
 
 @(private = "file")
@@ -3355,6 +3504,8 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 				ctx.pressed_part = 1
 				step_choice_input(ctx.hovered, 1)
 			}
+		case .Image, .Icon:
+			activate_image_field(ctx.hovered)
 		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
 			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
 				deactivate_text_input(ctx, true)
@@ -3389,6 +3540,14 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.flags += {.Refresh}
 	}
 	return .None
+}
+
+@(private = "file")
+activate_image_field :: proc(field: ^Form) {
+	if field == nil || field.binding.kind != .Integer || field.binding.data == nil {
+		return
+	}
+	(^int)(field.binding.data)^ = field.value
 }
 
 @(private = "file")

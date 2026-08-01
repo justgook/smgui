@@ -50,6 +50,12 @@ main :: proc() {
 	}
 	defer smgui.text_buffer_deinit(&text_value)
 
+	image_pixels := []u8 {
+		0x20, 0x60, 0xd0, 0xff, 0xd0, 0x80, 0x20, 0xff,
+		0x40, 0xc0, 0x60, 0xff, 0xd0, 0x30, 0x80, 0xff,
+	}
+	sample_image := smgui.Image{width = 2, height = 2, pitch = 8, pixels = image_pixels}
+
 	popup_children := []smgui.Form {
 		{
 			kind = .Button,
@@ -92,6 +98,8 @@ main :: proc() {
 		{kind = .Decimal_Float, width = 80, binding = smgui.bind(&float_value)},
 		{kind = .Multiline_Label, label = 15},
 		{kind = .Status, width = 160, text = "Ready"},
+		{kind = .Image, flags = {.No_Break}, width = 32, height = 16, icon = &sample_image},
+		{kind = .Icon, width = 32, height = 24, icon = &sample_image},
 	}
 	active_inputs := []smgui.Form {
 		{

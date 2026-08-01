@@ -17,8 +17,8 @@ window before starting the other unless the platform supports running both from
 separate terminals.
 
 The fixture currently excludes controls not yet implemented by the Odin port:
-images/icons, color input, scrollbars, toggle/icon buttons, and the custom file
-widget. Add each to **both** smoke examples when its parity slice lands.
+color input, scrollbars, toggle/icon buttons, and the custom file widget. Add
+each to **both** smoke examples when its structural migration slice lands.
 
 Generate deterministic PNGs directly from the two software framebuffers:
 
