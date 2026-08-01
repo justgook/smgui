@@ -12,8 +12,50 @@ import psf2 "../../psf2"
 import smgui "../../smgui"
 import image_backend "../../smgui/image"
 import raylib_backend "../../smgui/raylib"
+import sokol_backend "../../smgui/sokol"
 import "core:fmt"
 import "core:os"
+
+USE_SOKOL :: #config(SMGUI_BACKEND_SOKOL, false)
+Sokol_Config :: sokol_backend.Config
+
+Sokol_Smoke_State :: struct {
+	font:          psf2.Font,
+	cursor:        ^smgui.Image,
+	button_option: ^int,
+}
+
+configure_sokol :: proc(ctx: ^smgui.Context, data: rawptr) -> smgui.Error {
+	state := (^Sokol_Smoke_State)(data)
+	if error := smgui.set_software_cursor(ctx, state.cursor); error != .None {
+		return error
+	}
+	font, error := psf2.default_font()
+	if error != .None {
+		return error
+	}
+	state.font = font
+	return psf2.configure(ctx, &state.font)
+}
+
+frame_sokol :: proc(
+	ctx: ^smgui.Context,
+	event: smgui.Event,
+	data: rawptr,
+) -> smgui.Error {
+	_ = event
+	state := (^Sokol_Smoke_State)(data)
+	return handle_button_option(ctx, state.button_option)
+}
+
+handle_button_option :: proc(ctx: ^smgui.Context, option: ^int) -> smgui.Error {
+	if option == nil || option^ == 0 {
+		return .None
+	}
+	fmt.printf("button option %d selected\n", option^)
+	option^ = 0
+	return smgui.refresh(ctx)
+}
 
 smoke_custom_bounds :: proc(
 	ctx: ^smgui.Context,
@@ -344,6 +386,28 @@ main :: proc() {
 	button_fields[2].binding = smgui.bind(&button_fields[3])
 	label_fields[16].binding = smgui.bind(&label_fields[17])
 
+	when USE_SOKOL {
+		sokol_ctx: smgui.Context
+		state := Sokol_Smoke_State {
+			cursor = &software_cursor,
+			button_option = &button_option,
+		}
+		if error := sokol_backend.run(Sokol_Config{
+			ctx = &sokol_ctx,
+			texts = texts,
+			forms = forms,
+			width = 640,
+			height = 480,
+			user_data = &state,
+			init = configure_sokol,
+			frame = frame_sokol,
+			clear_color = {0, 0, 0.25, 1},
+		}); error != .None {
+			fail("running Sokol smoke test", error)
+		}
+		return
+	}
+
 	backend: smgui.Backend
 	raylib_state: raylib_backend.State
 	image_state: image_backend.State
@@ -391,6 +455,9 @@ main :: proc() {
 		}
 		if state == .Closed {
 			break
+		}
+		if handle_error := handle_button_option(&ctx, &button_option); handle_error != .None {
+			fail("handling smoke-test button", handle_error)
 		}
 	}
 	if writing_image && !image_state.succeeded {

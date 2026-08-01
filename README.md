@@ -58,12 +58,19 @@ make smoke-odin
 make smoke-c
 ```
 
-Other examples remain selectable explicitly:
+Other examples and backends remain selectable explicitly:
 
 ```sh
 make run EXAMPLE=basic BACKEND=raylib
+make run BACKEND=sokol              # same smoke forms via Sokol
 make c-example-run C_EXAMPLE=helloworld
 ```
+
+Both `make run` commands render the same `examples/smoke` form tree. The Sokol
+adapter uses [`sokol-odin`](vendor/sokol-odin) and owns the platform loop, so
+Sokol applications call `smgui/sokol.run` with their context, forms, and
+optional init/frame hooks. `make sokol-libs` builds its native libraries;
+normal `make check` and Sokol builds do this automatically.
 
 Run completed small framebuffer fixtures, or generate the large smoke fixture:
 

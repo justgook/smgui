@@ -207,7 +207,9 @@ only their module and must agree with this list.
 - [ ] Complete PSF2 Unicode-table parity.
 - [ ] Port SSFN.
 - [ ] Port the file, table, and text-on-screen optional widgets.
-- [ ] Complete and test GLFW, SDL2, SDL3, Sokol, and WASM adapters.
+- [ ] Complete and test GLFW, SDL2, SDL3, and WASM adapters.
+- [x] Implement the Sokol adapter with framebuffer presentation, native events,
+  window hooks, and a Sokol-owned application loop.
 - [ ] Complete remaining Raylib events and adapter parity.
 - [ ] Make the showcase backend-selectable and represent every production
   module.

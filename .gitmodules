@@ -1,3 +1,6 @@
 [submodule "reference-c"]
 	path = reference-c
 	url = https://gitlab.com/bztsrc/smgui.git
+[submodule "vendor/sokol-odin"]
+	path = vendor/sokol-odin
+	url = https://github.com/floooh/sokol-odin.git

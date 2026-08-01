@@ -21,6 +21,8 @@ EXAMPLE_DIR := examples/$(EXAMPLE)
 ODIN_CHECK_FLAGS ?= -no-entry-point -strict-style -vet-cast -vet-semicolon -vet-shadowing -vet-style -vet-unused-imports -vet-unused-variables -warnings-as-errors
 BUILD_DIR ?= build.nosync
 ODIN_BIN ?= $(BUILD_DIR)/$(EXAMPLE)-$(BACKEND)
+SOKOL_DIR := vendor/sokol-odin/sokol
+SOKOL_LIBS_STAMP := $(BUILD_DIR)/.sokol-libs
 C_EXAMPLE ?= widgets
 C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
@@ -69,6 +71,7 @@ help:
 	  '  build        Build EXAMPLE with BACKEND' \
 	  '  run          Run the Odin screen1 migration target (default)' \
 	  '               EXAMPLE=basic BACKEND=raylib selects another example' \
+	  '               BACKEND=sokol runs the same smoke example via Sokol' \
 	  '' \
 	  'Paired manual smoke test:' \
 	  '  smoke-odin    Run the Odin widget smoke test' \
@@ -95,24 +98,40 @@ help:
 all: check build
 
 .PHONY: check
-check:
-	$(Q)packages=$$(find . -path ./reference-c -prune -o -name '*.odin' -print | sed 's#/[^/]*$$##' | LC_ALL=C sort -u); \
+check: $(SOKOL_LIBS_STAMP)
+	$(Q)packages=$$(find . \( -path ./reference-c -o -path ./vendor \) -prune -o -name '*.odin' -print | sed 's#/[^/]*$$##' | LC_ALL=C sort -u); \
 	for package in $$packages; do \
 		echo "Checking $$package"; \
 		$(ODIN) check "$$package" $(ODIN_CHECK_FLAGS); \
 	done
 
 .PHONY: test
-test:
+test: $(SOKOL_LIBS_STAMP)
 	$(Q)$(ODIN) test . -all-packages $(ODIN_FLAGS)
 
 $(BUILD_DIR):
 	$(Q)mkdir -p "$@"
 
+$(SOKOL_LIBS_STAMP): scripts/build-sokol.sh .gitmodules | $(BUILD_DIR)
+	$(Q)test -f "$(SOKOL_DIR)/c/sokol_app.c" || { echo "Initializing sokol-odin submodule"; git submodule update --init vendor/sokol-odin; }
+	$(Q)bash scripts/build-sokol.sh "$(SOKOL_DIR)"
+	$(Q)touch "$@"
+
+.PHONY: sokol-libs
+sokol-libs: $(SOKOL_LIBS_STAMP)
+
 .PHONY: build
 build: | $(BUILD_DIR)
-	$(Q)test "$(BACKEND)" = raylib || { echo "Backend '$(BACKEND)' is not implemented yet" >&2; exit 2; }
-	$(Q)$(ODIN) build "$(EXAMPLE_DIR)" $(ODIN_FLAGS) -out:"$(ODIN_BIN)"
+	$(Q)case "$(BACKEND)" in \
+		raylib) \
+			if test "$(EXAMPLE)" = smoke; then $(MAKE) sokol-libs; fi; \
+			example_dir="$(EXAMPLE_DIR)"; backend_flags="" ;; \
+		sokol) \
+			test "$(EXAMPLE)" = smoke || { echo "The Sokol backend currently supports EXAMPLE=smoke" >&2; exit 2; }; \
+			$(MAKE) sokol-libs; example_dir="$(EXAMPLE_DIR)"; backend_flags="-define:SMGUI_BACKEND_SOKOL=true" ;; \
+		*) echo "Backend '$(BACKEND)' is not implemented yet" >&2; exit 2 ;; \
+	esac; \
+	$(ODIN) build "$$example_dir" $(ODIN_FLAGS) $$backend_flags -out:"$(ODIN_BIN)"
 
 .PHONY: run
 run: build
@@ -156,7 +175,7 @@ $(SMOKE_C_IMAGE_BIN): $(SMOKE_C_SOURCE) tests/parity/c/ui_image_backend.h tests/
 		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods \
 		"$(SMOKE_C_SOURCE)" -o "$@" -lm
 
-$(SMOKE_ODIN_IMAGE_BIN): examples/smoke/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin | $(BUILD_DIR)
+$(SMOKE_ODIN_IMAGE_BIN): examples/smoke/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin $(SOKOL_LIBS_STAMP) | $(BUILD_DIR)
 	$(Q)$(ODIN) build examples/smoke $(ODIN_FLAGS) -out:"$@"
 
 $(PNG_COMPARE_BIN): tests/parity/compare/main.odin | $(BUILD_DIR)
