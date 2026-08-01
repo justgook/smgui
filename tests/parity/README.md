@@ -30,7 +30,7 @@ cases are `empty`, `label-normal`, `button-normal`, and
 `radio-pressed`, `radio-disabled`, `slider-minimum`, `slider-midpoint`, and
 `slider-maximum`, `slider-interaction`, `slider-disabled`, `progress-minimum`, `progress-midpoint`, and
 `progress-maximum`, `progress-disabled`, `decimal-normal`, `decimal-negative`, and
-`decimal-explicit-size`, `decimal-disabled`, `hex-normal`, `hex-zero`, `hex-explicit-size`, `hex-disabled`, `float-normal`, `float-magnitude`, `float-explicit-size`, `float-disabled`, `text-input-normal`, `text-input-empty`, `text-input-explicit-size`, `text-input-edit`, `text-input-disabled`, `numeric-input-normal`,
+`decimal-explicit-size`, `decimal-disabled`, `hex-normal`, `hex-zero`, `hex-explicit-size`, `hex-disabled`, `float-normal`, `float-magnitude`, `float-explicit-size`, `float-disabled`, `text-input-normal`, `text-input-empty`, `text-input-explicit-size`, `text-input-edit`, `text-input-overflow-edit`, `text-input-disabled`, `numeric-input-normal`,
 `numeric-input-explicit-size`, `numeric-input-decrement`,
 `numeric-input-increment`, `numeric-input-disabled`, `select-normal`,
 `select-explicit-size`, `select-pressed`, `select-open`, `select-choice`,
@@ -75,7 +75,7 @@ from 32–256 by 24–192 across the completed `empty`, `label-normal`,
 `checkbox-pressed`, `checkbox-disabled`, `radio-normal`, `radio-selected`, and
 `radio-hover`, `radio-pressed`, `radio-disabled`, `slider-minimum`, and
 `slider-midpoint`, `slider-maximum`, `slider-interaction`, and `slider-disabled`, `progress-minimum`, `progress-midpoint`, and
-`progress-maximum`, `progress-disabled`, `decimal-normal`, and `decimal-negative`, `decimal-explicit-size`, `decimal-disabled`, `hex-normal`, `hex-zero`, `hex-explicit-size`, `hex-disabled`, `float-normal`, `float-magnitude`, `float-explicit-size`, `float-disabled`, `text-input-normal`, `text-input-empty`, `text-input-explicit-size`, `text-input-edit`, `text-input-disabled`, `numeric-input-normal`,
+`progress-maximum`, `progress-disabled`, `decimal-normal`, and `decimal-negative`, `decimal-explicit-size`, `decimal-disabled`, `hex-normal`, `hex-zero`, `hex-explicit-size`, `hex-disabled`, `float-normal`, `float-magnitude`, `float-explicit-size`, `float-disabled`, `text-input-normal`, `text-input-empty`, `text-input-explicit-size`, `text-input-edit`, `text-input-overflow-edit`, `text-input-disabled`, `numeric-input-normal`,
 `numeric-input-explicit-size`, `numeric-input-decrement`,
 `numeric-input-increment`, `numeric-input-disabled`, `select-normal`,
 `select-explicit-size`, `select-pressed`, `select-open`, `select-choice`,

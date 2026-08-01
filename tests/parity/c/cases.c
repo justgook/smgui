@@ -38,6 +38,7 @@ int main(int argc, char **argv)
     char text_input_value[16] = "Hello";
     char text_input_empty_value[16] = "";
     char text_input_edit_value[16] = "Hello";
+    char text_input_overflow_value[32] = "ABCDEFGHIJKLMNO";
     int64_t numeric_input_value = 42;
     int64_t numeric_input_decrement_value = 42;
     int64_t numeric_input_increment_value = 42;
@@ -217,6 +218,10 @@ int main(int argc, char **argv)
     };
     ui_form_t text_input_edit[] = {
         { .type = UI_TXTINP, .w = 76, .h = 28, .ptr = text_input_edit_value, .max = sizeof(text_input_edit_value) },
+        { .type = UI_END }
+    };
+    ui_form_t text_input_overflow_edit[] = {
+        { .type = UI_TXTINP, .w = 58, .h = 28, .ptr = text_input_overflow_value, .max = sizeof(text_input_overflow_value) },
         { .type = UI_END }
     };
     ui_form_t text_input_disabled[] = {
@@ -483,6 +488,8 @@ int main(int argc, char **argv)
         forms = text_input_explicit_size;
     } else if (!strcmp(argv[1], "text-input-edit")) {
         forms = text_input_edit;
+    } else if (!strcmp(argv[1], "text-input-overflow-edit")) {
+        forms = text_input_overflow_edit;
     } else if (!strcmp(argv[1], "text-input-disabled")) {
         forms = text_input_disabled;
     } else if (!strcmp(argv[1], "numeric-input-normal")) {
@@ -583,6 +590,8 @@ int main(int argc, char **argv)
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "text-input-edit")) {
         ui_image_backend_set_text_edit_events(60, 10, "!");
+    } else if (!strcmp(argv[1], "text-input-overflow-edit")) {
+        ui_image_backend_set_mouse_event(50, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "numeric-input-decrement")) {
         ui_image_backend_set_mouse_event(10, 10, UI_BTN_L);
     } else if (!strcmp(argv[1], "numeric-input-increment")) {

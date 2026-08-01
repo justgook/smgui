@@ -168,6 +168,7 @@ only their module and must agree with this list.
 - [x] Pass the empty text-input fixture.
 - [x] Pass the explicit-size text-input fixture.
 - [x] Pass text-input focus/edit and disabled fixtures.
+- [x] Match active overflowing text-input viewport, styling, cursor placement, and clipping.
 - [x] Pass numeric-input intrinsic, explicit-size, decrement, increment, and disabled fixtures.
 - [x] Pass select intrinsic, explicit-size, pressed, open, choice, and disabled fixtures.
 - [x] Pass option intrinsic, explicit-size, decrement, increment, wraparound, and disabled fixtures.

@@ -64,7 +64,7 @@ observable behavior belongs to the corresponding form and event rows below.
 | `UI_DEC64` | `Decimal_64` | Green | `decimal-normal`, negative, explicit-size, disabled. |
 | `UI_HEX8/16/32` | `Hexadecimal_8/16/32` | Missing | Add truncation/format fixtures for each width. |
 | `UI_HEX64` | `Hexadecimal_64` | Green | `hex-normal`, zero, explicit-size, disabled. |
-| `UI_TXTINP` | `Text_Input` | Green | normal/empty/explicit/edit/disabled fixtures; filters need rows below. |
+| `UI_TXTINP` | `Text_Input` | Green | normal/empty/explicit/edit/overflowing-active/disabled fixtures; filters need rows below. |
 | `UI_SELECT` | `Select` | Green | normal/explicit/pressed/open/choice/disabled fixtures. |
 | `UI_OPTION` | `Option` | Green | normal/explicit/decrement/increment/disabled; wraparound is covered by focused tests only. |
 | `UI_FLOAT` | `Float_Input` | Focused, Smoke | Numeric focused tests exercise commit/step; add deterministic C/Odin fixture. |

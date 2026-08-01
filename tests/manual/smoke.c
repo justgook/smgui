@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     int vertical_scroll = 80;
     uint32_t color_value = 0xffd06020;
     float float_value = 3.141f;
-    char text_value[64] = { 0 };
+    char text_value[64] = "Overflowing text field sample";
     uint8_t image_pixels[] = {
         0x20, 0x60, 0xd0, 0xff, 0xd0, 0x80, 0x20, 0xff,
         0x40, 0xc0, 0x60, 0xff, 0xd0, 0x30, 0x80, 0xff,

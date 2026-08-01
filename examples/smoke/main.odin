@@ -84,7 +84,7 @@ main :: proc() {
 	color_value: u32 = 0xffd06020
 	float_value: f32 = 3.141
 	text_value: smgui.Text_Buffer
-	if error := smgui.text_buffer_init(&text_value, "", 64); error != .None {
+	if error := smgui.text_buffer_init(&text_value, "Overflowing text field sample", 64); error != .None {
 		fail("initializing text input", error)
 	}
 	defer smgui.text_buffer_deinit(&text_value)

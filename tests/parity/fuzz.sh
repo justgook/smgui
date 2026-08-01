@@ -112,7 +112,8 @@ BEGIN {
     fixtures[81] = "popup-chrome"
     fixtures[82] = "popup-drag"
     fixtures[83] = "popup-resize"
-    fixture_count = 84
+    fixtures[84] = "text-input-overflow-edit"
+    fixture_count = 85
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169
@@ -121,6 +122,7 @@ BEGIN {
         # event can reach it while still varying widths from 64 through 256.
         if ((fixture == "numeric-input-increment" || fixture == "option-decrement" ||
              fixture == "option-increment" || fixture == "popup-close" ||
+             fixture == "text-input-overflow-edit" ||
              fixture ~ /^menu-(open|button-open|intrinsic|anchored|hover|disabled|choice|outside-close|escape-close)$/) && width < 64) width = 64
         if (fixture ~ /^division-/ && width < 64) width = 64
         if (fixture ~ /^division-/ && height < 48) height = 48

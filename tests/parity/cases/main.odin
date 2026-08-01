@@ -250,6 +250,20 @@ main :: proc() {
 			binding = smgui.bind_text(&text_input_edit_value),
 		},
 	}
+	text_input_overflow_value: smgui.Text_Buffer
+	if error := smgui.text_buffer_init(&text_input_overflow_value, "ABCDEFGHIJKLMNO", 31); error != .None {
+		fmt.eprintln("failed to initialize overflowing text input buffer")
+		os.exit(1)
+	}
+	defer smgui.text_buffer_deinit(&text_input_overflow_value)
+	text_input_overflow_edit := []smgui.Form {
+		{
+			kind = .Text_Input,
+			width = 58,
+			height = 28,
+			binding = smgui.bind_text(&text_input_overflow_value),
+		},
+	}
 	text_input_disabled := []smgui.Form {
 		{kind = .Text_Input, flags = {.Disabled}, binding = smgui.bind_text(&text_input_value)},
 	}
@@ -554,6 +568,8 @@ main :: proc() {
 		forms = text_input_explicit_size
 	case "text-input-edit":
 		forms = text_input_edit
+	case "text-input-overflow-edit":
+		forms = text_input_overflow_edit
 	case "text-input-disabled":
 		forms = text_input_disabled
 	case "numeric-input-normal":
@@ -653,6 +669,7 @@ main :: proc() {
 		os.args[1] == "radio-pressed" ||
 		os.args[1] == "slider-interaction" ||
 		os.args[1] == "text-input-edit" ||
+		os.args[1] == "text-input-overflow-edit" ||
 		os.args[1] == "numeric-input-decrement" ||
 		os.args[1] == "numeric-input-increment" ||
 		os.args[1] == "select-pressed" ||
@@ -771,6 +788,9 @@ main :: proc() {
 			event_x = 29
 		} else if os.args[1] == "text-input-edit" {
 			event_x = 60
+			buttons = {.Mouse_Left}
+		} else if os.args[1] == "text-input-overflow-edit" {
+			event_x = 50
 			buttons = {.Mouse_Left}
 		} else if os.args[1] == "numeric-input-increment" {
 			event_x = 61

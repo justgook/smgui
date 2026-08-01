@@ -14,7 +14,7 @@ Status:
   [x] Labels, multiline labels, status fields, images, icons, color inputs, buttons, checkboxes, and radio buttons render
   [x] Buttons, toggle/icon buttons, checkboxes, radio buttons, sliders, images, icons, and color inputs mutate bound state
   [x] Integer/float displays, sliders, and progress bars render
-  [x] UTF-8 text input, cursor editing, and input filters implemented
+  [x] UTF-8 text input, horizontal cursor viewport, cursor editing, and input filters implemented
   [x] Integer and floating-point text/stepper inputs implemented
   [x] Select dropdowns and option steppers implemented
   [x] Line, connector, and curve drawing primitives implemented
@@ -566,6 +566,7 @@ Context :: struct {
 	scrollbar_range: int,
 	text_field:     ^Form,
 	text_cursor:    int,
+	text_scroll:    int,
 	edit_buffer:    Text_Buffer,
 	popup:          ^Form,
 	popup_x:        int,
@@ -3088,10 +3089,16 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		return .Invalid_Input
 	}
 	disabled := .Disabled in field.flags
+	active := ctx.text_field == field && !disabled
 	background := ctx.theme[int(Theme_Color.Input_Background)]
 	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
 	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
 	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	if active {
+		foreground = ctx.theme[int(Theme_Color.Input_Selected_Foreground)]
+		dark = ctx.theme[int(Theme_Color.Input_Selected_Border)]
+		light = dark
+	}
 	if disabled {
 		background = ctx.theme[int(Theme_Color.Disabled_Background)]
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
@@ -3120,9 +3127,34 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if len(text) == 0 && ctx.text_field != field {
 		return .None
 	}
+	visible_start := 0
+	cursor_width := 0
+	if active {
+		cursor := clamp(ctx.text_cursor, 0, len(text))
+		ctx.text_scroll = clamp(ctx.text_scroll, 0, cursor)
+		available_width := max(field.computed_width - 6, 0)
+		for {
+			left, top, height: int
+			if error := ctx.font_bounds(
+				ctx.font,
+				text[ctx.text_scroll:cursor],
+				&cursor_width,
+				&height,
+				&left,
+				&top,
+			); error != .None {
+				return error
+			}
+			if cursor_width < available_width || ctx.text_scroll >= cursor {
+				break
+			}
+			ctx.text_scroll = next_codepoint(transmute([]u8)(text), ctx.text_scroll)
+		}
+		visible_start = ctx.text_scroll
+	}
 	if error := ctx.font_draw(
 		ctx.font,
-		text,
+		text[visible_start:],
 		ctx.screen.pixels,
 		foreground,
 		field.computed_x + 3 - field.left,
@@ -3137,28 +3169,11 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	); error != .None {
 		return error
 	}
-	if ctx.text_field == field && !disabled {
-		cursor := clamp(ctx.text_cursor, 0, len(text))
-		cursor_width, cursor_height, left, top: int
-		if error := ctx.font_bounds(
-			ctx.font,
-			text[:cursor],
-			&cursor_width,
-			&cursor_height,
-			&left,
-			&top,
-		); error != .None {
-			return error
+	if active {
+		cursor_x := field.computed_x + 3 + cursor_width
+		for cursor_y in field.computed_y + 2 ..< field.computed_y + field.computed_height - 2 {
+			set_pixel(ctx, cursor_x, cursor_y, ctx.theme[int(Theme_Color.Input_Cursor)])
 		}
-		cursor_x := field.computed_x + 4 + cursor_width
-		fill_rectangle(
-			ctx,
-			cursor_x,
-			field.computed_y + 3,
-			1,
-			field.computed_height - 6,
-			ctx.theme[int(Theme_Color.Input_Cursor)],
-		)
 	}
 	return .None
 }
@@ -4974,11 +4989,12 @@ move_text_cursor_to_mouse :: proc(ctx: ^Context, field: ^Form, mouse_x: int) {
 		return
 	}
 	target := mouse_x - field.computed_x - 2
-	cursor := 0
+	start := clamp(ctx.text_scroll, 0, len(buffer.data))
+	cursor := start
 	for cursor <= len(buffer.data) {
 		width := 0
 		height, left, top: int
-		text := string(buffer.data[:cursor])
+		text := string(buffer.data[start:cursor])
 		if ctx.font_bounds(ctx.font, text, &width, &height, &left, &top) != .None || width > target {
 			break
 		}
@@ -4998,6 +5014,7 @@ activate_text_input :: proc(ctx: ^Context, field: ^Form) {
 	}
 	ctx.text_field = field
 	ctx.text_cursor = len(buffer.data)
+	ctx.text_scroll = 0
 	if ctx.backend.show_keyboard != nil {
 		_ = ctx.backend.show_keyboard(ctx.backend.data)
 	}
@@ -5013,6 +5030,7 @@ activate_numeric_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	}
 	ctx.text_field = field
 	ctx.text_cursor = len(ctx.edit_buffer.data)
+	ctx.text_scroll = 0
 	if ctx.backend.show_keyboard != nil {
 		_ = ctx.backend.show_keyboard(ctx.backend.data)
 	}
@@ -5126,6 +5144,7 @@ deactivate_text_input :: proc(ctx: ^Context, commit: bool) {
 	}
 	ctx.text_field = nil
 	ctx.text_cursor = 0
+	ctx.text_scroll = 0
 	resize(&ctx.edit_buffer.data, 0)
 	if ctx.backend.hide_keyboard != nil {
 		_ = ctx.backend.hide_keyboard(ctx.backend.data)
