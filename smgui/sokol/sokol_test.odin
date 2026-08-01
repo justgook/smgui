@@ -1,6 +1,7 @@
 package smgui_sokol
 
 import smgui ".."
+import "base:runtime"
 import "core:testing"
 import sapp "../../vendor/sokol-odin/sokol/app"
 
@@ -38,6 +39,16 @@ init_test_context :: proc(ctx: ^smgui.Context) -> bool {
 	}, []string{"test"}, 32, 32) == .None
 }
 
+init_test_context_from_callback :: proc "c" (ctx: ^smgui.Context) -> bool {
+	context = runtime.default_context()
+	return init_test_context(ctx)
+}
+
+deinit_test_context_from_callback :: proc "c" (ctx: ^smgui.Context) {
+	context = runtime.default_context()
+	_ = smgui.deinit(ctx)
+}
+
 @(test)
 modifier_translation_preserves_mouse_and_keyboard_state :: proc(t: ^testing.T) {
 	buttons := buttons_from_modifiers(
@@ -72,6 +83,53 @@ mouse_event_is_queued_with_sokol_coordinates :: proc(t: ^testing.T) {
 	testing.expect_value(t, event.y, 23)
 	testing.expect(t, .Mouse_Left in event.buttons)
 	testing.expect(t, .Shift in event.buttons)
+}
+
+@(test)
+resize_preserves_framebuffer_mouse_coordinates :: proc(t: ^testing.T) {
+	ctx: smgui.Context
+	if !init_test_context_from_callback(&ctx) {testing.expect(t, false); return}
+	defer deinit_test_context_from_callback(&ctx)
+	state := State{ctx = &ctx}
+	selected := 0
+	forms := []smgui.Form {
+		{
+			kind = .Button,
+			x = smgui.absolute(10),
+			y = smgui.absolute(40),
+			width = 20,
+			height = 10,
+			binding = smgui.bind(&selected),
+			value = 1,
+		},
+	}
+	resize_source := sapp.Event {
+		type = .RESIZED,
+		framebuffer_width = 64,
+		framebuffer_height = 96,
+	}
+	app_event(&resize_source, &state)
+	mouse_source := sapp.Event {
+		type = .MOUSE_DOWN,
+		mouse_button = .LEFT,
+		mouse_x = 17,
+		mouse_y = 46,
+	}
+	app_event(&mouse_source, &state)
+	testing.expect_value(t, state.error, smgui.Error.None)
+	testing.expect_value(t, ctx.screen.width, 64)
+	testing.expect_value(t, ctx.screen.height, 96)
+	resize_event, _, resize_error := smgui.poll_event(&ctx, forms)
+	_, _, mouse_error := smgui.poll_event(&ctx, forms)
+	testing.expect_value(t, resize_error, smgui.Error.None)
+	testing.expect_value(t, mouse_error, smgui.Error.None)
+	testing.expect_value(t, resize_event.kind, smgui.Event_Kind.Resize)
+	// Sokol reports mouse positions in framebuffer pixels, including after resize.
+	testing.expect_value(t, ctx.mouse_x, 17)
+	testing.expect_value(t, ctx.mouse_y, 46)
+	testing.expect_value(t, forms[0].computed_y, 40)
+	testing.expect(t, ctx.hovered == &forms[0])
+	testing.expect(t, ctx.pressed == &forms[0])
 }
 
 @(test)
@@ -134,6 +192,14 @@ framebuffer_is_composited_over_presentation_clear_color :: proc(t: ^testing.T) {
 	for value, index in destination {
 		testing.expect_value(t, value, expected[index])
 	}
+}
+
+@(test)
+skin_cursor_hotspot_is_at_image_center :: proc(t: ^testing.T) {
+	cursor := smgui.Image{width = 34, height = 34}
+	x, y := cursor_hotspot(&cursor)
+	testing.expect_value(t, x, 17)
+	testing.expect_value(t, y, 17)
 }
 
 @(test)

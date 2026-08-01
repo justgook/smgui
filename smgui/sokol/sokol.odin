@@ -508,11 +508,12 @@ backend_hide_cursor :: proc(data: rawptr) -> smgui.Error {
 		sapp.set_mouse_cursor(.DEFAULT)
 		sapp.unbind_mouse_cursor_image(.CUSTOM_0)
 	}
+	hotspot_x, hotspot_y := cursor_hotspot(cursor)
 	sapp.bind_mouse_cursor_image(.CUSTOM_0, {
 		width = c.int(cursor.width),
 		height = c.int(cursor.height),
-		cursor_hotspot_x = 0,
-		cursor_hotspot_y = 0,
+		cursor_hotspot_x = c.int(hotspot_x),
+		cursor_hotspot_y = c.int(hotspot_y),
 		pixels = {ptr = raw_data(pixels), size = c.size_t(len(pixels))},
 	})
 	sapp.set_mouse_cursor(.CUSTOM_0)
@@ -521,6 +522,15 @@ backend_hide_cursor :: proc(data: rawptr) -> smgui.Error {
 	// Prevent the core renderer from also drawing the promoted cursor.
 	state.ctx.software_cursor = {}
 	return .None
+}
+
+@(private)
+cursor_hotspot :: proc(cursor: ^smgui.Image) -> (x, y: int) {
+	if cursor == nil {
+		return 0, 0
+	}
+	return min(cursor.width / 2, max(cursor.width - 2, 0)),
+	       min(cursor.height / 2, max(cursor.height - 2, 0))
 }
 
 @(private = "file")
