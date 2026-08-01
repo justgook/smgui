@@ -185,7 +185,7 @@ only their module and must agree with this list.
 - [x] Migrate toggle buttons and icon buttons.
 - [x] Migrate line, connector, and curve drawing fields.
 - [x] Migrate vertical and horizontal scrollbars.
-- [x] Migrate popup container scrolling and scrollbar event routing.
+- [x] Migrate popup container scrolling, clip child graphics and text, and route scrollbar events.
 - [x] Migrate remaining flow and alignment behavior.
 - [x] Complete drop, resize, wheel, gamepad, and remaining event processing.
 - [x] Migrate custom-form callbacks and lifecycle behavior.

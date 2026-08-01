@@ -21,7 +21,7 @@ Status:
   [x] Standalone vertical and horizontal scrollbars implemented
   [x] Relative flow layout and division containers implemented
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
-  [x] Popup dragging, resizing, and container scrolling implemented
+  [x] Popup dragging, resizing, clipped container scrolling, and child text clipping implemented
   [x] Reference flow breaks, offsets, wrapping, and alignment implemented
   [x] Wheel routing, event consumption, and drop/resize/gamepad passthrough implemented
   [x] Custom bounds, view, control, popup, and finalization callbacks implemented
@@ -1994,7 +1994,7 @@ draw_container :: proc(ctx: ^Context, field: ^Form) -> Error {
 			if .Draggable in field.flags {
 				text_color = background
 			}
-			return_error := ctx.font_draw(
+			return_error := draw_font(ctx,
 				ctx.font,
 				ctx.texts[field.label],
 				ctx.screen.pixels,
@@ -2253,7 +2253,7 @@ draw_toggle :: proc(ctx: ^Context, field: ^Form) -> Error {
 		}
 		x += 9
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		ctx.texts[field.label],
 		ctx.screen.pixels,
@@ -2316,7 +2316,7 @@ draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
 		)
 		foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -2366,7 +2366,7 @@ draw_multiline_label :: proc(ctx: ^Context, field: ^Form) -> Error {
 		if y >= field.computed_y + field.computed_height {
 			break
 		}
-		if error := ctx.font_draw(
+		if error := draw_font(ctx,
 			ctx.font,
 			line,
 			ctx.screen.pixels,
@@ -2415,7 +2415,7 @@ draw_status :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if .Disabled in field.flags {
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -2657,7 +2657,7 @@ draw_color_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	}
 	draw_checker(ctx, x + 2, y + 2, height - 4, height - 4, checker_color)
 	text := fmt.tprintf("%08x", value^)
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -2779,7 +2779,7 @@ draw_color_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
 	checker_width := max(field.computed_height - 6, 1)
 	draw_checker(ctx, x + 3, y + 3, checker_width, checker_width, ctx.color)
 	if ctx.font_draw != nil {
-		if error := ctx.font_draw(
+		if error := draw_font(ctx,
 			ctx.font,
 			color_edit_string(ctx),
 			ctx.screen.pixels,
@@ -2958,7 +2958,7 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 			dark_shadow = ctx.theme[int(Theme_Color.Button_Selected_Dark_Shadow)]
 			light_shadow = ctx.theme[int(Theme_Color.Button_Selected_Light_Shadow)]
 		}
-		if error := ctx.font_draw(
+		if error := draw_font(ctx,
 			ctx.font,
 			text,
 			ctx.screen.pixels,
@@ -2975,7 +2975,7 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 		); error != .None {
 			return error
 		}
-		if error := ctx.font_draw(
+		if error := draw_font(ctx,
 			ctx.font,
 			text,
 			ctx.screen.pixels,
@@ -3002,7 +3002,7 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else if hovered {
 		foreground = ctx.theme[int(Theme_Color.Button_Selected_Foreground)]
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -3065,7 +3065,7 @@ draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if disabled {
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -3152,7 +3152,7 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		}
 		visible_start = ctx.text_scroll
 	}
-	if error := ctx.font_draw(
+	if error := draw_font(ctx,
 		ctx.font,
 		text[visible_start:],
 		ctx.screen.pixels,
@@ -3278,7 +3278,7 @@ draw_option_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		triangle_background,
 		input_dark,
 	)
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -3370,7 +3370,7 @@ draw_choice_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		triangle_background,
 		input_dark,
 	)
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -3424,7 +3424,7 @@ draw_select_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
 			)
 			foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
 		}
-		if error := ctx.font_draw(
+		if error := draw_font(ctx,
 			ctx.font,
 			option,
 			ctx.screen.pixels,
@@ -3457,7 +3457,7 @@ draw_clipped_text :: proc(
 	   error != .None {
 		return error
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -3635,7 +3635,7 @@ draw_numeric_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	}
 	text_x :=
 		inner_x + inner_height + 2 + inner_width - 2 * inner_height - 4 - text_width - field.left
-	if error := ctx.font_draw(
+	if error := draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -3740,7 +3740,7 @@ draw_symbol :: proc(ctx: ^Context, symbol: string, x, y, width, height: int, col
 	   error != .None {
 		return error
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		symbol,
 		ctx.screen.pixels,
@@ -3978,7 +3978,7 @@ draw_progress_bar :: proc(ctx: ^Context, field: ^Form) -> Error {
 	   error != .None {
 		return error
 	}
-	error := ctx.font_draw(
+	error := draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -4012,7 +4012,7 @@ draw_bound_value :: proc(ctx: ^Context, field: ^Form) -> Error {
 		return bounds_error
 	}
 	_, _, _ = text_height, left, top
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -4039,7 +4039,7 @@ draw_text_centered :: proc(ctx: ^Context, text: string, field: ^Form, color: u32
 	   error != .None {
 		return error
 	}
-	return ctx.font_draw(
+	return draw_font(ctx,
 		ctx.font,
 		text,
 		ctx.screen.pixels,
@@ -5690,6 +5690,36 @@ draw_line_field :: proc(ctx: ^Context, field: ^Form) {
 			color,
 		)
 	}
+}
+
+@(private = "file")
+draw_font :: proc(
+	ctx: ^Context,
+	font: rawptr,
+	text: string,
+	destination: []u8,
+	color: u32,
+	x, y, left, top, pitch: int,
+	crop_x0, crop_y0, crop_x1, crop_y1: int,
+) -> Error {
+	if ctx == nil || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	return ctx.font_draw(
+		font,
+		text,
+		destination,
+		color,
+		x,
+		y,
+		left,
+		top,
+		pitch,
+		max(crop_x0, ctx.clip_x0),
+		max(crop_y0, ctx.clip_y0),
+		min(crop_x1, ctx.clip_x1),
+		min(crop_y1, ctx.clip_y1),
+	)
 }
 
 @(private = "file")

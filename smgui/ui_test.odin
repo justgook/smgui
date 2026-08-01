@@ -12,6 +12,10 @@ Test_Backend_State :: struct {
 
 Test_Font_State :: struct {
 	last_text: string,
+	crop_x0:   int,
+	crop_y0:   int,
+	crop_x1:   int,
+	crop_y1:   int,
 }
 
 Custom_Test_State :: struct {
@@ -481,7 +485,7 @@ vertical_and_horizontal_scrollbars_render_and_drag :: proc(t: ^testing.T) {
 popup_container_scrollbars_clip_and_move_content :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context
-	texts := []string{"test"}
+	texts := []string{"test", "Clipped button text"}
 	if error := init(&ctx, test_backend(&backend_state), texts, 180, 140); error != .None {
 		testing.expectf(t, false, "init failed: %v", error)
 		return
@@ -491,8 +495,15 @@ popup_container_scrollbars_clip_and_move_content :: proc(t: ^testing.T) {
 			testing.expectf(t, false, "deinit failed: %v", error)
 		}
 	}
+	font_state: Test_Font_State
+	if error := set_font_hooks(&ctx, test_font_bounds, recording_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+	}
+	if error := set_font(&ctx, &font_state); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+	}
 	children := []Form {
-		{kind = .Button, flags = {.No_Break}, width = 80, height = 24},
+		{kind = .Button, flags = {.No_Break}, width = 80, height = 24, label = 1},
 		{kind = .Button, width = 80, height = 24},
 		{kind = .Button, flags = {.No_Break}, width = 80, height = 24},
 		{kind = .Button, width = 80, height = 24},
@@ -518,6 +529,10 @@ popup_container_scrollbars_clip_and_move_content :: proc(t: ^testing.T) {
 	testing.expect(t, popup.source_height > 0)
 	initial_child_x := children[0].computed_x
 	initial_child_y := children[0].computed_y
+	testing.expect_value(t, font_state.crop_x0, popup.content_x)
+	testing.expect_value(t, font_state.crop_y0, popup.content_y)
+	testing.expect_value(t, font_state.crop_x1, popup.content_x + popup.content_width)
+	testing.expect_value(t, font_state.crop_y1, popup.content_y + popup.content_height)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 20, 20, {.Direction_Down})
 	testing.expect(t, popup.offset_y > 0)
@@ -1424,6 +1439,10 @@ recording_font_draw :: proc(
 ) -> Error {
 	state := (^Test_Font_State)(font)
 	state.last_text = text
+	state.crop_x0 = crop_x0
+	state.crop_y0 = crop_y0
+	state.crop_x1 = crop_x1
+	state.crop_y1 = crop_y1
 	return test_font_draw(
 		font,
 		text,

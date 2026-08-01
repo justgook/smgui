@@ -104,8 +104,8 @@ than numeric values.
 | `UI_NOBORDER` | `No_Border` | Green | `popup-no-border`. |
 | `UI_NOSHADOW` | `No_Shadow` | Green | `popup-no-shadow`. |
 | `UI_ALTSKIN` | `Alternative_Skin` | Missing | Add populated-skin popup/menu fixture. |
-| `UI_HSCROLL` | `Horizontal_Scroll` | Focused, Smoke | `popup_container_scrollbars_clip_and_move_content`. |
-| `UI_VSCROLL` | `Vertical_Scroll` | Focused, Smoke | Same focused test. |
+| `UI_HSCROLL` | `Horizontal_Scroll` | Focused, Smoke | `popup_container_scrollbars_clip_and_move_content` covers child graphics and font clipping. |
+| `UI_VSCROLL` | `Vertical_Scroll` | Focused, Smoke | Same focused clipping and movement test. |
 | `UI_SCROLL` | both scroll flags | Focused, Smoke | Same focused test; add combined-scroll parity fixture. |
 | `UI_DRAGGABLE` | `Draggable` | Green | `popup-draggable`, `popup-drag`, popup chrome/close fixtures. |
 | `UI_RESIZABLE` | `Resizable` | Green | `popup-resizable`, `popup-resize`, `popup-chrome`. |
