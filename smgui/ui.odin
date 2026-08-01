@@ -21,8 +21,8 @@ Status:
   [x] Standalone vertical and horizontal scrollbars implemented
   [x] Relative flow layout and division containers implemented
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
-  [x] Popup dragging and resizing implemented
-  [ ] Scrolling and advanced alignment implemented
+  [x] Popup dragging, resizing, and container scrolling implemented
+  [ ] Advanced flow alignment implemented
   [ ] Remaining widget interaction and event processing implemented
   [ ] Remaining built-in widgets implemented
 
@@ -466,6 +466,10 @@ Form :: struct {
 	computed_y:           int,
 	computed_width:       int,
 	computed_height:      int,
+	content_x:            int,
+	content_y:            int,
+	content_width:        int,
+	content_height:       int,
 	binding:              Binding,
 	minimum:              i64,
 	maximum:              i64,
@@ -588,6 +592,10 @@ Context :: struct {
 	mouse_y:        int,
 	last_mouse_x:   int,
 	last_mouse_y:   int,
+	clip_x0:        int,
+	clip_y0:        int,
+	clip_x1:        int,
+	clip_y1:        int,
 }
 
 DEFAULT_THEME := [THEME_COLOR_COUNT]u32 {
@@ -822,6 +830,8 @@ init :: proc(
 	ctx.theme = DEFAULT_THEME
 	ctx.scrollbar_width = 10
 	ctx.scrollbar_height = 10
+	ctx.clip_x1 = width
+	ctx.clip_y1 = height
 	ctx.flags = {.Refresh, .Recalculate}
 
 	if error := ctx.backend.init(ctx.backend.data, ctx, texts[0], width, height, icon);
@@ -911,6 +921,10 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 	}
 	// Match reference-c `_ui_redraw`: untouched UI-layer pixels remain
 	// transparent so the presentation adapter may supply the window background.
+	ctx.clip_x0 = 0
+	ctx.clip_y0 = 0
+	ctx.clip_x1 = ctx.screen.width
+	ctx.clip_y1 = ctx.screen.height
 	for &pixel in ctx.screen.pixels {
 		pixel = 0
 	}
@@ -1109,11 +1123,43 @@ layout_forms :: proc(
 				inner_width = max(inner_width - 4, 0)
 				inner_height = max(inner_height - title_height - 4, 0)
 			}
+			field.source_width = 0
+			field.source_height = 0
+			if field.kind == .Popup {
+				has_horizontal := .Horizontal_Scroll in field.flags && field.minimum_width > inner_width
+				if has_horizontal {
+					inner_height = max(inner_height - ctx.scrollbar_height, 0)
+				}
+				has_vertical := .Vertical_Scroll in field.flags && field.minimum_height > inner_height
+				if has_vertical {
+					inner_width = max(inner_width - ctx.scrollbar_width, 0)
+				}
+				if !has_horizontal && .Horizontal_Scroll in field.flags && field.minimum_width > inner_width {
+					has_horizontal = true
+					inner_height = max(inner_height - ctx.scrollbar_height, 0)
+				}
+				if has_horizontal {
+					field.source_width = inner_width
+					field.offset_x = clamp(field.offset_x, 0, max(field.minimum_width - inner_width, 0))
+				} else {
+					field.offset_x = 0
+				}
+				if has_vertical {
+					field.source_height = inner_height
+					field.offset_y = clamp(field.offset_y, 0, max(field.minimum_height - inner_height, 0))
+				} else {
+					field.offset_y = 0
+				}
+			}
+			field.content_x = inner_x
+			field.content_y = inner_y
+			field.content_width = inner_width
+			field.content_height = inner_height
 			if _, _, child_error := layout_forms(
 				ctx,
 				field.children,
-				inner_x,
-				inner_y,
+				inner_x - field.offset_x,
+				inner_y - field.offset_y,
 				inner_width,
 				inner_height,
 				field.pitch,
@@ -1464,6 +1510,8 @@ measure_form :: proc(
 		if content_error != .None {
 			return 0, 0, content_error
 		}
+		field.minimum_width = content_width
+		field.minimum_height = content_height
 		title_height := 0
 		if field.kind == .Popup && field.label > 0 && field.label < len(ctx.texts) {
 			title_width, text_height, title_left, title_top, label_error := measure_label(ctx, field)
@@ -1495,6 +1543,8 @@ measure_form :: proc(
 		if content_error != .None {
 			return 0, 0, content_error
 		}
+		field.minimum_width = content_width
+		field.minimum_height = content_height
 		width = max(width, content_width + 2 * field.margin + 4)
 		height = max(height, content_height + 2 * field.margin + 4)
 	}
@@ -1717,7 +1767,62 @@ draw_container :: proc(ctx: ^Context, field: ^Form) -> Error {
 			draw_resize_corner(ctx, x + width - 7, y + height - 7, light)
 		}
 	}
-	return draw_forms(ctx, field.children)
+	if field.kind == .Popup {
+		draw_container_scrollbars(ctx, field)
+	}
+	if field.kind != .Popup || (field.source_width == 0 && field.source_height == 0) {
+		return draw_forms(ctx, field.children)
+	}
+	old_x0, old_y0 := ctx.clip_x0, ctx.clip_y0
+	old_x1, old_y1 := ctx.clip_x1, ctx.clip_y1
+	ctx.clip_x0 = max(ctx.clip_x0, field.content_x)
+	ctx.clip_y0 = max(ctx.clip_y0, field.content_y)
+	ctx.clip_x1 = min(ctx.clip_x1, field.content_x + field.content_width)
+	ctx.clip_y1 = min(ctx.clip_y1, field.content_y + field.content_height)
+	error := draw_forms(ctx, field.children)
+	ctx.clip_x0, ctx.clip_y0 = old_x0, old_y0
+	ctx.clip_x1, ctx.clip_y1 = old_x1, old_y1
+	return error
+}
+
+@(private = "file")
+draw_container_scrollbars :: proc(ctx: ^Context, field: ^Form) {
+	if field.source_width > 0 {
+		value := field.offset_x
+		flags: Form_Flags
+		if ctx.horizontal_bar == field {
+			flags += {.Selected}
+		}
+		bar := Form {
+			kind = .Horizontal_Scrollbar,
+			flags = flags,
+			computed_x = field.content_x,
+			computed_y = field.content_y + field.content_height,
+			computed_width = field.source_width,
+			computed_height = ctx.scrollbar_height,
+			binding = bind(&value),
+			maximum = i64(field.minimum_width),
+		}
+		draw_scrollbar(ctx, &bar)
+	}
+	if field.source_height > 0 {
+		value := field.offset_y
+		flags: Form_Flags
+		if ctx.vertical_bar == field {
+			flags += {.Selected}
+		}
+		bar := Form {
+			kind = .Vertical_Scrollbar,
+			flags = flags,
+			computed_x = field.content_x + field.content_width,
+			computed_y = field.content_y,
+			computed_width = ctx.scrollbar_width,
+			computed_height = field.source_height,
+			binding = bind(&value),
+			maximum = i64(field.minimum_height),
+		}
+		draw_scrollbar(ctx, &bar)
+	}
 }
 
 @(private = "file")
@@ -1752,7 +1857,7 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 		}
 		#partial switch field.kind {
 		case .Division:
-			if error := draw_forms(ctx, field.children); error != .None {
+			if error := draw_container(ctx, &field); error != .None {
 				return error
 			}
 		case .Toggle:
@@ -3474,7 +3579,7 @@ draw_scrollbar :: proc(ctx: ^Context, field: ^Form) {
 	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
 	track := ctx.theme[int(Theme_Color.Scrollbar_Background)]
 	button := ctx.theme[int(Theme_Color.Button_Light_Background)]
-	active := ctx.vertical_bar == field || ctx.horizontal_bar == field
+	active := ctx.vertical_bar == field || ctx.horizontal_bar == field || .Selected in field.flags
 	if active {
 		light, dark = dark, light
 	}
@@ -3959,8 +4064,42 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			}
 			break
 		}
+		for reverse_index in 0 ..< len(form) {
+			index := len(form) - 1 - reverse_index
+			field := &form[index]
+			if field.kind == .Popup && .Hidden not_in field.flags && point_inside(field, event.x, event.y) &&
+			   begin_container_scrollbar_if_hit(ctx, field, event.x, event.y) {
+				return .None
+			}
+		}
 		if ctx.menu != nil && !point_inside(ctx.menu, event.x, event.y) {
 			close_menu(ctx)
+			return .None
+		}
+	}
+	if event.kind == .Mouse &&
+	   (.Direction_Up in event.buttons || .Direction_Down in event.buttons ||
+	    .Gamepad_A in event.buttons || .Gamepad_B in event.buttons) {
+		for reverse_index in 0 ..< len(form) {
+			index := len(form) - 1 - reverse_index
+			field := &form[index]
+			if field.kind != .Popup || .Hidden in field.flags || !point_inside(field, event.x, event.y) {
+				continue
+			}
+			vertical_step := max(field.computed_height / 10, 4)
+			horizontal_step := max(field.computed_width / 10, 4)
+			if .Direction_Up in event.buttons {
+				field.offset_y -= vertical_step
+			} else if .Direction_Down in event.buttons {
+				field.offset_y += vertical_step
+			} else if .Gamepad_A in event.buttons {
+				field.offset_x -= horizontal_step
+			} else if .Gamepad_B in event.buttons {
+				field.offset_x += horizontal_step
+			}
+			field.offset_x = clamp(field.offset_x, 0, max(field.minimum_width - field.source_width, 0))
+			field.offset_y = clamp(field.offset_y, 0, max(field.minimum_height - field.source_height, 0))
+			ctx.flags += {.Refresh, .Recalculate}
 			return .None
 		}
 	}
@@ -4664,6 +4803,54 @@ text_allowed :: proc(filter: Text_Filter, existing: []u8, text: string) -> bool 
 }
 
 @(private = "file")
+begin_container_scrollbar_if_hit :: proc(ctx: ^Context, field: ^Form, mouse_x, mouse_y: int) -> bool {
+	if field.source_height > 0 &&
+	   mouse_x >= field.content_x + field.content_width &&
+	   mouse_x < field.content_x + field.content_width + ctx.scrollbar_width &&
+	   mouse_y >= field.content_y && mouse_y < field.content_y + field.source_height {
+		begin_container_scrollbar(ctx, field, true, mouse_y)
+		return true
+	}
+	if field.source_width > 0 &&
+	   mouse_x >= field.content_x && mouse_x < field.content_x + field.source_width &&
+	   mouse_y >= field.content_y + field.content_height &&
+	   mouse_y < field.content_y + field.content_height + ctx.scrollbar_height {
+		begin_container_scrollbar(ctx, field, false, mouse_x)
+		return true
+	}
+	return false
+}
+
+@(private = "file")
+begin_container_scrollbar :: proc(ctx: ^Context, field: ^Form, vertical: bool, mouse_position: int) {
+	size := field.source_width
+	maximum := field.minimum_width
+	current := field.offset_x
+	minimum_thumb := ctx.scrollbar_height
+	origin := field.content_x
+	if vertical {
+		size = field.source_height
+		maximum = field.minimum_height
+		current = field.offset_y
+		minimum_thumb = ctx.scrollbar_width
+		origin = field.content_y
+		ctx.vertical_bar = field
+	} else {
+		ctx.horizontal_bar = field
+	}
+	position, thumb := scrollbar_metrics(size, current, maximum, minimum_thumb)
+	if mouse_position >= origin + position && mouse_position < origin + position + thumb {
+		ctx.scrollbar_grab = mouse_position - origin - position
+	} else {
+		ctx.scrollbar_grab = thumb / 2
+	}
+	ctx.scrollbar_range = maximum - size
+	ctx.scrollbar_start = origin
+	ctx.scrollbar_end = origin + size - thumb + ctx.scrollbar_grab
+	update_scrollbar(ctx, mouse_position)
+}
+
+@(private = "file")
 begin_scrollbar :: proc(ctx: ^Context, field: ^Form, mouse_position: int) {
 	if ctx == nil || field == nil {
 		return
@@ -4702,8 +4889,7 @@ update_scrollbar :: proc(ctx: ^Context, mouse_position: int) {
 	if field == nil {
 		field = ctx.vertical_bar
 	}
-	if field == nil || field.binding.kind != .Integer || field.binding.data == nil ||
-	   ctx.scrollbar_range <= 0 {
+	if field == nil || ctx.scrollbar_range <= 0 {
 		return
 	}
 	position := mouse_position - ctx.scrollbar_grab + 1
@@ -4711,7 +4897,16 @@ update_scrollbar :: proc(ctx: ^Context, mouse_position: int) {
 	position = max(position - ctx.scrollbar_start, 0)
 	track := max(ctx.scrollbar_end - ctx.scrollbar_start - ctx.scrollbar_grab, 1)
 	value := min(position * ctx.scrollbar_range / track, ctx.scrollbar_range)
-	((^int)(field.binding.data))^ = value
+	if field.kind == .Popup {
+		if ctx.horizontal_bar == field {
+			field.offset_x = value
+		} else {
+			field.offset_y = value
+		}
+		ctx.flags += {.Recalculate}
+	} else if field.binding.kind == .Integer && field.binding.data != nil {
+		((^int)(field.binding.data))^ = value
+	}
 	ctx.flags += {.Refresh}
 }
 
@@ -4818,7 +5013,9 @@ draw_beveled_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, c
 
 @(private = "file")
 blend_line_pixel :: proc(ctx: ^Context, x, y: int, color: u32, coverage: int) {
-	if coverage <= 0 || x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
+	if coverage <= 0 ||
+	   x < ctx.clip_x0 || y < ctx.clip_y0 || x >= ctx.clip_x1 || y >= ctx.clip_y1 ||
+	   x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
 		return
 	}
 	source_alpha := int(u8(color >> 24))
@@ -4989,7 +5186,8 @@ draw_line_field :: proc(ctx: ^Context, field: ^Form) {
 
 @(private = "file")
 set_pixel :: proc(ctx: ^Context, x, y: int, color: u32) {
-	if x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
+	if x < ctx.clip_x0 || y < ctx.clip_y0 || x >= ctx.clip_x1 || y >= ctx.clip_y1 ||
+	   x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
 		return
 	}
 	pixel := y * ctx.screen.pitch + x * 4
@@ -5002,7 +5200,9 @@ set_pixel :: proc(ctx: ^Context, x, y: int, color: u32) {
 @(private = "file")
 blend_pixel :: proc(ctx: ^Context, x, y: int, color: u32) {
 	alpha := u32(u8(color >> 24))
-	if alpha == 0 || x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
+	if alpha == 0 ||
+	   x < ctx.clip_x0 || y < ctx.clip_y0 || x >= ctx.clip_x1 || y >= ctx.clip_y1 ||
+	   x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
 		return
 	}
 	inverse := 255 - alpha
@@ -5016,10 +5216,10 @@ blend_pixel :: proc(ctx: ^Context, x, y: int, color: u32) {
 
 @(private = "file")
 fill_rectangle :: proc(ctx: ^Context, x, y, width, height: int, color: u32) {
-	x0 := clamp(x, 0, ctx.screen.width)
-	y0 := clamp(y, 0, ctx.screen.height)
-	x1 := clamp(x + width, 0, ctx.screen.width)
-	y1 := clamp(y + height, 0, ctx.screen.height)
+	x0 := clamp(x, ctx.clip_x0, ctx.clip_x1)
+	y0 := clamp(y, ctx.clip_y0, ctx.clip_y1)
+	x1 := clamp(x + width, ctx.clip_x0, ctx.clip_x1)
+	y1 := clamp(y + height, ctx.clip_y0, ctx.clip_y1)
 	for pixel_y in y0 ..< y1 {
 		for pixel_x in x0 ..< x1 {
 			blend_pixel(ctx, pixel_x, pixel_y, color)

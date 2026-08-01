@@ -407,6 +407,63 @@ vertical_and_horizontal_scrollbars_render_and_drag :: proc(t: ^testing.T) {
 }
 
 @(test)
+popup_container_scrollbars_clip_and_move_content :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 180, 140); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	children := []Form {
+		{kind = .Button, flags = {.No_Break}, width = 80, height = 24},
+		{kind = .Button, width = 80, height = 24},
+		{kind = .Button, flags = {.No_Break}, width = 80, height = 24},
+		{kind = .Button, width = 80, height = 24},
+		{kind = .Button, flags = {.No_Break}, width = 80, height = 24},
+		{kind = .Button, width = 80, height = 24},
+	}
+	forms := []Form {
+		{
+			kind = .Popup,
+			flags = {.Horizontal_Scroll, .Vertical_Scroll},
+			x = absolute(10),
+			y = absolute(10),
+			width = 110,
+			height = 70,
+			margin = 2,
+			pitch = 2,
+			children = children,
+		},
+	}
+	poll_for_test(t, &ctx, forms)
+	popup := &forms[0]
+	testing.expect(t, popup.source_width > 0)
+	testing.expect(t, popup.source_height > 0)
+	initial_child_x := children[0].computed_x
+	initial_child_y := children[0].computed_y
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 20, 20, {.Direction_Down})
+	testing.expect(t, popup.offset_y > 0)
+	poll_for_test(t, &ctx, forms)
+	testing.expect(t, children[0].computed_y < initial_child_y)
+
+	horizontal_y := popup.content_y + popup.content_height
+	send_mouse_for_test(t, &ctx, &backend_state, forms, popup.content_x + 1, horizontal_y + 1, {.Mouse_Left})
+	send_mouse_for_test(t, &ctx, &backend_state, forms, popup.content_x + popup.source_width - 2, horizontal_y + 1, {.Mouse_Left})
+	testing.expect(t, popup.offset_x > 0)
+	poll_for_test(t, &ctx, forms)
+	testing.expect(t, children[0].computed_x < initial_child_x)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, popup.content_x, horizontal_y, {.Released})
+	testing.expect(t, ctx.horizontal_bar == nil)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context
