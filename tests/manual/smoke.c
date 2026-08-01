@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 
     int menu_option = 0;
     int button_option = 0;
+    int icon_button_option = 1;
     int checkbox_option = 0;
     int radio_option = 0;
     int integer_value = 26;
@@ -71,6 +72,10 @@ int main(int argc, char **argv)
         0x40, 0xc0, 0x60, 0xff, 0xd0, 0x30, 0x80, 0xff,
     };
     ui_image_t sample_image = { .w = 2, .h = 2, .p = 8, .buf = image_pixels };
+    ui_form_t toggle_panel_children[] = {
+        { .type = UI_IMAGE, .w = 24, .h = 12, .icon = &sample_image },
+        { .type = UI_END }
+    };
 
     ui_form_t popup_children[] = {
         { .type = UI_BUTTON, .flags = UI_NOBR, .ptr = &button_option, .value = 1, .label = PRESS_ME },
@@ -102,6 +107,9 @@ int main(int argc, char **argv)
         { .type = UI_IMAGE, .flags = UI_NOBR, .w = 32, .h = 16, .icon = &sample_image },
         { .type = UI_ICON, .w = 32, .h = 24, .icon = &sample_image },
         { .type = UI_COLOR, .w = 100, .ptr = &color_value },
+        { .type = UI_BTNTGL, .flags = UI_NOBR, .label = PRESS_ME, .icon = &sample_image },
+        { .type = UI_DIV, .flags = UI_HIDDEN, .ptr = &toggle_panel_children },
+        { .type = UI_BTNICN, .w = 24, .h = 16, .ptr = &icon_button_option, .icon = &sample_image },
         { .type = UI_END }
     };
     ui_form_t active_inputs[] = {
@@ -150,6 +158,8 @@ int main(int argc, char **argv)
         { .type = UI_DIV, .flags = UI_FORCEBR, .w = UI_PERCENT(100), .m = 4, .ptr = &inactive_buttons },
         { .type = UI_END }
     };
+    label_fields[10].ptr = &label_fields[11];
+
     ui_form_t forms[] = {
         { .type = UI_POPUP, .flags = UI_SCROLL | UI_DRAGGABLE | UI_RESIZABLE, .x = UI_ABS(455), .y = UI_ABS(315), .w = 110, .h = 90, .m = 10, .p = 10, .ptr = &popup_children },
         { .type = UI_TOGGLE, .flags = UI_NOBULLET | UI_NOBR, .x = 10, .m = 8, .label = FILE_MENU },

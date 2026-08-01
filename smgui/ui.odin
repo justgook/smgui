@@ -12,7 +12,7 @@ Status:
   [x] Backend adapter seam declared
   [x] Framebuffer lifecycle and bounded event queue implemented
   [x] Labels, multiline labels, status fields, images, icons, color inputs, buttons, checkboxes, and radio buttons render
-  [x] Buttons, checkboxes, radio buttons, sliders, images, icons, and color inputs mutate bound state
+  [x] Buttons, toggle/icon buttons, checkboxes, radio buttons, sliders, images, icons, and color inputs mutate bound state
   [x] Integer/float displays, sliders, and progress bars render
   [x] UTF-8 text input, cursor editing, and input filters implemented
   [x] Integer and floating-point text/stepper inputs implemented
@@ -1238,16 +1238,37 @@ measure_form :: proc(
 				width = text_width + 2 * field.margin
 			}
 		}
-	case .Button:
-		text_width, text_height, _, _, error := measure_label(ctx, field)
-		if error != .None {
-			return 0, 0, error
+	case .Button, .Toggle_Button:
+		text_width, text_height := 0, 0
+		has_text := field.label > 0 && field.label < len(ctx.texts)
+		if has_text {
+			if ctx.font == nil || ctx.font_bounds == nil {
+				return 0, 0, .Invalid_Input
+			}
+			if bounds_error := ctx.font_bounds(
+				ctx.font,
+				ctx.texts[field.label],
+				&text_width,
+				&text_height,
+				&field.left,
+				&field.top,
+			); bounds_error != .None {
+				return 0, 0, bounds_error
+			}
 		}
-		if width < 1 {
-			width = text_width + 8
+		if image_valid(field.icon) {
+			if has_text {
+				text_width += 4
+			}
+			text_width += field.icon.width
+			text_height = max(text_height, field.icon.height)
 		}
-		if height < 1 {
-			height = text_height + 4
+		width = max(width, text_width + 8 + int(field.minimum))
+		height = max(height, text_height + 4)
+	case .Icon_Button:
+		if image_valid(field.icon) {
+			width = max(width, field.icon.width)
+			height = max(height, field.icon.height)
 		}
 	case .Checkbox, .Radio:
 		text_width, text_height, _, _, error := measure_label(ctx, field)
@@ -1725,10 +1746,12 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			if error := draw_color_input(ctx, &field); error != .None {
 				return error
 			}
-		case .Button:
+		case .Button, .Toggle_Button:
 			if error := draw_button(ctx, &field); error != .None {
 				return error
 			}
+		case .Icon_Button:
+			draw_icon_button(ctx, &field)
 		case .Checkbox, .Radio:
 			if error := draw_choice(ctx, &field); error != .None {
 				return error
@@ -2360,19 +2383,41 @@ draw_color_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
 }
 
 @(private = "file")
+draw_icon_button :: proc(ctx: ^Context, field: ^Form) {
+	if !image_valid(field.icon) || !binding_selected(field) {
+		return
+	}
+	x := field.computed_x + (field.computed_width - field.icon.width) / 2
+	y := field.computed_y + (field.computed_height - field.icon.height) / 2
+	for row in 0 ..< field.icon.height {
+		for column in 0 ..< field.icon.width {
+			blend_image_pixel(
+				ctx,
+				x + column,
+				y + row,
+				field.icon,
+				column,
+				row,
+				.Disabled in field.flags,
+			)
+		}
+	}
+}
+
+@(private = "file")
 draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
-	if field.label < 0 ||
-	   field.label >= len(ctx.texts) ||
-	   ctx.font == nil ||
-	   ctx.font_bounds == nil ||
-	   ctx.font_draw == nil {
+	has_text := field.label > 0 && field.label < len(ctx.texts)
+	if has_text && (ctx.font == nil || ctx.font_bounds == nil || ctx.font_draw == nil) {
 		return .Invalid_Input
 	}
-	text := ctx.texts[field.label]
+	text := ""
 	text_width, text_height, left, top: int
-	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
-	   error != .None {
-		return error
+	if has_text {
+		text = ctx.texts[field.label]
+		if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
+		   error != .None {
+			return error
+		}
 	}
 	width := field.computed_width
 	height := field.computed_height
@@ -2380,6 +2425,9 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	y := field.computed_y
 	disabled := .Disabled in field.flags
 	pressed := ctx.pressed == field
+	if field.kind == .Button && binding_selected(field) {
+		pressed = true
+	}
 	hovered := ctx.hovered == field
 	outer := ctx.theme[int(Theme_Color.Button_Normal_Border)]
 	if disabled {
@@ -2387,15 +2435,17 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else if hovered && !pressed {
 		outer = ctx.theme[int(Theme_Color.Button_Selected_Border)]
 	}
-	for border_x in x - 1 ..< min(x + width, ctx.screen.width - 1) {
-		blend_pixel(ctx, border_x, y - 1, outer)
-	}
-	for border_x in x ..< min(x + width, ctx.screen.width - 1) {
-		blend_pixel(ctx, border_x, y + height, outer)
-	}
-	for border_y in y ..< y + height {
-		blend_pixel(ctx, x - 1, border_y, outer)
-		blend_pixel(ctx, x + width, border_y, outer)
+	if .No_Border not_in field.flags {
+		for border_x in x - 1 ..< min(x + width, ctx.screen.width - 1) {
+			blend_pixel(ctx, border_x, y - 1, outer)
+		}
+		for border_x in x ..< min(x + width, ctx.screen.width - 1) {
+			blend_pixel(ctx, border_x, y + height, outer)
+		}
+		for border_y in y ..< y + height {
+			blend_pixel(ctx, x - 1, border_y, outer)
+			blend_pixel(ctx, x + width, border_y, outer)
+		}
 	}
 	if disabled {
 		fill_rectangle(ctx, x, y, width, height, ctx.theme[int(Theme_Color.Disabled_Background)])
@@ -2435,12 +2485,35 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 			)
 		}
 	}
-	text_x := x + (width - text_width) / 2
+	content_width := text_width
+	if image_valid(field.icon) {
+		content_width += field.icon.width
+		if has_text {
+			content_width += 4
+		}
+	}
+	text_x := x + (width - content_width) / 2
 	text_y := y + (height - text_height) / 2
 	if pressed && !disabled {
 		text_y += 1
 	}
-	if !disabled {
+	if image_valid(field.icon) {
+		icon_x := text_x
+		icon_y := y + (height - field.icon.height) / 2
+		if pressed && !disabled {
+			icon_y += 1
+		}
+		for row in 0 ..< field.icon.height {
+			for column in 0 ..< field.icon.width {
+				blend_image_pixel(ctx, icon_x + column, icon_y + row, field.icon, column, row, disabled)
+			}
+		}
+		text_x += field.icon.width
+		if has_text {
+			text_x += 4
+		}
+	}
+	if has_text && !disabled {
 		dark_shadow := ctx.theme[int(Theme_Color.Button_Dark_Shadow)]
 		light_shadow := ctx.theme[int(Theme_Color.Button_Light_Shadow)]
 		if hovered {
@@ -2481,6 +2554,9 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 		); error != .None {
 			return error
 		}
+	}
+	if !has_text {
+		return .None
 	}
 	foreground := ctx.theme[int(Theme_Color.Button_Foreground)]
 	if disabled {
@@ -3554,7 +3630,7 @@ binding_selected :: proc(field: ^Form) -> bool {
 		return ((^bool)(field.binding.data))^
 	case .Integer:
 		value := ((^int)(field.binding.data))^
-		if field.kind == .Checkbox {
+		if field.kind == .Checkbox || field.kind == .Icon_Button {
 			mask := field.value
 			if mask == 0 {
 				mask = 1
@@ -3772,8 +3848,10 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		#partial switch ctx.hovered.kind {
 		case .Toggle:
 			toggle_bound_container(ctx, ctx.hovered)
-		case .Button:
+		case .Button, .Toggle_Button:
 			ctx.pressed = ctx.hovered
+		case .Icon_Button:
+			activate_checkbox(ctx.hovered)
 		case .Checkbox:
 			activate_checkbox(ctx.hovered)
 		case .Radio:
@@ -3827,6 +3905,8 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		if ctx.pressed != nil && ctx.pressed == ctx.hovered {
 			if ctx.pressed.kind == .Button {
 				activate_button(ctx.pressed)
+			} else if ctx.pressed.kind == .Toggle_Button {
+				toggle_bound_container(ctx, ctx.pressed)
 			} else if ctx.pressed.kind == .Select {
 				open_select_popup(ctx, ctx.pressed)
 			}

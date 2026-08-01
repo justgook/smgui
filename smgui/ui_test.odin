@@ -248,6 +248,71 @@ color_input_opens_picker_and_commits_selection :: proc(t: ^testing.T) {
 }
 
 @(test)
+toggle_and_icon_buttons_match_reference_interactions :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test", "Toggle"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 120, 80); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+		return
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+		return
+	}
+	pixels := []u8 {
+		10, 20, 30, 255, 40, 50, 60, 255,
+		70, 80, 90, 255, 100, 110, 120, 255,
+	}
+	image := Image{width = 2, height = 2, pitch = 8, pixels = pixels}
+	target := Form{kind = .Division, flags = {.Hidden}}
+	mask := 2
+	forms := []Form {
+		{
+			kind = .Toggle_Button,
+			x = absolute(2),
+			y = absolute(2),
+			label = 1,
+			icon = &image,
+			binding = bind(&target),
+		},
+		{
+			kind = .Icon_Button,
+			x = absolute(2),
+			y = absolute(32),
+			icon = &image,
+			binding = bind(&mask),
+			value = 2,
+		},
+	}
+	poll_for_test(t, &ctx, forms)
+	testing.expect_value(t, forms[0].computed_width, 68)
+	testing.expect_value(t, forms[0].computed_height, 20)
+	testing.expect_value(t, forms[1].computed_width, 2)
+	testing.expect_value(t, forms[1].computed_height, 2)
+	icon_pixel := forms[1].computed_y * ctx.screen.pitch + forms[1].computed_x * 4
+	testing.expect(t, ctx.screen.pixels[icon_pixel + 3] != 0)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 10, 10, {.Mouse_Left})
+	testing.expect(t, .Hidden in target.flags)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 10, 10, {.Released})
+	testing.expect(t, .Hidden not_in target.flags)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 2, 32, {.Mouse_Left})
+	testing.expect_value(t, mask, 0)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context

@@ -38,6 +38,7 @@ main :: proc() {
 
 	menu_option := 0
 	button_option := 0
+	icon_button_option := 1
 	checkbox_option := false
 	radio_option := 0
 	integer_value := 26
@@ -56,6 +57,9 @@ main :: proc() {
 		0x40, 0xc0, 0x60, 0xff, 0xd0, 0x30, 0x80, 0xff,
 	}
 	sample_image := smgui.Image{width = 2, height = 2, pitch = 8, pixels = image_pixels}
+	toggle_panel_children := []smgui.Form {
+		{kind = .Image, width = 24, height = 12, icon = &sample_image},
+	}
 
 	popup_children := []smgui.Form {
 		{
@@ -102,6 +106,9 @@ main :: proc() {
 		{kind = .Image, flags = {.No_Break}, width = 32, height = 16, icon = &sample_image},
 		{kind = .Icon, width = 32, height = 24, icon = &sample_image},
 		{kind = .Color, width = 100, binding = smgui.bind(&color_value)},
+		{kind = .Toggle_Button, flags = {.No_Break}, label = 11, icon = &sample_image},
+		{kind = .Division, flags = {.Hidden}, children = toggle_panel_children},
+		{kind = .Icon_Button, width = 24, height = 16, icon = &sample_image, binding = smgui.bind(&icon_button_option)},
 	}
 	active_inputs := []smgui.Form {
 		{
@@ -235,6 +242,7 @@ main :: proc() {
 	input_fields[2].binding = smgui.bind(&input_fields[3])
 	button_fields[0].binding = smgui.bind(&button_fields[1])
 	button_fields[2].binding = smgui.bind(&button_fields[3])
+	label_fields[10].binding = smgui.bind(&label_fields[11])
 
 	backend: smgui.Backend
 	raylib_state: raylib_backend.State
