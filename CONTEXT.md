@@ -192,8 +192,8 @@ only their module and must agree with this list.
 
 ### Milestone 2 — parity hardening
 
-- [ ] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
-  and events to fixtures.
+- [x] Add a parity ledger mapping public `ui.h` operations, form kinds, flags,
+  and events to fixtures (`tests/parity/LEDGER.md`).
 - [ ] Backfill reference parity fixtures for migrated labels, buttons, choices,
   flow divisions, value displays, sliders, progress bars, text/numeric inputs,
   selects/options, popups, and menus.

@@ -10,6 +10,10 @@ Parity testing will run equivalent deterministic fixtures against:
 The first milestone uses PSF2 and headless image adapters so pixel comparisons
 do not depend on native window capture or a presentation backend.
 
+Milestone 2 coverage and missing slices are tracked in
+[`LEDGER.md`](LEDGER.md). A structurally implemented behavior is not considered
+green until equivalent C/Odin evidence is recorded there.
+
 ## Small element fixtures
 
 ```sh
