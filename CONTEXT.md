@@ -186,7 +186,7 @@ only their module and must agree with this list.
 - [x] Migrate vertical and horizontal scrollbars.
 - [x] Migrate popup container scrolling and scrollbar event routing.
 - [x] Migrate remaining flow and alignment behavior.
-- [ ] Complete drop, resize, wheel, gamepad, and remaining event processing.
+- [x] Complete drop, resize, wheel, gamepad, and remaining event processing.
 - [ ] Migrate custom-form callbacks and lifecycle behavior.
 - [ ] Implement software cursor and PNG skin loading.
 

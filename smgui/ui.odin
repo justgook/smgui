@@ -23,7 +23,7 @@ Status:
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
   [x] Popup dragging, resizing, and container scrolling implemented
   [x] Reference flow breaks, offsets, wrapping, and alignment implemented
-  [ ] Remaining widget interaction and event processing implemented
+  [x] Wheel routing, event consumption, and drop/resize/gamepad passthrough implemented
   [ ] Remaining built-in widgets implemented
 
 Definition of done:
@@ -3972,38 +3972,74 @@ hovered_container_at :: proc(container: ^Form, x, y: int) -> ^Form {
 }
 
 @(private = "file")
+consume_event :: proc(event: ^Event) {
+	if event != nil {
+		event^ = {}
+	}
+}
+
+@(private = "file")
+is_wheel_event :: proc(event: ^Event) -> bool {
+	return event != nil && event.kind == .Mouse &&
+	       (.Direction_Up in event.buttons || .Direction_Down in event.buttons)
+}
+
+@(private = "file")
 process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
-	if event.kind == .Mouse || event.x != 0 || event.y != 0 {
+	if event.kind == .Mouse ||
+	   (event.kind == .Key && (event.x != 0 || event.y != 0)) {
 		ctx.mouse_x = event.x
 		ctx.mouse_y = event.y
 	}
 	if ctx.popup != nil {
+		error := Error.None
 		if ctx.popup.kind == .Select {
-			return process_select_popup_event(ctx, event)
+			error = process_select_popup_event(ctx, event)
+		} else if ctx.popup.kind == .Color {
+			error = process_color_popup_event(ctx, event)
 		}
-		if ctx.popup.kind == .Color {
-			return process_color_popup_event(ctx, event)
+		if error == .None {
+			consume_event(event)
 		}
+		return error
 	}
 	if event.kind == .Key {
 		update_hover(ctx, form)
 		if (key_text(&event.key) == "Escape" || key_text(&event.key) == "\e") &&
 		   ctx.menu != nil {
 			close_menu(ctx)
+			consume_event(event)
 			return .None
 		}
 		if ctx.text_field != nil {
-			return process_text_key(ctx, event)
+			error := process_text_key(ctx, event)
+			if error == .None {
+				consume_event(event)
+			}
+			return error
 		}
 		return .None
 	}
 	if event.kind != .Mouse {
 		return .None
 	}
+	if ctx.text_field != nil {
+		if .Released not_in event.buttons && .Mouse_Left in event.buttons {
+			if point_inside(ctx.text_field, event.x, event.y) {
+				move_text_cursor_to_mouse(ctx, ctx.text_field, event.x)
+			} else {
+				deactivate_text_input(ctx, true)
+			}
+		}
+		ctx.flags += {.Refresh}
+		consume_event(event)
+		return .None
+	}
 	if .Released in event.buttons && (ctx.dragged != nil || ctx.resized != nil) {
 		ctx.dragged = nil
 		ctx.resized = nil
 		ctx.flags += {.Refresh}
+		consume_event(event)
 		return .None
 	}
 	if ctx.dragged != nil {
@@ -4016,6 +4052,7 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.dragged.computed_x = new_x
 		ctx.dragged.computed_y = new_y
 		ctx.flags += {.Refresh}
+		consume_event(event)
 		return .None
 	}
 	if ctx.resized != nil {
@@ -4040,7 +4077,39 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.resized.computed_width = new_width
 		ctx.resized.computed_height = new_height
 		ctx.flags += {.Refresh, .Recalculate}
+		consume_event(event)
 		return .None
+	}
+	update_hover(ctx, form)
+	inside_overlay := ctx.menu != nil && point_inside(ctx.menu, event.x, event.y)
+	if !inside_overlay {
+		for &field in form {
+			if field.kind == .Popup && .Hidden not_in field.flags && point_inside(&field, event.x, event.y) {
+				inside_overlay = true
+				break
+			}
+		}
+	}
+	if is_wheel_event(event) && ctx.hovered != nil && .Disabled not_in ctx.hovered.flags {
+		direction := 1
+		if .Direction_Down in event.buttons && .Direction_Up not_in event.buttons &&
+		   ctx.hovered.kind != .Select && ctx.hovered.kind != .Option {
+			direction = -1
+		}
+		handled := true
+		#partial switch ctx.hovered.kind {
+		case .Select, .Option:
+			step_choice_input(ctx.hovered, direction)
+		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
+			step_numeric_input(ctx.hovered, direction)
+		case:
+			handled = false
+		}
+		if handled {
+			ctx.flags += {.Refresh}
+			consume_event(event)
+			return .None
+		}
 	}
 	if .Mouse_Left in event.buttons {
 		for reverse_index in 0 ..< len(form) {
@@ -4068,6 +4137,7 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 					ctx.drag_y = event.y - field.computed_y
 				}
 				ctx.flags += {.Refresh}
+				consume_event(event)
 				return .None
 			}
 			if .Resizable in field.flags &&
@@ -4077,6 +4147,7 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 				ctx.drag_x = field.computed_x + field.computed_width - event.x
 				ctx.drag_y = field.computed_y + field.computed_height - event.y
 				ctx.flags += {.Refresh}
+				consume_event(event)
 				return .None
 			}
 			break
@@ -4086,11 +4157,13 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			field := &form[index]
 			if field.kind == .Popup && .Hidden not_in field.flags && point_inside(field, event.x, event.y) &&
 			   begin_container_scrollbar_if_hit(ctx, field, event.x, event.y) {
+				consume_event(event)
 				return .None
 			}
 		}
 		if ctx.menu != nil && !point_inside(ctx.menu, event.x, event.y) {
 			close_menu(ctx)
+			consume_event(event)
 			return .None
 		}
 	}
@@ -4117,10 +4190,10 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			field.offset_x = clamp(field.offset_x, 0, max(field.minimum_width - field.source_width, 0))
 			field.offset_y = clamp(field.offset_y, 0, max(field.minimum_height - field.source_height, 0))
 			ctx.flags += {.Refresh, .Recalculate}
+			consume_event(event)
 			return .None
 		}
 	}
-	update_hover(ctx, form)
 	had_active_bar := ctx.horizontal_bar != nil || ctx.vertical_bar != nil
 	if ctx.horizontal_bar != nil {
 		if .Released in event.buttons {
@@ -4141,11 +4214,15 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 	}
 	if had_active_bar {
 		ctx.flags += {.Refresh}
+		consume_event(event)
 		return .None
 	}
 	if .Mouse_Left in event.buttons {
 		if ctx.hovered == nil || .Disabled in ctx.hovered.flags {
 			deactivate_text_input(ctx, true)
+			if inside_overlay {
+				consume_event(event)
+			}
 			return .None
 		}
 		if ctx.hovered.kind != .Text_Input && !is_numeric_input_kind(ctx.hovered.kind) {
@@ -4155,6 +4232,7 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			ctx.menu != nil &&
 			ctx.hovered != ctx.menu &&
 			form_contains(ctx.menu.children, ctx.hovered)
+		handled := true
 		#partial switch ctx.hovered.kind {
 		case .Toggle:
 			toggle_bound_container(ctx, ctx.hovered)
@@ -4210,12 +4288,17 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 				return error
 			}
 		case:
+			handled = false
 		}
 		if clicked_menu_item {
 			close_menu(ctx)
 		}
 		ctx.flags += {.Refresh}
+		if handled {
+			consume_event(event)
+		}
 	} else if .Released in event.buttons {
+		was_pressed := ctx.pressed != nil
 		if ctx.pressed != nil && ctx.pressed == ctx.hovered {
 			if ctx.pressed.kind == .Button {
 				activate_button(ctx.pressed)
@@ -4228,6 +4311,12 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.pressed = nil
 		ctx.pressed_part = 0
 		ctx.flags += {.Refresh}
+		if was_pressed {
+			consume_event(event)
+		}
+	}
+	if event.kind == .Mouse && .Mouse_Left in event.buttons && inside_overlay {
+		consume_event(event)
 	}
 	return .None
 }
@@ -4516,6 +4605,32 @@ step_choice_input :: proc(field: ^Form, direction: int) {
 	} else if value^ >= len(field.options) {
 		value^ = 0
 	}
+}
+
+@(private = "file")
+move_text_cursor_to_mouse :: proc(ctx: ^Context, field: ^Form, mouse_x: int) {
+	if ctx == nil || field == nil || ctx.font == nil || ctx.font_bounds == nil {
+		return
+	}
+	buffer, valid := active_text_buffer(ctx, field)
+	if !valid {
+		return
+	}
+	target := mouse_x - field.computed_x - 2
+	cursor := 0
+	for cursor <= len(buffer.data) {
+		width := 0
+		height, left, top: int
+		text := string(buffer.data[:cursor])
+		if ctx.font_bounds(ctx.font, text, &width, &height, &left, &top) != .None || width > target {
+			break
+		}
+		if cursor == len(buffer.data) {
+			break
+		}
+		cursor = next_codepoint(buffer.data[:], cursor)
+	}
+	ctx.text_cursor = clamp(cursor, 0, len(buffer.data))
 }
 
 @(private = "file")

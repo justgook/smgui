@@ -117,6 +117,7 @@ int main(int argc, char **argv)
     ui_form_t active_inputs[] = {
         { .type = UI_TEXT, .flags = UI_NOBR, .w = 130, .ptr = &text_value, .max = sizeof(text_value) },
         { .type = UI_SELECT, .flags = UI_NOBR, .x = 10, .m = 17, .w = 80, .ptr = &option_value, .optc = 3, .optv = options },
+        /* Wheel events over option and numeric inputs exercise control-first routing. */
         { .type = UI_OPTION, .flags = UI_NOBR, .x = 10, .m = 17, .w = 90, .ptr = &option_value, .optc = 3, .optv = options },
         { .type = UI_INT32, .flags = UI_NOBR, .x = 10, .m = 17, .w = 72, .ptr = &integer_value, .min = 1, .max = 32 },
         { .type = UI_FLOAT, .flags = UI_NOBR, .x = 10, .m = 17, .w = 100, .ptr = &float_value, .fmin = 1, .fmax = 32, .finc = 0.25f },

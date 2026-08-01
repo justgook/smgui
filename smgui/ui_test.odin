@@ -741,6 +741,9 @@ text_input_edits_utf8_at_the_cursor :: proc(t: ^testing.T) {
 	poll_for_test(t, &ctx, forms)
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 15, 15, {.Mouse_Left})
 	testing.expect(t, ctx.text_field != nil)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 12, 15, {.Mouse_Left})
+	testing.expect_value(t, ctx.text_cursor, 1)
+	send_key_for_test(t, &ctx, &backend_state, forms, "End")
 
 	send_key_for_test(t, &ctx, &backend_state, forms, "c")
 	send_key_for_test(t, &ctx, &backend_state, forms, "Left")
@@ -895,6 +898,78 @@ select_and_option_controls_choose_bound_values :: proc(t: ^testing.T) {
 	testing.expect_value(t, selected, 2)
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 15, 95, {.Mouse_Left})
 	testing.expect_value(t, selected, 1)
+}
+
+@(test)
+wheel_controls_consume_mouse_events_and_other_events_pass_through :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	if error := init(&ctx, test_backend(&backend_state), []string{"test"}, 160, 100); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer { _ = deinit(&ctx) }
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+		return
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+		return
+	}
+
+	choice := 0
+	number := 5
+	choices := []string{"zero", "one", "two"}
+	forms := []Form {
+		{kind = .Option, x = absolute(10), y = absolute(10), width = 80, height = 20, options = choices, binding = bind(&choice)},
+		{kind = .Integer_32, x = absolute(10), y = absolute(40), width = 80, height = 20, minimum = 0, maximum = 10, increment = 1, binding = bind(&number)},
+	}
+	poll_for_test(t, &ctx, forms)
+
+	backend_state.pending = {kind = .Mouse, buttons = {.Direction_Down}, x = 20, y = 15}
+	backend_state.has_event = true
+	returned, _, error := poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.None)
+	testing.expect_value(t, choice, 1)
+
+	backend_state.pending = {kind = .Mouse, buttons = {.Direction_Down}, x = 20, y = 45}
+	backend_state.has_event = true
+	returned, _, error = poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.None)
+	testing.expect_value(t, number, 4)
+
+	ctx.mouse_x, ctx.mouse_y = 7, 9
+	gamepad_event := Event{kind = .Gamepad, buttons = {.Gamepad_A}, x = 123, y = -456, right_x = 77, right_y = -88}
+	error = push_event(&ctx, gamepad_event)
+	testing.expect_value(t, error, Error.None)
+	returned, _, error = poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.Gamepad)
+	testing.expect_value(t, returned.x, 123)
+	testing.expect_value(t, returned.y, -456)
+	testing.expect_value(t, returned.right_x, 77)
+	testing.expect_value(t, returned.right_y, -88)
+	testing.expect_value(t, ctx.mouse_x, 7)
+	testing.expect_value(t, ctx.mouse_y, 9)
+
+	backend_state.pending = {kind = .Drop, file_name = "dropped.txt"}
+	backend_state.has_event = true
+	returned, _, error = poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.Drop)
+	testing.expect_value(t, returned.file_name, "dropped.txt")
+
+	backend_state.pending = {kind = .Resize, x = 320, y = 240}
+	backend_state.has_event = true
+	returned, _, error = poll_event(&ctx, forms)
+	testing.expect_value(t, error, Error.None)
+	testing.expect_value(t, returned.kind, Event_Kind.Resize)
+	testing.expect_value(t, returned.x, 320)
+	testing.expect_value(t, returned.y, 240)
 }
 
 @(test)

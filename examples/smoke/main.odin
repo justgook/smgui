@@ -129,6 +129,7 @@ main :: proc() {
 			binding = smgui.bind(&option_value),
 			options = options,
 		},
+		// Wheel events over option and numeric inputs exercise control-first routing.
 		{
 			kind = .Option,
 			flags = {.No_Break},
