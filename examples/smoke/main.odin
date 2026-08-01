@@ -43,6 +43,7 @@ main :: proc() {
 	integer_value := 26
 	option_value := 0
 	progress_value := 42
+	color_value: u32 = 0xffd06020
 	float_value: f32 = 3.141
 	text_value: smgui.Text_Buffer
 	if error := smgui.text_buffer_init(&text_value, "", 64); error != .None {
@@ -100,6 +101,7 @@ main :: proc() {
 		{kind = .Status, width = 160, text = "Ready"},
 		{kind = .Image, flags = {.No_Break}, width = 32, height = 16, icon = &sample_image},
 		{kind = .Icon, width = 32, height = 24, icon = &sample_image},
+		{kind = .Color, width = 100, binding = smgui.bind(&color_value)},
 	}
 	active_inputs := []smgui.Form {
 		{

@@ -63,6 +63,7 @@ int main(int argc, char **argv)
     int integer_value = 26;
     int option_value = 0;
     int64_t progress_value = 42;
+    uint32_t color_value = 0xffd06020;
     float float_value = 3.141f;
     char text_value[64] = { 0 };
     uint8_t image_pixels[] = {
@@ -100,6 +101,7 @@ int main(int argc, char **argv)
         { .type = UI_STATUS, .w = 160, .ptr = "Ready" },
         { .type = UI_IMAGE, .flags = UI_NOBR, .w = 32, .h = 16, .icon = &sample_image },
         { .type = UI_ICON, .w = 32, .h = 24, .icon = &sample_image },
+        { .type = UI_COLOR, .w = 100, .ptr = &color_value },
         { .type = UI_END }
     };
     ui_form_t active_inputs[] = {

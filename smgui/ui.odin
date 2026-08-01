@@ -11,8 +11,8 @@ Status:
   [x] Typed errors, slices, enums, and bit sets declared
   [x] Backend adapter seam declared
   [x] Framebuffer lifecycle and bounded event queue implemented
-  [x] Labels, multiline labels, status fields, images, icons, buttons, checkboxes, and radio buttons render
-  [x] Buttons, checkboxes, radio buttons, sliders, images, and icons mutate bound state
+  [x] Labels, multiline labels, status fields, images, icons, color inputs, buttons, checkboxes, and radio buttons render
+  [x] Buttons, checkboxes, radio buttons, sliders, images, icons, and color inputs mutate bound state
   [x] Integer/float displays, sliders, and progress bars render
   [x] UTF-8 text input, cursor editing, and input filters implemented
   [x] Integer and floating-point text/stepper inputs implemented
@@ -555,6 +555,14 @@ Context :: struct {
 	popup_y:        int,
 	popup_width:    int,
 	popup_height:   int,
+	color:          u32,
+	color_history:  [16]u32,
+	color_hue:      int,
+	color_saturation: int,
+	color_value:    int,
+	color_mode:     int,
+	color_edit:     [8]u8,
+	color_cursor:   int,
 	drag_x:         int,
 	drag_y:         int,
 	default_size:   int,
@@ -622,6 +630,7 @@ percent :: proc(value: int, offset: int = 0) -> Position {
 bind :: proc {
 	bind_boolean,
 	bind_integer,
+	bind_color,
 	bind_float,
 	bind_text,
 	bind_form,
@@ -633,6 +642,10 @@ bind_boolean :: proc(value: ^bool) -> Binding {
 
 bind_integer :: proc(value: ^int) -> Binding {
 	return {kind = .Integer, data = value}
+}
+
+bind_color :: proc(value: ^u32) -> Binding {
+	return {kind = .Color, data = value}
 }
 
 bind_float :: proc(value: ^f32) -> Binding {
@@ -884,9 +897,15 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 	if error := draw_overlay_containers(ctx, form); error != .None {
 		return error
 	}
-	if ctx.popup != nil && ctx.popup.kind == .Select {
-		if error := draw_select_popup(ctx, ctx.popup); error != .None {
-			return error
+	if ctx.popup != nil {
+		if ctx.popup.kind == .Select {
+			if error := draw_select_popup(ctx, ctx.popup); error != .None {
+				return error
+			}
+		} else if ctx.popup.kind == .Color {
+			if error := draw_color_popup(ctx, ctx.popup); error != .None {
+				return error
+			}
 		}
 	}
 	ctx.flags -= {.Refresh, .Recalculate}
@@ -1178,6 +1197,31 @@ measure_form :: proc(
 		}
 	case .Icon:
 		// UI_ICON has no intrinsic size; its explicit box controls scaling.
+	case .Color:
+		if field.binding.kind != .Color || field.binding.data == nil ||
+		   ctx.font == nil || ctx.font_bounds == nil {
+			return 0, 0, .Invalid_Input
+		}
+		text_width, text_height, left, top: int
+		if bounds_error := ctx.font_bounds(
+			ctx.font,
+			"FFFFFFFF",
+			&text_width,
+			&text_height,
+			&left,
+			&top,
+		); bounds_error != .None {
+			return 0, 0, bounds_error
+		}
+		field.left = left
+		field.top = top
+		intrinsic_height := text_height + 4
+		if width < 1 {
+			width = text_width + intrinsic_height
+		}
+		if height < 1 {
+			height = intrinsic_height
+		}
 	case .Toggle:
 		text_width, text_height, left, top, error := measure_label(ctx, field)
 		if error != .None {
@@ -1677,6 +1721,10 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			draw_image(ctx, &field)
 		case .Icon:
 			draw_icon(ctx, &field)
+		case .Color:
+			if error := draw_color_input(ctx, &field); error != .None {
+				return error
+			}
 		case .Button:
 			if error := draw_button(ctx, &field); error != .None {
 				return error
@@ -2068,6 +2116,247 @@ draw_icon :: proc(ctx: ^Context, field: ^Form) {
 			blend_pixel(ctx, pixel_x, pixel_y, blue | green << 8 | red << 16 | alpha << 24)
 		}
 	}
+}
+
+@(private = "file")
+draw_checker :: proc(ctx: ^Context, x, y, width, height: int, color: u32) {
+	if width < 1 || height < 1 {
+		return
+	}
+	cell := min(width, height) / 2
+	if cell < 1 {
+		cell = 1
+	}
+	alpha := u32(u8(color >> 24))
+	inverse := 255 - alpha
+	blue := u32(u8(color)) * alpha
+	green := u32(u8(color >> 8)) * alpha
+	red := u32(u8(color >> 16)) * alpha
+	for row in 0 ..< height {
+		for column in 0 ..< width {
+			shade: u32 = 0x5f
+			if ((row / cell) & 1) != ((column / cell) & 1) {
+				shade = 0x9f
+			}
+			set_pixel(
+				ctx,
+				x + column,
+				y + row,
+				u32(0xff000000) |
+					((blue + inverse * shade) >> 8) |
+					((green + inverse * shade) >> 8) << 8 |
+					((red + inverse * shade) >> 8) << 16,
+			)
+		}
+	}
+}
+
+@(private = "file")
+bound_color :: proc(field: ^Form) -> (^u32, bool) {
+	if field == nil || field.binding.kind != .Color || field.binding.data == nil {
+		return nil, false
+	}
+	return (^u32)(field.binding.data), true
+}
+
+@(private = "file")
+draw_color_input :: proc(ctx: ^Context, field: ^Form) -> Error {
+	value, valid := bound_color(field)
+	if !valid || ctx.font == nil || ctx.font_draw == nil {
+		return .Invalid_Input
+	}
+	x, y := field.computed_x, field.computed_y
+	width, height := field.computed_width, field.computed_height
+	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
+	if .Selected in field.flags {
+		dark = ctx.theme[int(Theme_Color.Button_Selected_Border)]
+		light = dark
+	}
+	if .Disabled in field.flags {
+		dark = ctx.theme[int(Theme_Color.Disabled_Background)]
+		light = dark
+		background = dark
+		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+	}
+	if .No_Border not_in field.flags {
+		draw_outline_rectangle(ctx, x, y, width, height, dark, background, light)
+		x += 1
+		y += 1
+		width -= 2
+		height -= 2
+	} else {
+		fill_rectangle(ctx, x, y, width, height, background)
+	}
+	checker_color := value^
+	if .Disabled in field.flags {
+		checker_color = foreground
+	}
+	draw_checker(ctx, x + 2, y + 2, height - 4, height - 4, checker_color)
+	text := fmt.tprintf("%08x", value^)
+	return ctx.font_draw(
+		ctx.font,
+		text,
+		ctx.screen.pixels,
+		foreground,
+		x + height - field.left,
+		y + 1,
+		field.left,
+		field.top,
+		ctx.screen.pitch,
+		x + height,
+		y + 1,
+		min(x + width - 2, ctx.screen.width),
+		min(y + height - 2, ctx.screen.height),
+	)
+}
+
+@(private = "file")
+rgb_to_hsv :: proc(color: u32) -> (hue, saturation, value: int) {
+	red := int(u8(color >> 16))
+	green := int(u8(color >> 8))
+	blue := int(u8(color))
+	minimum := min(red, min(green, blue))
+	value = max(red, max(green, blue))
+	delta := value - minimum
+	if value == 0 {
+		return 0, 0, value
+	}
+	saturation = delta * 255 / value
+	if saturation == 0 {
+		return 0, saturation, value
+	}
+	if red == value {
+		hue = 43 * (green - blue) / delta
+	} else if green == value {
+		hue = 85 + 43 * (blue - red) / delta
+	} else {
+		hue = 171 + 43 * (red - green) / delta
+	}
+	if hue < 0 {
+		hue += 256
+	}
+	return
+}
+
+@(private = "file")
+hsv_to_rgb :: proc(alpha, hue, saturation, value: int) -> u32 {
+	red, green, blue := value, value, value
+	if saturation != 0 {
+		sector := 0
+		if hue <= 255 {
+			sector = hue / 43
+		}
+		fraction := (hue - sector * 43) * 6
+		p := (value * (255 - saturation) + 127) >> 8
+		q := (value * (255 - ((saturation * fraction + 127) >> 8)) + 127) >> 8
+		t := (value * (255 - ((saturation * (255 - fraction) + 127) >> 8)) + 127) >> 8
+		switch sector {
+		case 0: red, green, blue = value, t, p
+		case 1: red, green, blue = q, value, p
+		case 2: red, green, blue = p, value, t
+		case 3: red, green, blue = p, q, value
+		case 4: red, green, blue = t, p, value
+		case:   red, green, blue = value, p, q
+		}
+	}
+	return u32(alpha & 255) << 24 | u32(red) << 16 | u32(green) << 8 | u32(blue)
+}
+
+@(private = "file")
+color_edit_string :: proc(ctx: ^Context) -> string {
+	return string(ctx.color_edit[:])
+}
+
+@(private = "file")
+set_color_edit :: proc(ctx: ^Context) {
+	text := fmt.tprintf("%08x", ctx.color)
+	copy(ctx.color_edit[:], transmute([]u8)(text))
+	ctx.color_cursor = 8
+}
+
+@(private = "file")
+parse_color_edit :: proc(ctx: ^Context) {
+	value: u32
+	for character in ctx.color_edit {
+		value <<= 4
+		switch {
+		case character >= '0' && character <= '9': value |= u32(character - '0')
+		case character >= 'a' && character <= 'f': value |= u32(character - 'a' + 10)
+		case character >= 'A' && character <= 'F': value |= u32(character - 'A' + 10)
+		case:
+		}
+	}
+	ctx.color = value
+	ctx.color_hue, ctx.color_saturation, ctx.color_value = rgb_to_hsv(value)
+}
+
+@(private = "file")
+draw_color_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
+	x, y := ctx.popup_x, ctx.popup_y
+	width, height := ctx.popup_width, ctx.popup_height
+	if width < 312 || height < 272 {
+		return .Invalid_Input
+	}
+	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	background := ctx.theme[int(Theme_Color.Input_Background)]
+	if .No_Border not_in field.flags {
+		draw_outline_rectangle(ctx, x, y, width, height, dark, background, dark)
+		x += 1
+		y += 1
+		width -= 2
+		height -= 2
+		if .No_Shadow not_in field.flags {
+			fill_rectangle(ctx, x + width + 1, y + 3, 4, height - 2, ctx.theme[int(Theme_Color.Shadow)])
+			fill_rectangle(ctx, x + 3, y + height + 1, width + 2, 4, ctx.theme[int(Theme_Color.Shadow)])
+		}
+	} else {
+		fill_rectangle(ctx, x, y, width, height, background)
+	}
+	checker_width := max(field.computed_height - 6, 1)
+	draw_checker(ctx, x + 3, y + 3, checker_width, checker_width, ctx.color)
+	if ctx.font_draw != nil {
+		if error := ctx.font_draw(
+			ctx.font,
+			color_edit_string(ctx),
+			ctx.screen.pixels,
+			ctx.theme[int(Theme_Color.Input_Selected_Foreground)],
+			x + checker_width + 5 - field.left,
+			y + 2,
+			field.left,
+			field.top,
+			ctx.screen.pitch,
+			x + checker_width + 5,
+			y + 1,
+			min(x + width - 2, ctx.screen.width),
+			min(y + field.computed_height + 2, ctx.screen.height),
+		); error != .None {
+			return error
+		}
+	}
+	picker_y := y + field.computed_height + 8
+	for index in 0 ..< 16 {
+		draw_checker(ctx, x + 3, picker_y + index * 16 + 2, 12, 12, ctx.color_history[index])
+	}
+	for row in 0 ..< 256 {
+		preview := ctx.color & 0x00ffffff | u32(255 - row) << 24
+		draw_checker(ctx, x + 22, picker_y + row, 16, 1, preview)
+		for column in 0 ..< 256 {
+			color := hsv_to_rgb(255, ctx.color_hue, column, 255 - row)
+			if column == ctx.color_saturation || 255 - row == ctx.color_value {
+				color = ctx.theme[int(Theme_Color.Input_Cursor)]
+			}
+			set_pixel(ctx, x + 40 + column, picker_y + row, color)
+		}
+		hue_color := hsv_to_rgb(255, row, 255, 255)
+		if row == ctx.color_hue {
+			hue_color = ctx.theme[int(Theme_Color.Input_Cursor)]
+		}
+		fill_rectangle(ctx, x + 298, picker_y + row, 16, 1, hue_color)
+	}
+	return .None
 }
 
 @(private = "file")
@@ -3350,8 +3639,13 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		ctx.mouse_x = event.x
 		ctx.mouse_y = event.y
 	}
-	if ctx.popup != nil && ctx.popup.kind == .Select {
-		return process_select_popup_event(ctx, event)
+	if ctx.popup != nil {
+		if ctx.popup.kind == .Select {
+			return process_select_popup_event(ctx, event)
+		}
+		if ctx.popup.kind == .Color {
+			return process_color_popup_event(ctx, event)
+		}
 	}
 	if event.kind == .Key {
 		update_hover(ctx, form)
@@ -3506,6 +3800,8 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 			}
 		case .Image, .Icon:
 			activate_image_field(ctx.hovered)
+		case .Color:
+			open_color_popup(ctx, ctx.hovered)
 		case .Integer_8, .Integer_16, .Integer_32, .Integer_64, .Float_Input:
 			if event.x < ctx.hovered.computed_x + ctx.hovered.computed_height {
 				deactivate_text_input(ctx, true)
@@ -3537,6 +3833,160 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		}
 		ctx.pressed = nil
 		ctx.pressed_part = 0
+		ctx.flags += {.Refresh}
+	}
+	return .None
+}
+
+@(private = "file")
+open_color_popup :: proc(ctx: ^Context, field: ^Form) {
+	value, valid := bound_color(field)
+	if ctx == nil || !valid {
+		return
+	}
+	ctx.color = value^
+	ctx.color_hue, ctx.color_saturation, ctx.color_value = rgb_to_hsv(ctx.color)
+	ctx.color_mode = 0
+	set_color_edit(ctx)
+	ctx.popup = field
+	ctx.popup_x = field.computed_x
+	ctx.popup_y = field.computed_y
+	ctx.popup_width = 324
+	ctx.popup_height = field.computed_height + 272
+	if ctx.popup_x + ctx.popup_width + 2 >= ctx.screen.width {
+		ctx.popup_x = ctx.screen.width - ctx.popup_width - 2
+	}
+	if ctx.popup_y + ctx.popup_height + 2 >= ctx.screen.height {
+		ctx.popup_y = ctx.screen.height - ctx.popup_height - 2
+	}
+	if ctx.popup_x < 0 {
+		ctx.popup_width += ctx.popup_x
+		ctx.popup_x = 0
+	}
+	if ctx.popup_y < 0 {
+		ctx.popup_height += ctx.popup_y
+		ctx.popup_y = 0
+	}
+	ctx.flags += {.Refresh}
+}
+
+@(private = "file")
+close_color_popup :: proc(ctx: ^Context, commit: bool) {
+	if ctx == nil || ctx.popup == nil || ctx.popup.kind != .Color {
+		return
+	}
+	if commit {
+		if value, valid := bound_color(ctx.popup); valid {
+			index := 0
+			for index < len(ctx.color_history) && ctx.color_history[index] != ctx.color {
+				index += 1
+			}
+			if index > 0 {
+				limit := min(index, len(ctx.color_history) - 1)
+				for reverse in 0 ..< limit {
+					position := limit - reverse
+					ctx.color_history[position] = ctx.color_history[position - 1]
+				}
+			}
+			ctx.color_history[0] = ctx.color
+			value^ = ctx.color
+		}
+	}
+	ctx.popup = nil
+	ctx.color_mode = 0
+	ctx.flags += {.Refresh}
+}
+
+@(private = "file")
+process_color_popup_event :: proc(ctx: ^Context, event: ^Event) -> Error {
+	field := ctx.popup
+	if field == nil || field.kind != .Color || event == nil {
+		return .Invalid_Input
+	}
+	if event.kind == .Key {
+		key := key_text(&event.key)
+		if key == "Escape" || key == "\e" {
+			close_color_popup(ctx, false)
+			return .None
+		}
+		if key == "Enter" || key == "\n" || key == "\r" {
+			parse_color_edit(ctx)
+			close_color_popup(ctx, true)
+			return .None
+		}
+		if key == "Backspace" || key == "\b" {
+			if ctx.color_cursor > 0 {
+				ctx.color_cursor -= 1
+				ctx.color_edit[ctx.color_cursor] = '0'
+				parse_color_edit(ctx)
+			}
+			ctx.flags += {.Refresh}
+			return .None
+		}
+		for character in key {
+			is_hex := (character >= '0' && character <= '9') ||
+			          (character >= 'a' && character <= 'f') ||
+			          (character >= 'A' && character <= 'F')
+			if is_hex {
+				if ctx.color_cursor >= len(ctx.color_edit) {
+					ctx.color_cursor = 0
+				}
+				ctx.color_edit[ctx.color_cursor] = u8(character)
+				ctx.color_cursor += 1
+			}
+		}
+		parse_color_edit(ctx)
+		ctx.flags += {.Refresh}
+		return .None
+	}
+	if event.kind != .Mouse {
+		return .None
+	}
+	inside := event.x >= ctx.popup_x && event.x < ctx.popup_x + ctx.popup_width &&
+	          event.y >= ctx.popup_y && event.y < ctx.popup_y + ctx.popup_height
+	if .Mouse_Left in event.buttons && !inside {
+		close_color_popup(ctx, false)
+		return .None
+	}
+	picker_y := ctx.popup_y + field.computed_height + 8
+	picker_x := event.x - ctx.popup_x - 2
+	picker_y_offset := event.y - picker_y
+	if .Released in event.buttons {
+		ctx.color_mode = 0
+		return .None
+	}
+	if .Mouse_Left in event.buttons && picker_y_offset >= 0 && picker_y_offset < 256 {
+		switch {
+		case picker_x < 16:
+			ctx.color_mode = 1
+		case picker_x >= 20 && picker_x < 36:
+			ctx.color_mode = 2
+		case picker_x >= 38 && picker_x < 294:
+			ctx.color_mode = 3
+		case picker_x >= 296 && picker_x < 312:
+			ctx.color_mode = 4
+		}
+	}
+	if ctx.color_mode != 0 {
+		saturation := clamp(event.x - ctx.popup_x - 40, 0, 255)
+		picker_y_offset = clamp(picker_y_offset, 0, 255)
+		switch ctx.color_mode {
+		case 1:
+			ctx.color = ctx.color_history[picker_y_offset >> 4]
+			ctx.color_hue, ctx.color_saturation, ctx.color_value = rgb_to_hsv(ctx.color)
+			ctx.color_mode = 0
+		case 2:
+			ctx.color = ctx.color & 0x00ffffff | u32(255 - picker_y_offset) << 24
+		case 3:
+			ctx.color_saturation = saturation
+			ctx.color_value = 255 - picker_y_offset
+			ctx.color = hsv_to_rgb(int(u8(ctx.color >> 24)), ctx.color_hue, ctx.color_saturation, ctx.color_value)
+		case 4:
+			ctx.color_hue = picker_y_offset
+			ctx.color = hsv_to_rgb(int(u8(ctx.color >> 24)), ctx.color_hue, ctx.color_saturation, ctx.color_value)
+		case:
+		}
+		set_color_edit(ctx)
 		ctx.flags += {.Refresh}
 	}
 	return .None

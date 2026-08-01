@@ -180,7 +180,7 @@ only their module and must agree with this list.
 
 - [x] Migrate multiline labels and status fields.
 - [x] Migrate image and icon fields.
-- [ ] Migrate color input.
+- [x] Migrate color input.
 - [ ] Migrate toggle buttons and icon buttons.
 - [ ] Migrate line, connector, and curve drawing fields.
 - [ ] Migrate vertical and horizontal scrollbars.

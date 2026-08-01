@@ -206,6 +206,48 @@ image_and_icon_fields_render_and_activate :: proc(t: ^testing.T) {
 }
 
 @(test)
+color_input_opens_picker_and_commits_selection :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 400, 320); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	font := 1
+	if error := set_font_hooks(&ctx, test_font_bounds, test_font_draw); error != .None {
+		testing.expectf(t, false, "set_font_hooks failed: %v", error)
+		return
+	}
+	if error := set_font(&ctx, &font); error != .None {
+		testing.expectf(t, false, "set_font failed: %v", error)
+		return
+	}
+	color: u32 = 0xffff0000
+	forms := []Form{{kind = .Color, binding = bind(&color)}}
+	poll_for_test(t, &ctx, forms)
+	testing.expect_value(t, forms[0].computed_width, 92)
+	testing.expect_value(t, forms[0].computed_height, 20)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 1, 1, {.Mouse_Left})
+	testing.expect(t, ctx.popup == &forms[0])
+	original := color
+	// Select the center of the saturation/value square, then commit with Enter.
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 40 + 128, 20 + 8 + 128, {.Mouse_Left})
+	testing.expect(t, ctx.color != original)
+	testing.expect_value(t, color, original)
+	send_key_for_test(t, &ctx, &backend_state, forms, "Enter")
+	testing.expect(t, ctx.popup == nil)
+	testing.expect(t, color != original)
+	testing.expect_value(t, ctx.color_history[0], color)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context
