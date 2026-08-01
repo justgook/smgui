@@ -18,6 +18,7 @@ Status:
   [x] Integer and floating-point text/stepper inputs implemented
   [x] Select dropdowns and option steppers implemented
   [x] Line, connector, and curve drawing primitives implemented
+  [x] Standalone vertical and horizontal scrollbars implemented
   [x] Relative flow layout and division containers implemented
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
   [x] Popup dragging and resizing implemented
@@ -549,6 +550,12 @@ Context :: struct {
 	pressed_part:   i8,
 	vertical_bar:   ^Form,
 	horizontal_bar: ^Form,
+	scrollbar_width: int,
+	scrollbar_height: int,
+	scrollbar_grab: int,
+	scrollbar_start: int,
+	scrollbar_end: int,
+	scrollbar_range: int,
 	text_field:     ^Form,
 	text_cursor:    int,
 	edit_buffer:    Text_Buffer,
@@ -714,6 +721,20 @@ set_skin :: proc(ctx: ^Context, skin: []Image) -> Error {
 		return .Invalid_Input
 	}
 	copy(ctx.skin[:], skin)
+	ctx.scrollbar_width = max(
+		ctx.skin[int(Skin_Image.Vertical_Scrollbar_Button_Top)].width,
+		max(
+			ctx.skin[int(Skin_Image.Vertical_Scrollbar_Button_Middle)].width,
+			ctx.skin[int(Skin_Image.Vertical_Scrollbar_Button_Bottom)].width,
+		),
+	)
+	ctx.scrollbar_height = max(
+		ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Left)].height,
+		max(
+			ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Middle)].height,
+			ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Right)].height,
+		),
+	)
 	return refresh(ctx)
 }
 
@@ -799,6 +820,8 @@ init :: proc(
 	ctx.backend = backend
 	ctx.texts = texts
 	ctx.theme = DEFAULT_THEME
+	ctx.scrollbar_width = 10
+	ctx.scrollbar_height = 10
 	ctx.flags = {.Refresh, .Recalculate}
 
 	if error := ctx.backend.init(ctx.backend.data, ctx, texts[0], width, height, icon);
@@ -1393,6 +1416,12 @@ measure_form :: proc(
 		if height < 1 {
 			height = 20
 		}
+	case .Vertical_Scrollbar:
+		width = ctx.scrollbar_width
+		height = max(height, ctx.scrollbar_height)
+	case .Horizontal_Scrollbar:
+		width = max(width, ctx.scrollbar_width)
+		height = ctx.scrollbar_height
 	case .Decimal_8,
 	     .Decimal_16,
 	     .Decimal_32,
@@ -1776,6 +1805,8 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			}
 		case .Slider:
 			draw_slider(ctx, &field)
+		case .Vertical_Scrollbar, .Horizontal_Scrollbar:
+			draw_scrollbar(ctx, &field)
 		case .Progress_Bar:
 			if error := draw_progress_bar(ctx, &field); error != .None {
 				return error
@@ -2042,27 +2073,40 @@ blend_image_pixel :: proc(ctx: ^Context, x, y: int, image: ^Image, source_x, sou
 }
 
 @(private = "file")
-draw_image :: proc(ctx: ^Context, field: ^Form) {
-	if !image_valid(field.icon) {
+blit_tiled_image :: proc(ctx: ^Context, x, y, width, height: int, image: ^Image, grayscale: bool) {
+	if !image_valid(image) || width < 1 || height < 1 {
 		return
 	}
-	x0 := clamp(field.computed_x, 0, ctx.screen.width)
-	y0 := clamp(field.computed_y, 0, ctx.screen.height)
-	x1 := clamp(field.computed_x + field.computed_width, 0, ctx.screen.width)
-	y1 := clamp(field.computed_y + field.computed_height, 0, ctx.screen.height)
-	for y in y0 ..< y1 {
-		for x in x0 ..< x1 {
+	x0 := clamp(x, 0, ctx.screen.width)
+	y0 := clamp(y, 0, ctx.screen.height)
+	x1 := clamp(x + width, 0, ctx.screen.width)
+	y1 := clamp(y + height, 0, ctx.screen.height)
+	for destination_y in y0 ..< y1 {
+		for destination_x in x0 ..< x1 {
 			blend_image_pixel(
 				ctx,
-				x,
-				y,
-				field.icon,
-				(x - field.computed_x) % field.icon.width,
-				(y - field.computed_y) % field.icon.height,
-				.Disabled in field.flags,
+				destination_x,
+				destination_y,
+				image,
+				(destination_x - x) % image.width,
+				(destination_y - y) % image.height,
+				grayscale,
 			)
 		}
 	}
+}
+
+@(private = "file")
+draw_image :: proc(ctx: ^Context, field: ^Form) {
+	blit_tiled_image(
+		ctx,
+		field.computed_x,
+		field.computed_y,
+		field.computed_width,
+		field.computed_height,
+		field.icon,
+		.Disabled in field.flags,
+	)
 }
 
 @(private = "file")
@@ -3365,6 +3409,96 @@ draw_slider :: proc(ctx: ^Context, field: ^Form) {
 }
 
 @(private = "file")
+scrollbar_metrics :: proc(size, current, maximum, minimum_thumb: int) -> (position, thumb: int) {
+	clamped_current := clamp(current, 0, max(maximum, 0))
+	if size >= maximum || maximum < 1 {
+		return 0, max(size, 0)
+	}
+	thumb = size * size / maximum
+	thumb = max(thumb, minimum_thumb)
+	position = (size - thumb) * clamped_current / max(maximum - size, 1)
+	return
+}
+
+@(private = "file")
+draw_scrollbar :: proc(ctx: ^Context, field: ^Form) {
+	vertical := field.kind == .Vertical_Scrollbar
+	size := field.computed_width
+	thickness := ctx.scrollbar_height
+	if vertical {
+		size = field.computed_height
+		thickness = ctx.scrollbar_width
+	}
+	if size < 1 || thickness < 1 {
+		return
+	}
+	value, valid := bound_integer(field)
+	if !valid {
+		value = 0
+	}
+	position, thumb := scrollbar_metrics(size, value, int(field.maximum), thickness)
+	disabled := .Disabled in field.flags
+	if vertical && image_valid(&ctx.skin[int(Skin_Image.Vertical_Scrollbar_Button_Middle)]) {
+		track_top := &ctx.skin[int(Skin_Image.Vertical_Scrollbar_Top)]
+		track_middle := &ctx.skin[int(Skin_Image.Vertical_Scrollbar_Middle)]
+		track_bottom := &ctx.skin[int(Skin_Image.Vertical_Scrollbar_Bottom)]
+		button_top := &ctx.skin[int(Skin_Image.Vertical_Scrollbar_Button_Top)]
+		button_middle := &ctx.skin[int(Skin_Image.Vertical_Scrollbar_Button_Middle)]
+		button_bottom := &ctx.skin[int(Skin_Image.Vertical_Scrollbar_Button_Bottom)]
+		x, y := field.computed_x, field.computed_y
+		blit_tiled_image(ctx, x + (thickness - track_top.width) / 2, y, track_top.width, track_top.height, track_top, disabled)
+		blit_tiled_image(ctx, x + (thickness - track_middle.width) / 2, y + track_top.height, track_middle.width, size - track_top.height - track_bottom.height, track_middle, disabled)
+		blit_tiled_image(ctx, x + (thickness - track_bottom.width) / 2, y + size - track_bottom.height, track_bottom.width, track_bottom.height, track_bottom, disabled)
+		blit_tiled_image(ctx, x + (thickness - button_top.width) / 2, y + position, button_top.width, button_top.height, button_top, disabled)
+		blit_tiled_image(ctx, x + (thickness - button_middle.width) / 2, y + position + button_top.height, button_middle.width, thumb - button_top.height - button_bottom.height, button_middle, disabled)
+		blit_tiled_image(ctx, x + (thickness - button_bottom.width) / 2, y + position + thumb - button_bottom.height, button_bottom.width, button_bottom.height, button_bottom, disabled)
+		return
+	}
+	if !vertical && image_valid(&ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Middle)]) {
+		track_left := &ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Left)]
+		track_middle := &ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Middle)]
+		track_right := &ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Right)]
+		button_left := &ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Left)]
+		button_middle := &ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Middle)]
+		button_right := &ctx.skin[int(Skin_Image.Horizontal_Scrollbar_Button_Right)]
+		x, y := field.computed_x, field.computed_y
+		blit_tiled_image(ctx, x, y + (thickness - track_left.height) / 2, track_left.width, track_left.height, track_left, disabled)
+		blit_tiled_image(ctx, x + track_left.width, y + (thickness - track_middle.height) / 2, size - track_left.width - track_right.width, track_middle.height, track_middle, disabled)
+		blit_tiled_image(ctx, x + size - track_right.width, y + (thickness - track_right.height) / 2, track_right.width, track_right.height, track_right, disabled)
+		blit_tiled_image(ctx, x + position, y + (thickness - button_left.height) / 2, button_left.width, button_left.height, button_left, disabled)
+		blit_tiled_image(ctx, x + position + button_left.width, y + (thickness - button_middle.height) / 2, thumb - button_left.width - button_right.width, button_middle.height, button_middle, disabled)
+		blit_tiled_image(ctx, x + position + thumb - button_right.width, y + (thickness - button_right.height) / 2, button_right.width, button_right.height, button_right, disabled)
+		return
+	}
+	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
+	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
+	track := ctx.theme[int(Theme_Color.Scrollbar_Background)]
+	button := ctx.theme[int(Theme_Color.Button_Light_Background)]
+	active := ctx.vertical_bar == field || ctx.horizontal_bar == field
+	if active {
+		light, dark = dark, light
+	}
+	if disabled {
+		track = ctx.theme[int(Theme_Color.Disabled_Background)]
+		light = ctx.theme[int(Theme_Color.Disabled_Foreground)]
+		dark = light
+		button = light
+	}
+	x, y := field.computed_x, field.computed_y
+	if vertical {
+		fill_rectangle(ctx, x, y, thickness, position, track)
+		draw_outline_rectangle(ctx, x, y + position, thickness, thumb, light, button, dark)
+		fill_rectangle(ctx, x + 1, y + position + 1, thickness - 2, thumb - 2, button)
+		fill_rectangle(ctx, x, y + position + thumb, thickness, size - position - thumb, track)
+	} else {
+		fill_rectangle(ctx, x, y, position, thickness, track)
+		draw_outline_rectangle(ctx, x + position, y, thumb, thickness, light, button, dark)
+		fill_rectangle(ctx, x + position + 1, y + 1, thumb - 2, thickness - 2, button)
+		fill_rectangle(ctx, x + position + thumb, y, size - position - thumb, thickness, track)
+	}
+}
+
+@(private = "file")
 draw_monochrome_radio :: proc(ctx: ^Context, x, y: int, color: u32) {
 	base_x, base_y := x - 5, y - 5
 	for row in 0 ..= 8 {
@@ -3831,13 +3965,27 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		}
 	}
 	update_hover(ctx, form)
+	had_active_bar := ctx.horizontal_bar != nil || ctx.vertical_bar != nil
 	if ctx.horizontal_bar != nil {
 		if .Released in event.buttons {
 			ctx.horizontal_bar = nil
-		} else {
+		} else if ctx.horizontal_bar.kind == .Slider {
 			update_slider(ctx.horizontal_bar, event.x)
 			ctx.flags += {.Refresh}
+		} else {
+			update_scrollbar(ctx, event.x)
 		}
+	}
+	if ctx.vertical_bar != nil {
+		if .Released in event.buttons {
+			ctx.vertical_bar = nil
+		} else {
+			update_scrollbar(ctx, event.y)
+		}
+	}
+	if had_active_bar {
+		ctx.flags += {.Refresh}
+		return .None
 	}
 	if .Mouse_Left in event.buttons {
 		if ctx.hovered == nil || .Disabled in ctx.hovered.flags {
@@ -3865,6 +4013,10 @@ process_event :: proc(ctx: ^Context, form: []Form, event: ^Event) -> Error {
 		case .Slider:
 			ctx.horizontal_bar = ctx.hovered
 			update_slider(ctx.hovered, event.x)
+		case .Horizontal_Scrollbar:
+			begin_scrollbar(ctx, ctx.hovered, event.x)
+		case .Vertical_Scrollbar:
+			begin_scrollbar(ctx, ctx.hovered, event.y)
 		case .Text_Input:
 			activate_text_input(ctx, ctx.hovered)
 		case .Select:
@@ -4509,6 +4661,58 @@ text_allowed :: proc(filter: Text_Filter, existing: []u8, text: string) -> bool 
 		return len(existing) > 0 || character != ' '
 	}
 	return false
+}
+
+@(private = "file")
+begin_scrollbar :: proc(ctx: ^Context, field: ^Form, mouse_position: int) {
+	if ctx == nil || field == nil {
+		return
+	}
+	vertical := field.kind == .Vertical_Scrollbar
+	size := field.computed_width
+	minimum_thumb := ctx.scrollbar_height
+	origin := field.computed_x
+	if vertical {
+		size = field.computed_height
+		minimum_thumb = ctx.scrollbar_width
+		origin = field.computed_y
+		ctx.vertical_bar = field
+	} else {
+		ctx.horizontal_bar = field
+	}
+	value, valid := bound_integer(field)
+	if !valid {
+		value = 0
+	}
+	position, thumb := scrollbar_metrics(size, value, int(field.maximum), minimum_thumb)
+	if mouse_position >= origin + position && mouse_position < origin + position + thumb {
+		ctx.scrollbar_grab = mouse_position - origin - position
+	} else {
+		ctx.scrollbar_grab = thumb / 2
+	}
+	ctx.scrollbar_range = int(field.maximum) - size
+	ctx.scrollbar_start = origin
+	ctx.scrollbar_end = origin + size - thumb + ctx.scrollbar_grab
+	update_scrollbar(ctx, mouse_position)
+}
+
+@(private = "file")
+update_scrollbar :: proc(ctx: ^Context, mouse_position: int) {
+	field := ctx.horizontal_bar
+	if field == nil {
+		field = ctx.vertical_bar
+	}
+	if field == nil || field.binding.kind != .Integer || field.binding.data == nil ||
+	   ctx.scrollbar_range <= 0 {
+		return
+	}
+	position := mouse_position - ctx.scrollbar_grab + 1
+	position = min(position, ctx.scrollbar_end)
+	position = max(position - ctx.scrollbar_start, 0)
+	track := max(ctx.scrollbar_end - ctx.scrollbar_start - ctx.scrollbar_grab, 1)
+	value := min(position * ctx.scrollbar_range / track, ctx.scrollbar_range)
+	((^int)(field.binding.data))^ = value
+	ctx.flags += {.Refresh}
 }
 
 @(private = "file")

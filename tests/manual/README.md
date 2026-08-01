@@ -16,9 +16,9 @@ and numeric inputs, selection controls, sliders, choices, and buttons. Close one
 window before starting the other unless the platform supports running both from
 separate terminals.
 
-The fixture currently excludes controls not yet implemented by the Odin port:
-scrollbars and the custom file widget. Add each to **both** smoke examples when
-its structural migration slice lands.
+The fixture currently excludes the custom file widget, which is not yet
+implemented by the Odin port. Add it to **both** smoke examples when its
+structural migration slice lands.
 
 Generate deterministic PNGs directly from the two software framebuffers:
 

@@ -44,6 +44,8 @@ main :: proc() {
 	integer_value := 26
 	option_value := 0
 	progress_value := 42
+	horizontal_scroll := 40
+	vertical_scroll := 80
 	color_value: u32 = 0xffd06020
 	float_value: f32 = 3.141
 	text_value: smgui.Text_Buffer
@@ -238,6 +240,8 @@ main :: proc() {
 		{kind = .Vertical_Connector, points = vertical_connector, value = int(0xff80ff80)},
 		{kind = .Horizontal_Connector, points = horizontal_connector, value = int(0xffffc080)},
 		{kind = .Curve, points = curve_points, value = int(0xffff80c0)},
+		{kind = .Horizontal_Scrollbar, x = smgui.absolute(300), y = smgui.absolute(300), width = 120, maximum = 300, binding = smgui.bind(&horizontal_scroll)},
+		{kind = .Vertical_Scrollbar, x = smgui.absolute(430), y = smgui.absolute(200), height = 100, maximum = 300, binding = smgui.bind(&vertical_scroll)},
 	}
 	forms[1].binding = smgui.bind(&forms[2])
 	forms[3].binding = smgui.bind(&forms[4])

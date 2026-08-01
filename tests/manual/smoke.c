@@ -64,6 +64,8 @@ int main(int argc, char **argv)
     int integer_value = 26;
     int option_value = 0;
     int64_t progress_value = 42;
+    int horizontal_scroll = 40;
+    int vertical_scroll = 80;
     uint32_t color_value = 0xffd06020;
     float float_value = 3.141f;
     char text_value[64] = { 0 };
@@ -182,6 +184,8 @@ int main(int argc, char **argv)
         { .type = UI_VCONNECT, .ptr = &vertical_connector, .value = 0xff80ff80 },
         { .type = UI_HCONNECT, .ptr = &horizontal_connector, .value = 0xffffc080 },
         { .type = UI_CURVE, .ptr = &curve_points, .value = 0xffff80c0 },
+        { .type = UI_HSCRBAR, .x = UI_ABS(300), .y = UI_ABS(300), .w = 120, .max = 300, .ptr = &horizontal_scroll },
+        { .type = UI_VSCRBAR, .x = UI_ABS(430), .y = UI_ABS(200), .h = 100, .max = 300, .ptr = &vertical_scroll },
         { .type = UI_END }
     };
 

@@ -352,6 +352,61 @@ line_connector_and_curve_fields_render :: proc(t: ^testing.T) {
 }
 
 @(test)
+vertical_and_horizontal_scrollbars_render_and_drag :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 140, 120); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	horizontal_value := 0
+	vertical_value := 0
+	forms := []Form {
+		{
+			kind = .Horizontal_Scrollbar,
+			x = absolute(5),
+			y = absolute(5),
+			width = 100,
+			maximum = 300,
+			binding = bind(&horizontal_value),
+		},
+		{
+			kind = .Vertical_Scrollbar,
+			x = absolute(115),
+			y = absolute(5),
+			height = 100,
+			maximum = 300,
+			binding = bind(&vertical_value),
+		},
+	}
+	poll_for_test(t, &ctx, forms)
+	testing.expect_value(t, forms[0].computed_width, 100)
+	testing.expect_value(t, forms[0].computed_height, 10)
+	testing.expect_value(t, forms[1].computed_width, 10)
+	testing.expect_value(t, forms[1].computed_height, 100)
+	track_pixel := 5 * ctx.screen.pitch + 5 * 4
+	testing.expect(t, ctx.screen.pixels[track_pixel + 3] != 0)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 6, 6, {.Mouse_Left})
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 70, 6, {.Mouse_Left})
+	testing.expect(t, horizontal_value > 0 && horizontal_value <= 200)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 70, 6, {.Released})
+	testing.expect(t, ctx.horizontal_bar == nil)
+
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 116, 6, {.Mouse_Left})
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 116, 70, {.Mouse_Left})
+	testing.expect(t, vertical_value > 0 && vertical_value <= 200)
+	send_mouse_for_test(t, &ctx, &backend_state, forms, 116, 70, {.Released})
+	testing.expect(t, ctx.vertical_bar == nil)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context
