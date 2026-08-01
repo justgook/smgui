@@ -34,7 +34,9 @@ Definition of done:
   - No operation reports success before doing its documented work
 */
 
+import "core:bytes"
 import "core:c"
+import zlib "core:compress/zlib"
 import "core:fmt"
 import "core:math"
 import "core:strconv"
@@ -877,27 +879,13 @@ png_skin_comment :: proc(png: []u8) -> (comment: []u8, owned: []u8, found: bool)
 			return data[8:], nil, true
 		}
 		if chunk_type == "zTXt" && len(data) >= 9 && string(data[:8]) == "Comment\x00" && data[8] == 0 {
-			decoded_length: c.int
-			decoded := stbi.zlib_decode_malloc_guesssize_headerflag(
-				raw_data(data[9:]),
-				c.int(len(data) - 9),
-				65536,
-				&decoded_length,
-				true,
-			)
-			if decoded == nil || decoded_length < 0 {
+			buffer: bytes.Buffer
+			if error := zlib.inflate(data[9:], &buffer); error != nil {
+				bytes.buffer_destroy(&buffer)
 				return nil, nil, false
 			}
-			owned = make([]u8, int(decoded_length)) or_else nil
-			if owned == nil {
-				stbi.image_free(decoded)
-				return nil, nil, false
-			}
-			for index in 0 ..< len(owned) {
-				owned[index] = decoded[index]
-			}
-			stbi.image_free(decoded)
-			return owned, owned, true
+			decoded := bytes.buffer_to_bytes(&buffer)
+			return decoded, decoded, true
 		}
 		position = data_end + 4
 	}
@@ -1599,8 +1587,17 @@ measure_form :: proc(
 			text_width += field.icon.width
 			text_height = max(text_height, field.icon.height)
 		}
-		width = max(width, text_width + 8 + int(field.minimum))
-		height = max(height, text_height + 4)
+		intrinsic_width := text_width + 8 + int(field.minimum)
+		intrinsic_height := text_height + 4
+		if image_valid(&ctx.skin[int(Skin_Image.Button_Normal_Middle)]) {
+			left_skin := &ctx.skin[int(Skin_Image.Button_Normal_Left)]
+			middle_skin := &ctx.skin[int(Skin_Image.Button_Normal_Middle)]
+			right_skin := &ctx.skin[int(Skin_Image.Button_Normal_Right)]
+			intrinsic_width += left_skin.width + right_skin.width
+			intrinsic_height = max(intrinsic_height, max(left_skin.height, max(middle_skin.height, right_skin.height)))
+		}
+		width = max(width, intrinsic_width)
+		height = max(height, intrinsic_height)
 	case .Icon_Button:
 		if image_valid(field.icon) {
 			width = max(width, field.icon.width)
@@ -1725,6 +1722,21 @@ measure_form :: proc(
 		if height < 1 {
 			height = 20
 		}
+		if field.kind == .Slider {
+			height = max(
+				height,
+				max(
+					ctx.skin[int(Skin_Image.Slider_Left)].height,
+					max(
+						ctx.skin[int(Skin_Image.Slider_Middle)].height,
+						max(
+							ctx.skin[int(Skin_Image.Slider_Right)].height,
+							ctx.skin[int(Skin_Image.Slider_Button)].height,
+						),
+					),
+				),
+			)
+		}
 	case .Vertical_Scrollbar:
 		width = ctx.scrollbar_width
 		height = max(height, ctx.scrollbar_height)
@@ -1814,6 +1826,13 @@ measure_form :: proc(
 		}
 		if .Draggable in field.flags {
 			title_height = max(title_height, 11)
+			close_image := Skin_Image.Popup_Close
+			if .Alternative_Skin in field.flags {
+				close_image = .Alternative_Close
+			}
+			if image_valid(&ctx.skin[int(close_image)]) {
+				title_height = max(title_height, ctx.skin[int(close_image)].height + 2)
+			}
 		}
 		if width < 1 {
 			width = max(content_width + 2 * field.margin + 2, 16)
@@ -1950,35 +1969,63 @@ draw_container :: proc(ctx: ^Context, field: ^Form) -> Error {
 	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
 	shadow := ctx.theme[int(Theme_Color.Shadow)]
 	bordered := field.kind != .Division && .No_Border not_in field.flags
-	if bordered {
-		draw_outline_rectangle(ctx, x, y, width, height, light, background, dark)
-		if .No_Shadow not_in field.flags {
-			shadow_right_x := x + width
-			fill_rectangle(
-				ctx,
-				shadow_right_x,
-				y + 4,
-				min(4, max(ctx.screen.width - 1 - shadow_right_x, 0)),
-				height - 4,
-				shadow,
-			)
-			shadow_bottom_y := y + height
-			fill_rectangle(
-				ctx,
-				x + 4,
-				shadow_bottom_y,
-				min(width, max(ctx.screen.width - 1 - (x + 4), 0)),
-				min(4, max(ctx.screen.height - 1 - shadow_bottom_y, 0)),
-				shadow,
-			)
+	background_image := Skin_Image.Popup_Background
+	if .Alternative_Skin in field.flags {
+		background_image = .Alternative_Background
+	}
+	skinned := field.kind != .Division && image_valid(&ctx.skin[int(background_image)])
+	skin_clip_x1, skin_clip_y1 := ctx.clip_x1, ctx.clip_y1
+	defer {
+		if skinned {
+			ctx.clip_x1, ctx.clip_y1 = skin_clip_x1, skin_clip_y1
 		}
+	}
+	if skinned {
+		ctx.clip_x1 = min(ctx.clip_x1, ctx.screen.width - 1)
+		ctx.clip_y1 = min(ctx.clip_y1, ctx.screen.height - 1)
+	}
+	if bordered {
 		x += 1
 		y += 1
 		width -= 2
 		height -= 2
+		if skinned {
+			frame_start := Skin_Image.Popup_Top_Left
+			if .Alternative_Skin in field.flags {
+				frame_start = .Alternative_Top_Left
+			}
+			top_left := &ctx.skin[int(frame_start)]
+			top_middle := &ctx.skin[int(frame_start) + 1]
+			top_right := &ctx.skin[int(frame_start) + 2]
+			middle_left := &ctx.skin[int(frame_start) + 3]
+			middle_right := &ctx.skin[int(frame_start) + 5]
+			bottom_left := &ctx.skin[int(frame_start) + 6]
+			bottom_middle := &ctx.skin[int(frame_start) + 7]
+			bottom_right := &ctx.skin[int(frame_start) + 8]
+			blit_tiled_image(ctx, x - top_left.width, y - top_left.height, top_left.width, top_left.height, top_left, false)
+			blit_tiled_image(ctx, x, y - top_middle.height, width, top_middle.height, top_middle, false)
+			blit_tiled_image(ctx, x + width, y - top_right.height, top_right.width, top_right.height, top_right, false)
+			blit_tiled_image(ctx, x - middle_left.width, y, middle_left.width, height, middle_left, false)
+			blit_tiled_image(ctx, x + width, y, middle_right.width, height, middle_right, false)
+			blit_tiled_image(ctx, x - bottom_left.width, y + height, bottom_left.width, bottom_left.height, bottom_left, false)
+			blit_tiled_image(ctx, x, y + height, width, bottom_middle.height, bottom_middle, false)
+			blit_tiled_image(ctx, x + width, y + height, bottom_right.width, bottom_right.height, bottom_right, false)
+		} else {
+			draw_outline_rectangle(ctx, x - 1, y - 1, width + 2, height + 2, light, background, dark)
+			if .No_Shadow not_in field.flags {
+				shadow_right_x := x + width + 1
+				fill_rectangle(ctx, shadow_right_x, y + 3, min(4, max(ctx.screen.width - 1 - shadow_right_x, 0)), height - 2, shadow)
+				shadow_bottom_y := y + height + 1
+				fill_rectangle(ctx, x + 3, shadow_bottom_y, min(width + 2, max(ctx.screen.width - 1 - (x + 3), 0)), min(4, max(ctx.screen.height - 1 - shadow_bottom_y, 0)), shadow)
+			}
+		}
 	}
 	if field.kind != .Division {
-		fill_rectangle(ctx, x, y, width, height, background)
+		if skinned {
+			blit_tiled_image(ctx, x, y, width, height, &ctx.skin[int(background_image)], false)
+		} else {
+			fill_rectangle(ctx, x, y, width, height, background)
+		}
 	}
 	title_height := 0
 	if field.kind == .Popup {
@@ -1992,15 +2039,22 @@ draw_container :: proc(ctx: ^Context, field: ^Form) -> Error {
 		}
 		if .Draggable in field.flags {
 			title_height = max(title_height, 11)
-			fill_rectangle(
-				ctx,
-				x + 1,
-				y + 1,
-				width - 12,
-				title_height - 2,
-				ctx.theme[int(Theme_Color.Title)],
-			)
-			draw_popup_close(ctx, x + width - 5, y + (title_height + 1) / 2)
+			title_image := Skin_Image.Popup_Title
+			close_image := Skin_Image.Popup_Close
+			if .Alternative_Skin in field.flags {
+				title_image = .Alternative_Title
+				close_image = .Alternative_Close
+			}
+			title_skin := &ctx.skin[int(title_image)]
+			close_skin := &ctx.skin[int(close_image)]
+			if image_valid(title_skin) && image_valid(close_skin) {
+				title_height = max(title_height, close_skin.height + 2)
+				blit_tiled_image(ctx, x + 1, y + 1, width - close_skin.width - 1, title_height - 2, title_skin, false)
+				blit_tiled_image(ctx, x + width - close_skin.width, y + (title_height - close_skin.height) / 2, close_skin.width, close_skin.height, close_skin, false)
+			} else {
+				fill_rectangle(ctx, x + 1, y + 1, width - 12, title_height - 2, ctx.theme[int(Theme_Color.Title)])
+				draw_popup_close(ctx, x + width - 5, y + (title_height + 1) / 2)
+			}
 		}
 		if has_title {
 			text_color := ctx.theme[int(Theme_Color.Title)]
@@ -2247,14 +2301,27 @@ draw_toggle :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if .No_Bullet in field.flags {
 		if open {
 			foreground = ctx.theme[int(Theme_Color.Toggle_Foreground)]
-			fill_rectangle(
-				ctx,
-				field.computed_x,
-				field.computed_y,
-				field.computed_width,
-				field.computed_height,
-				ctx.theme[int(Theme_Color.Toggle_Background)],
-			)
+			popup_skin := &ctx.skin[int(Skin_Image.Popup_Background)]
+			if image_valid(popup_skin) {
+				blit_tiled_image(
+					ctx,
+					field.computed_x,
+					field.computed_y,
+					field.computed_width,
+					field.computed_height,
+					popup_skin,
+					false,
+				)
+			} else {
+				fill_rectangle(
+					ctx,
+					field.computed_x,
+					field.computed_y,
+					field.computed_width,
+					field.computed_height,
+					ctx.theme[int(Theme_Color.Toggle_Background)],
+				)
+			}
 		}
 		x += field.margin
 	} else {
@@ -2319,14 +2386,27 @@ draw_label :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if .Disabled in field.flags {
 		foreground = ctx.theme[int(Theme_Color.Disabled_Foreground)]
 	} else if ctx.menu != nil && ctx.hovered == field {
-		fill_rectangle(
-			ctx,
-			ctx.menu.computed_x + 1,
-			field.computed_y,
-			ctx.menu.computed_width - 2,
-			field.computed_height,
-			ctx.theme[int(Theme_Color.Highlight_Background)],
-		)
+		highlight_skin := &ctx.skin[int(Skin_Image.Highlight)]
+		if image_valid(highlight_skin) {
+			blit_tiled_image(
+				ctx,
+				ctx.menu.computed_x + 1,
+				field.computed_y,
+				ctx.menu.computed_width - 2,
+				field.computed_height,
+				highlight_skin,
+				false,
+			)
+		} else {
+			fill_rectangle(
+				ctx,
+				ctx.menu.computed_x + 1,
+				field.computed_y,
+				ctx.menu.computed_width - 2,
+				field.computed_height,
+				ctx.theme[int(Theme_Color.Highlight_Background)],
+			)
+		}
 		foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
 	}
 	return draw_font(ctx,
@@ -2406,14 +2486,27 @@ draw_status :: proc(ctx: ^Context, field: ^Form) -> Error {
 	if ctx.font == nil || ctx.font_draw == nil {
 		return .Invalid_Input
 	}
-	fill_rectangle(
-		ctx,
-		field.computed_x,
-		field.computed_y,
-		field.computed_width,
-		field.computed_height,
-		ctx.theme[int(Theme_Color.Input_Background)],
-	)
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(&ctx.skin[int(Skin_Image.Popup_Background)]) && image_valid(input_skin) {
+		blit_tiled_image(
+			ctx,
+			field.computed_x,
+			field.computed_y,
+			field.computed_width,
+			field.computed_height,
+			input_skin,
+			false,
+		)
+	} else {
+		fill_rectangle(
+			ctx,
+			field.computed_x,
+			field.computed_y,
+			field.computed_width,
+			field.computed_height,
+			ctx.theme[int(Theme_Color.Input_Background)],
+		)
+	}
 	text, valid := "", false
 	if ctx.hovered != nil && ctx.hovered.description > 0 &&
 	   ctx.hovered.description < len(ctx.texts) {
@@ -2474,7 +2567,14 @@ blend_image_pixel :: proc(ctx: ^Context, x, y: int, image: ^Image, source_x, sou
 }
 
 @(private = "file")
-blit_tiled_image :: proc(ctx: ^Context, x, y, width, height: int, image: ^Image, grayscale: bool) {
+blit_tiled_image :: proc(
+	ctx: ^Context,
+	x, y, width, height: int,
+	image: ^Image,
+	grayscale: bool,
+	source_x: int = 0,
+	source_y: int = 0,
+) {
 	if !image_valid(image) || width < 1 || height < 1 {
 		return
 	}
@@ -2489,8 +2589,8 @@ blit_tiled_image :: proc(ctx: ^Context, x, y, width, height: int, image: ^Image,
 				destination_x,
 				destination_y,
 				image,
-				(destination_x - x) % image.width,
-				(destination_y - y) % image.height,
+				(source_x + destination_x - x) % image.width,
+				(source_y + destination_y - y) % image.height,
 				grayscale,
 			)
 		}
@@ -2664,6 +2764,10 @@ draw_color_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else {
 		fill_rectangle(ctx, x, y, width, height, background)
 	}
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(ctx, x, y, width, height, input_skin, .Disabled in field.flags)
+	}
 	checker_color := value^
 	if .Disabled in field.flags {
 		checker_color = foreground
@@ -2789,6 +2893,10 @@ draw_color_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else {
 		fill_rectangle(ctx, x, y, width, height, background)
 	}
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(ctx, x, y, width, height, input_skin, false)
+	}
 	checker_width := max(field.computed_height - 6, 1)
 	draw_checker(ctx, x + 3, y + 3, checker_width, checker_width, ctx.color)
 	if ctx.font_draw != nil {
@@ -2886,7 +2994,17 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	} else if hovered && !pressed {
 		outer = ctx.theme[int(Theme_Color.Button_Selected_Border)]
 	}
-	if .No_Border not_in field.flags {
+	skin_state := Skin_Image.Button_Normal_Left
+	if disabled || hovered && !pressed {
+		skin_state = .Button_Selected_Left
+	} else if pressed {
+		skin_state = .Button_Pressed_Left
+	}
+	left_skin := &ctx.skin[int(skin_state)]
+	middle_skin := &ctx.skin[int(skin_state) + 1]
+	right_skin := &ctx.skin[int(skin_state) + 2]
+	skinned := image_valid(middle_skin)
+	if !skinned && .No_Border not_in field.flags {
 		for border_x in x - 1 ..< min(x + width, ctx.screen.width - 1) {
 			blend_pixel(ctx, border_x, y - 1, outer)
 		}
@@ -2898,7 +3016,27 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 			blend_pixel(ctx, x + width, border_y, outer)
 		}
 	}
-	if disabled {
+	if skinned {
+		blit_tiled_image(ctx, x, y + (height - left_skin.height) / 2, left_skin.width, left_skin.height, left_skin, disabled)
+		blit_tiled_image(
+			ctx,
+			x + left_skin.width,
+			y + (height - middle_skin.height) / 2,
+			width - left_skin.width - right_skin.width,
+			middle_skin.height,
+			middle_skin,
+			disabled,
+		)
+		blit_tiled_image(
+			ctx,
+			x + width - right_skin.width,
+			y + (height - right_skin.height) / 2,
+			right_skin.width,
+			right_skin.height,
+			right_skin,
+			disabled,
+		)
+	} else if disabled {
 		fill_rectangle(ctx, x, y, width, height, ctx.theme[int(Theme_Color.Disabled_Background)])
 	} else {
 		light := ctx.theme[int(Theme_Color.Button_Light_Inner_Border)]
@@ -2945,6 +3083,9 @@ draw_button :: proc(ctx: ^Context, field: ^Form) -> Error {
 	}
 	text_x := x + (width - content_width) / 2
 	text_y := y + (height - text_height) / 2
+	if skinned {
+		text_y += field.margin
+	}
 	if pressed && !disabled {
 		text_y += 1
 	}
@@ -3056,20 +3197,25 @@ draw_choice :: proc(ctx: ^Context, field: ^Form) -> Error {
 		center_x := x + height / 2
 		center_y := y + height / 2
 		if field.kind == .Checkbox {
-			draw_checkbox(ctx, center_x, center_y, selected, disabled)
+			draw_checkbox(ctx, center_x, center_y, height, selected, disabled)
 		} else {
-			draw_radio(ctx, center_x, center_y, selected, disabled)
+			draw_radio(ctx, center_x, center_y, height, selected, disabled)
 		}
 		text_x += height
 	} else if ctx.menu != nil && ctx.hovered == field {
-		fill_rectangle(
-			ctx,
-			x,
-			y,
-			field.computed_width,
-			height,
-			ctx.theme[int(Theme_Color.Highlight_Background)],
-		)
+		highlight_skin := &ctx.skin[int(Skin_Image.Highlight)]
+		if image_valid(highlight_skin) {
+			blit_tiled_image(ctx, x, y, field.computed_width, height, highlight_skin, false)
+		} else {
+			fill_rectangle(
+				ctx,
+				x,
+				y,
+				field.computed_width,
+				height,
+				ctx.theme[int(Theme_Color.Highlight_Background)],
+			)
+		}
 	}
 	foreground := ctx.theme[int(Theme_Color.Foreground)]
 	if .No_Bullet in field.flags && ctx.menu != nil && ctx.hovered == field {
@@ -3128,14 +3274,27 @@ draw_text_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		background,
 		light,
 	)
-	fill_rectangle(
-		ctx,
-		field.computed_x + 1,
-		field.computed_y + 1,
-		field.computed_width - 2,
-		field.computed_height - 2,
-		background,
-	)
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(
+			ctx,
+			field.computed_x + 1,
+			field.computed_y + 1,
+			field.computed_width - 2,
+			field.computed_height - 2,
+			input_skin,
+			disabled,
+		)
+	} else {
+		fill_rectangle(
+			ctx,
+			field.computed_x + 1,
+			field.computed_y + 1,
+			field.computed_width - 2,
+			field.computed_height - 2,
+			background,
+		)
+	}
 	text := text_buffer_string(buffer)
 	if len(text) == 0 && ctx.text_field != field {
 		return .None
@@ -3291,6 +3450,26 @@ draw_option_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		triangle_background,
 		input_dark,
 	)
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(ctx, x, y, width, height, input_skin, disabled)
+		left_image := Skin_Image.Arrow_Left_Normal
+		right_image := Skin_Image.Arrow_Right_Normal
+		if left_pressed {
+			left_image = .Arrow_Left_Pressed
+		} else if .Selected in field.flags && !disabled {
+			left_image = .Arrow_Left_Selected
+		}
+		if right_pressed {
+			right_image = .Arrow_Right_Pressed
+		} else if .Selected in field.flags && !disabled {
+			right_image = .Arrow_Right_Selected
+		}
+		left_skin := &ctx.skin[int(left_image)]
+		right_skin := &ctx.skin[int(right_image)]
+		blit_tiled_image(ctx, x, y + 1 + (height - left_skin.height) / 2, left_skin.width, left_skin.height, left_skin, disabled)
+		blit_tiled_image(ctx, x + width - right_skin.width, y + 1 + (height - right_skin.height) / 2, right_skin.width, right_skin.height, right_skin, disabled)
+	}
 	return draw_font(ctx,
 		ctx.font,
 		text,
@@ -3383,6 +3562,18 @@ draw_choice_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		triangle_background,
 		input_dark,
 	)
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(ctx, x, y, width, height, input_skin, disabled)
+		arrow_image := Skin_Image.Arrow_Down_Normal
+		if pressed {
+			arrow_image = .Arrow_Down_Pressed
+		} else if .Selected in field.flags && !disabled {
+			arrow_image = .Arrow_Down_Selected
+		}
+		arrow_skin := &ctx.skin[int(arrow_image)]
+		blit_tiled_image(ctx, x + width - arrow_skin.width, y + 1 + (height - arrow_skin.height) / 2, arrow_skin.width, arrow_skin.height, arrow_skin, disabled)
+	}
 	return draw_font(ctx,
 		ctx.font,
 		text,
@@ -3417,7 +3608,12 @@ draw_select_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
 		fill_rectangle(ctx, x + width + 1, y + 3, 4, height - 2, ctx.theme[int(Theme_Color.Shadow)])
 		fill_rectangle(ctx, x + 3, y + height + 1, width + 2, 4, ctx.theme[int(Theme_Color.Shadow)])
 	}
-	fill_rectangle(ctx, x, y, width, height, background)
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(ctx, x, y, width, height, input_skin, false)
+	} else {
+		fill_rectangle(ctx, x, y, width, height, background)
+	}
 	for option, index in field.options {
 		row_y := y + index * row_height
 		if row_y + field.top >= ctx.screen.height {
@@ -3427,14 +3623,19 @@ draw_select_popup :: proc(ctx: ^Context, field: ^Form) -> Error {
 		foreground := ctx.theme[int(Theme_Color.Input_Foreground)]
 		if hovered {
 			field.selected_option = index
-			fill_rectangle(
-				ctx,
-				x + 1,
-				row_y + 1,
-				width - 2,
-				row_height,
-				ctx.theme[int(Theme_Color.Highlight_Background)],
-			)
+			highlight_skin := &ctx.skin[int(Skin_Image.Highlight)]
+			if image_valid(highlight_skin) {
+				blit_tiled_image(ctx, x + 1, row_y + 1, width - 2, row_height, highlight_skin, false)
+			} else {
+				fill_rectangle(
+					ctx,
+					x + 1,
+					row_y + 1,
+					width - 2,
+					row_height,
+					ctx.theme[int(Theme_Color.Highlight_Background)],
+				)
+			}
 			foreground = ctx.theme[int(Theme_Color.Highlight_Foreground)]
 		}
 		if error := draw_font(ctx,
@@ -3641,6 +3842,27 @@ draw_numeric_input :: proc(ctx: ^Context, field: ^Form) -> Error {
 		input_dark,
 	)
 
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(ctx, inner_x, inner_y, inner_width, inner_height, input_skin, disabled)
+		left_image := Skin_Image.Arrow_Left_Normal
+		right_image := Skin_Image.Arrow_Right_Normal
+		if left_pressed {
+			left_image = .Arrow_Left_Pressed
+		} else if .Selected in field.flags && !disabled {
+			left_image = .Arrow_Left_Selected
+		}
+		if right_pressed {
+			right_image = .Arrow_Right_Pressed
+		} else if .Selected in field.flags && !disabled {
+			right_image = .Arrow_Right_Selected
+		}
+		left_skin := &ctx.skin[int(left_image)]
+		right_skin := &ctx.skin[int(right_image)]
+		blit_tiled_image(ctx, inner_x, inner_y + 1 + (inner_height - left_skin.height) / 2, left_skin.width, left_skin.height, left_skin, disabled)
+		blit_tiled_image(ctx, inner_x + inner_width - right_skin.width, inner_y + 1 + (inner_height - right_skin.height) / 2, right_skin.width, right_skin.height, right_skin, disabled)
+	}
+
 	text_width, text_height, left, top: int
 	if error := ctx.font_bounds(ctx.font, text, &text_width, &text_height, &left, &top);
 	   error != .None {
@@ -3790,11 +4012,39 @@ numeric_input_text :: proc(ctx: ^Context, field: ^Form) -> (string, bool) {
 
 @(private = "file")
 draw_slider :: proc(ctx: ^Context, field: ^Form) {
-	x := field.computed_x
-	y := field.computed_y
-	width := field.computed_width
-	height := field.computed_height
+	x, y := field.computed_x, field.computed_y
+	width, height := field.computed_width, field.computed_height
 	disabled := .Disabled in field.flags
+	value, valid := bound_integer(field)
+	if !valid {
+		value = int(field.minimum)
+	}
+	minimum := int(field.minimum)
+	maximum := int(field.maximum)
+	if maximum <= minimum {
+		maximum = minimum + 1
+	}
+	value = clamp(value, minimum, maximum)
+	position := (value - minimum) * (width - 9) / (maximum - minimum)
+	button_skin := &ctx.skin[int(Skin_Image.Slider_Button)]
+	if image_valid(button_skin) {
+		left_skin := &ctx.skin[int(Skin_Image.Slider_Left)]
+		middle_skin := &ctx.skin[int(Skin_Image.Slider_Middle)]
+		right_skin := &ctx.skin[int(Skin_Image.Slider_Right)]
+		blit_tiled_image(ctx, x, y + (height - left_skin.height) / 2, left_skin.width, left_skin.height, left_skin, disabled)
+		blit_tiled_image(
+			ctx,
+			x + left_skin.width,
+			y + (height - middle_skin.height) / 2,
+			width - left_skin.width - right_skin.width,
+			middle_skin.height,
+			middle_skin,
+			disabled,
+		)
+		blit_tiled_image(ctx, x + width - right_skin.width, y + (height - right_skin.height) / 2, right_skin.width, right_skin.height, right_skin, disabled)
+		blit_tiled_image(ctx, x + position + 3 - button_skin.width / 2, y + (height - button_skin.height) / 2, button_skin.width, button_skin.height, button_skin, disabled)
+		return
+	}
 	dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
 	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
 	background := ctx.theme[int(Theme_Color.Input_Background)]
@@ -3807,17 +4057,6 @@ draw_slider :: proc(ctx: ^Context, field: ^Form) {
 	}
 	track_y := y + height / 2 - 3
 	draw_outline_rectangle(ctx, x, track_y, width, 5, dark, background, light)
-	value, valid := bound_integer(field)
-	if !valid {
-		value = int(field.minimum)
-	}
-	minimum := int(field.minimum)
-	maximum := int(field.maximum)
-	if maximum <= minimum {
-		maximum = minimum + 1
-	}
-	value = clamp(value, minimum, maximum)
-	position := (value - minimum) * (width - 9) / (maximum - minimum)
 	fill_rectangle(ctx, x + 1, track_y + 1, position + 3, 3, foreground)
 	fill_rectangle(ctx, x + position + 3, track_y + 1, width - 4 - position, 3, background)
 	draw_monochrome_radio(ctx, x + position + 5, y + height / 2, foreground)
@@ -3961,6 +4200,7 @@ draw_progress_bar :: proc(ctx: ^Context, field: ^Form) -> Error {
 	height -= 2
 	filled := width * (value - minimum) / (maximum - minimum)
 	progress_background := ctx.theme[int(Theme_Color.Progress_Background)]
+	fill_x, fill_y, fill_width, fill_height := x, y, filled, height
 	if filled > 1 {
 		draw_outline_rectangle(
 			ctx,
@@ -3972,18 +4212,30 @@ draw_progress_bar :: proc(ctx: ^Context, field: ^Form) -> Error {
 			progress_background,
 			ctx.theme[int(Theme_Color.Progress_Dark)],
 		)
-		fill_rectangle(ctx, x + 1, y + 1, filled - 2, height - 2, progress_background)
-	} else {
-		fill_rectangle(ctx, x, y, filled, height, progress_background)
+		fill_x += 1
+		fill_y += 1
+		fill_width -= 2
+		fill_height -= 2
 	}
-	fill_rectangle(
-		ctx,
-		x + filled,
-		y,
-		width - filled,
-		height,
-		ctx.theme[int(Theme_Color.Input_Background)],
-	)
+	progress_skin := &ctx.skin[int(Skin_Image.Progress_Background)]
+	if image_valid(progress_skin) {
+		blit_tiled_image(ctx, fill_x, fill_y, fill_width, fill_height, progress_skin, false)
+	} else {
+		fill_rectangle(ctx, fill_x, fill_y, fill_width, fill_height, progress_background)
+	}
+	input_skin := &ctx.skin[int(Skin_Image.Input)]
+	if image_valid(input_skin) {
+		blit_tiled_image(ctx, x + filled, y, width - filled, height, input_skin, false, filled % input_skin.width)
+	} else {
+		fill_rectangle(
+			ctx,
+			x + filled,
+			y,
+			width - filled,
+			height,
+			ctx.theme[int(Theme_Color.Input_Background)],
+		)
+	}
 	permille := (value - minimum) * 1000 / (maximum - minimum)
 	text := fmt.tprintf("%d.%d%%", permille / 10, permille % 10)
 	text_width, text_height, left, top: int
@@ -4108,7 +4360,19 @@ bound_integer :: proc(field: ^Form) -> (int, bool) {
 }
 
 @(private = "file")
-draw_checkbox :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
+draw_checkbox :: proc(ctx: ^Context, x, y, clip_width: int, checked, disabled: bool) {
+	skin := &ctx.skin[int(Skin_Image.Checkbox_Off)]
+	if checked && !disabled {
+		skin = &ctx.skin[int(Skin_Image.Checkbox_On)]
+	}
+	if image_valid(skin) {
+		old_clip_x0, old_clip_x1 := ctx.clip_x0, ctx.clip_x1
+		ctx.clip_x0 = max(ctx.clip_x0, x - clip_width / 2)
+		ctx.clip_x1 = min(ctx.clip_x1, x - clip_width / 2 + clip_width)
+		blit_tiled_image(ctx, x - skin.width / 2, y - skin.height / 2, skin.width, skin.height, skin, disabled)
+		ctx.clip_x0, ctx.clip_x1 = old_clip_x0, old_clip_x1
+		return
+	}
 	border_dark := ctx.theme[int(Theme_Color.Input_Dark_Border)]
 	background := ctx.theme[int(Theme_Color.Input_Background)]
 	border_light := ctx.theme[int(Theme_Color.Input_Light_Border)]
@@ -4130,7 +4394,19 @@ draw_checkbox :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
 }
 
 @(private = "file")
-draw_radio :: proc(ctx: ^Context, x, y: int, checked, disabled: bool) {
+draw_radio :: proc(ctx: ^Context, x, y, clip_width: int, checked, disabled: bool) {
+	skin := &ctx.skin[int(Skin_Image.Radio_Off)]
+	if checked && !disabled {
+		skin = &ctx.skin[int(Skin_Image.Radio_On)]
+	}
+	if image_valid(skin) {
+		old_clip_x0, old_clip_x1 := ctx.clip_x0, ctx.clip_x1
+		ctx.clip_x0 = max(ctx.clip_x0, x - clip_width / 2)
+		ctx.clip_x1 = min(ctx.clip_x1, x - clip_width / 2 + clip_width)
+		blit_tiled_image(ctx, x - skin.width / 2, y - skin.height / 2, skin.width, skin.height, skin, disabled)
+		ctx.clip_x0, ctx.clip_x1 = old_clip_x0, old_clip_x1
+		return
+	}
 	border := ctx.theme[int(Theme_Color.Input_Dark_Border)]
 	light := ctx.theme[int(Theme_Color.Input_Light_Border)]
 	background := ctx.theme[int(Theme_Color.Input_Background)]

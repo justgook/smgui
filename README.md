@@ -72,11 +72,24 @@ Sokol applications call `smgui/sokol.run` with their context, forms, and
 optional init/frame hooks. `make sokol-libs` builds its native libraries;
 normal `make check` and Sokol builds do this automatically.
 
+Set `SMGUI_SKIN` to apply a packed PNG skin to the smoke application with either
+backend. The bundled reference skin is a ready-to-use example:
+
+```sh
+SMGUI_SKIN=reference-c/examples/skin.png make run
+SMGUI_SKIN=reference-c/examples/skin.png make run BACKEND=sokol
+```
+
+The file must use SMGUI's packed skin-atlas format: one sprite per skin image in
+the documented order, with its rectangles stored in the PNG comment metadata.
+An unset or empty `SMGUI_SKIN` keeps the default color theme.
+
 Run completed small framebuffer fixtures, or generate the large smoke fixture:
 
 ```sh
 make parity                        # expected-green element/state fixtures
 make parity-case CASE=empty
+make skin-parity                   # representative C/Odin fixtures with the bundled skin
 make parity-fuzz FUZZ_SEED=1 FUZZ_CASES=20
 make smoke-images
 make smoke-compare                 # non-zero until smoke parity is reached

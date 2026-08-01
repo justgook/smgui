@@ -14,6 +14,7 @@ endif
 
 ODIN ?= odin
 ODIN_FLAGS ?=
+ODIN_VENDOR_STB_DIR := $(shell $(ODIN) root)/vendor/stb/src
 # The default Odin target is the screen1 migration fixture.
 EXAMPLE ?= smoke
 BACKEND ?= raylib
@@ -36,7 +37,9 @@ SMOKE_C_PNG := $(PARITY_ACTUAL_DIR)/smoke-c.png
 SMOKE_ODIN_PNG := $(PARITY_ACTUAL_DIR)/smoke-odin.png
 PARITY_C_BIN := $(BUILD_DIR)/parity-case-c
 PARITY_ODIN_BIN := $(BUILD_DIR)/parity-case-odin
-PARITY_CASES := empty label-normal multiline-normal status-normal button-normal button-explicit-size button-hover button-pressed button-disabled checkbox-normal checkbox-checked checkbox-hover checkbox-pressed checkbox-disabled radio-normal radio-selected radio-hover radio-pressed radio-disabled slider-minimum slider-midpoint slider-maximum slider-interaction slider-disabled progress-minimum progress-midpoint progress-maximum progress-disabled decimal-normal decimal-negative decimal-explicit-size decimal-disabled hex-normal hex-zero hex-explicit-size hex-disabled float-normal float-magnitude float-explicit-size float-disabled text-input-normal text-input-empty text-input-explicit-size text-input-edit text-input-overflow-edit text-input-disabled numeric-input-normal numeric-input-explicit-size numeric-input-decrement numeric-input-increment numeric-input-disabled select-normal select-explicit-size select-pressed select-open select-choice select-disabled option-normal option-explicit-size option-decrement option-increment option-disabled division-intrinsic division-percentage layout-alignment layout-flow layout-hidden-flow layout-right-flow layout-percent layout-from-end popup-normal popup-intrinsic popup-no-border popup-no-shadow popup-title popup-draggable popup-chrome popup-resizable popup-hidden popup-close popup-drag popup-resize menu-closed menu-button-closed menu-button-open menu-open menu-intrinsic menu-anchored menu-hover menu-disabled menu-choice menu-outside-close menu-escape-close
+PARITY_CASES := empty label-normal multiline-normal status-normal button-normal button-explicit-size button-hover button-pressed button-disabled checkbox-normal checkbox-checked checkbox-hover checkbox-pressed checkbox-disabled radio-normal radio-selected radio-hover radio-pressed radio-disabled slider-minimum slider-midpoint slider-maximum slider-interaction slider-disabled vertical-scrollbar-normal horizontal-scrollbar-normal progress-minimum progress-midpoint progress-maximum progress-disabled decimal-normal decimal-negative decimal-explicit-size decimal-disabled hex-normal hex-zero hex-explicit-size hex-disabled float-normal float-magnitude float-explicit-size float-disabled text-input-normal text-input-empty text-input-explicit-size text-input-edit text-input-overflow-edit text-input-disabled numeric-input-normal numeric-input-explicit-size numeric-input-decrement numeric-input-increment numeric-input-disabled select-normal select-explicit-size select-pressed select-open select-choice select-disabled option-normal option-explicit-size option-decrement option-increment option-disabled division-intrinsic division-percentage layout-alignment layout-flow layout-hidden-flow layout-right-flow layout-percent layout-from-end popup-normal popup-intrinsic popup-no-border popup-no-shadow popup-title popup-draggable popup-chrome popup-resizable popup-hidden popup-close popup-drag popup-resize menu-closed menu-button-closed menu-button-open menu-open menu-intrinsic menu-anchored menu-hover menu-disabled menu-choice menu-outside-close menu-escape-close
+SKIN_PARITY_CASES := status-normal button-normal button-hover button-pressed button-disabled checkbox-normal checkbox-checked checkbox-disabled radio-normal radio-selected radio-disabled slider-minimum slider-midpoint slider-maximum slider-disabled vertical-scrollbar-normal horizontal-scrollbar-normal progress-minimum progress-midpoint progress-maximum progress-disabled text-input-normal text-input-edit text-input-disabled numeric-input-normal numeric-input-decrement numeric-input-increment numeric-input-disabled select-normal select-pressed select-open select-disabled option-normal option-decrement option-increment option-disabled popup-normal popup-title popup-chrome popup-resizable menu-button-open menu-open menu-hover menu-disabled menu-choice
+PARITY_SKIN ?= $${SMGUI_PARITY_SKIN-}
 CASE ?= empty
 WIDTH ?= 64
 HEIGHT ?= 48
@@ -72,6 +75,7 @@ help:
 	  '  run          Run the Odin screen1 migration target (default)' \
 	  '               EXAMPLE=basic BACKEND=raylib selects another example' \
 	  '               BACKEND=sokol runs the same smoke example via Sokol' \
+	  '               SMGUI_SKIN=path/to/skin.png applies a packed PNG skin' \
 	  '' \
 	  'Paired manual smoke test:' \
 	  '  smoke-odin    Run the Odin widget smoke test' \
@@ -82,6 +86,7 @@ help:
 	  'Framebuffer parity:' \
 	  '  parity-case CASE=name  Compare one small deterministic fixture' \
 	  '  parity                 Compare every completed fixture' \
+	  '  skin-parity            Compare representative fixtures with the bundled PNG skin' \
 	  '  parity-fuzz            Run seeded bounded cases (FUZZ_SEED=1 FUZZ_CASES=20)' \
 	  '' \
 	  'Reference C targets:' \
@@ -196,7 +201,7 @@ smoke-compare: smoke-images $(PNG_COMPARE_BIN)
 
 $(PARITY_C_BIN): tests/parity/c/cases.c tests/parity/c/ui_image_backend.h tests/vendor/stb_image_write.h | $(BUILD_DIR) reference-c-init
 	$(Q)$(C_REFERENCE_CC) -std=c99 -Wall -Wextra -Wno-pragmas -O2 \
-		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods \
+		-Itests/parity/c -Itests/vendor -Ireference-c -Ireference-c/mods -I"$(ODIN_VENDOR_STB_DIR)" \
 		tests/parity/c/cases.c -o "$@" -lm
 
 $(PARITY_ODIN_BIN): tests/parity/cases/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin | $(BUILD_DIR)
@@ -204,8 +209,8 @@ $(PARITY_ODIN_BIN): tests/parity/cases/main.odin smgui/ui.odin smgui/image/image
 
 .PHONY: parity-case
 parity-case: $(PARITY_C_BIN) $(PARITY_ODIN_BIN) $(PNG_COMPARE_BIN) | $(PARITY_ACTUAL_DIR)
-	$(Q)"$(PARITY_C_BIN)" "$(CASE)" "$(PARITY_C_PNG)" "$(WIDTH)" "$(HEIGHT)"
-	$(Q)"$(PARITY_ODIN_BIN)" "$(CASE)" "$(PARITY_ODIN_PNG)" "$(WIDTH)" "$(HEIGHT)"
+	$(Q)SMGUI_PARITY_SKIN="$(PARITY_SKIN)" "$(PARITY_C_BIN)" "$(CASE)" "$(PARITY_C_PNG)" "$(WIDTH)" "$(HEIGHT)"
+	$(Q)SMGUI_PARITY_SKIN="$(PARITY_SKIN)" "$(PARITY_ODIN_BIN)" "$(CASE)" "$(PARITY_ODIN_PNG)" "$(WIDTH)" "$(HEIGHT)"
 	$(Q)"$(PNG_COMPARE_BIN)" "$(PARITY_C_PNG)" "$(PARITY_ODIN_PNG)"
 
 .PHONY: parity
@@ -213,6 +218,13 @@ parity:
 	$(Q)for parity_case in $(PARITY_CASES); do \
 		echo "Parity $$parity_case"; \
 		$(MAKE) parity-case CASE="$$parity_case"; \
+	done
+
+.PHONY: skin-parity
+skin-parity:
+	$(Q)for parity_case in $(SKIN_PARITY_CASES); do \
+		echo "Skin parity $$parity_case"; \
+		$(MAKE) parity-case CASE="$$parity_case" PARITY_SKIN="reference-c/examples/skin.png"; \
 	done
 
 .PHONY: parity-fuzz

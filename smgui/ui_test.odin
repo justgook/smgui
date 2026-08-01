@@ -1062,6 +1062,9 @@ png_skin_decodes_atlas_comment_and_replaces_owned_pixels :: proc(t: ^testing.T) 
 	testing.expect_value(t, set_png_skin(&ctx, compressed_comment_png), Error.None)
 	testing.expect_value(t, backend_state.hide_calls, 3)
 	testing.expect_value(t, len(ctx.skin_buffer), 4)
+	testing.expect_value(t, ctx.skin[int(Skin_Image.Cursor)].width, 1)
+	testing.expect_value(t, ctx.skin[int(Skin_Image.Cursor)].height, 1)
+	testing.expect_value(t, ctx.skin[int(Skin_Image.Cursor)].pixels[0], u8(0xff))
 	testing.expect_value(t, set_png_skin(&ctx, []u8{1, 2, 3}), Error.Invalid_Input)
 }
 

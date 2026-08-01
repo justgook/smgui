@@ -28,8 +28,8 @@ Fixture names refer to `tests/parity/c/cases.c` and
 | `ui_swcursor` | `set_software_cursor` | Focused, Smoke | `software_cursor_draws_and_hardware_cursor_restores_backend_cursor`; paired smoke cursor. Add cursor movement/clipping fixture. |
 | `ui_hwcursor` | `use_hardware_cursor` | Focused | Same focused test; add backend-call/state fixture. |
 | `ui_theme` | `set_theme` | Missing | Add theme replacement and redraw-timing fixture. Known gap: Odin requests refresh while C only replaces the theme. |
-| `ui_skin` | `set_skin` | Focused | Exercised through PNG loading. Add atlas rendering, scrollbar metrics, cursor, and redraw-timing fixture; C does not request refresh here. |
-| `ui_pngskin` | `set_png_skin` | Focused | `png_skin_decodes_atlas_comment_and_replaces_owned_pixels`; add equivalent `tEXt`/`zTXt` C/Odin fixture. |
+| `ui_skin` | `set_skin` | Focused | `make skin-parity` compares atlas rendering and scrollbar metrics across representative controls. Add direct-array, cursor, and redraw-timing fixtures; C does not request refresh here. |
+| `ui_pngskin` | `set_png_skin` | Green, Focused | `make skin-parity` loads the bundled zTXt atlas in C and Odin; `png_skin_decodes_atlas_comment_and_replaces_owned_pixels` also covers tEXt, zTXt, replacement, and invalid input. |
 | `ui_refresh` | `refresh` | Focused | Known gap: C sets both refresh and recalculate; Odin currently sets refresh only. Add explicit state/layout fixture. |
 | `ui_settxt` | `set_texts` | Missing | Add runtime localization/title update fixture. Known gap: C resets cached font metrics and immediately recalculates the active form. |
 | `ui_getclipboard` | `clipboard_text` | Missing | Add backend success/failure fixture. |

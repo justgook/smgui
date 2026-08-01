@@ -30,6 +30,9 @@ configure_sokol :: proc(ctx: ^smgui.Context, data: rawptr) -> smgui.Error {
 	if error := smgui.set_software_cursor(ctx, state.cursor); error != .None {
 		return error
 	}
+	if error := apply_environment_skin(ctx); error != .None {
+		return error
+	}
 	font, error := psf2.default_font()
 	if error != .None {
 		return error
@@ -439,6 +442,9 @@ main :: proc() {
 	if error := smgui.set_software_cursor(&ctx, &software_cursor); error != .None {
 		fail("configuring the software cursor", error)
 	}
+	if error := apply_environment_skin(&ctx); error != .None {
+		fail("configuring SMGUI_SKIN", error)
+	}
 
 	font, error := psf2.default_font()
 	if error != .None {
@@ -464,6 +470,24 @@ main :: proc() {
 		fmt.eprintln("Failed to write smoke-test image:", os.args[2])
 		os.exit(1)
 	}
+}
+
+apply_environment_skin :: proc(ctx: ^smgui.Context) -> smgui.Error {
+	path := os.get_env("SMGUI_SKIN", context.temp_allocator)
+	if len(path) == 0 {
+		return .None
+	}
+	png, file_error := os.read_entire_file(path, context.temp_allocator)
+	if file_error != nil {
+		fmt.eprintf("Unable to read SMGUI_SKIN %q: %v\n", path, file_error)
+		return .Backend_Failure
+	}
+	if error := smgui.set_png_skin(ctx, png); error != .None {
+		fmt.eprintf("Unable to load SMGUI_SKIN %q: %v\n", path, error)
+		return error
+	}
+	fmt.printf("Loaded SMGUI skin: %s\n", path)
+	return .None
 }
 
 clone_disabled_inputs :: proc(source: []smgui.Form) -> []smgui.Form {

@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_STDIO
+#define STBI_NO_LINEAR
+#define STBI_ONLY_PNG
+#include <stb_image.h>
+
 #include "ui_image_backend.h"
 
 static int parse_dimension(const char *text, int minimum, int maximum, int *value)
@@ -13,6 +19,42 @@ static int parse_dimension(const char *text, int minimum, int maximum, int *valu
     if (!text[0] || *end || parsed < minimum || parsed > maximum) return 0;
     *value = (int)parsed;
     return 1;
+}
+
+static int apply_environment_skin(ui_t *context)
+{
+    const char *path = getenv("SMGUI_PARITY_SKIN");
+    unsigned char *png;
+    FILE *file;
+    long size;
+    int result;
+    if (!path || !path[0]) return UI_OK;
+    file = fopen(path, "rb");
+    if (!file) {
+        fprintf(stderr, "unable to open SMGUI_PARITY_SKIN %s\n", path);
+        return UI_ERR_BADINP;
+    }
+    if (fseek(file, 0, SEEK_END) || (size = ftell(file)) < 1 || fseek(file, 0, SEEK_SET)) {
+        fclose(file);
+        fprintf(stderr, "unable to size SMGUI_PARITY_SKIN %s\n", path);
+        return UI_ERR_BADINP;
+    }
+    png = (unsigned char *)malloc((size_t)size);
+    if (!png || fread(png, 1, (size_t)size, file) != (size_t)size) {
+        fclose(file);
+        free(png);
+        fprintf(stderr, "unable to read SMGUI_PARITY_SKIN %s\n", path);
+        return UI_ERR_BADINP;
+    }
+    fclose(file);
+    result = ui_pngskin(context, png, (int)size);
+    free(png);
+    if (result != UI_OK) {
+        fprintf(stderr, "unable to decode SMGUI_PARITY_SKIN %s: %d\n", path, result);
+        return result;
+    }
+    /* Cursor parity is independent from widget-skin parity. */
+    return ui_hwcursor(context);
 }
 
 int main(int argc, char **argv)
@@ -27,6 +69,8 @@ int main(int argc, char **argv)
     int slider_midpoint_value = 50;
     int slider_maximum_value = 100;
     int slider_interaction_value = 0;
+    int vertical_scrollbar_value = 50;
+    int horizontal_scrollbar_value = 50;
     int64_t progress_value = 0;
     int64_t progress_midpoint_value = 50;
     int64_t decimal_value = 42;
@@ -146,6 +190,14 @@ int main(int argc, char **argv)
     };
     ui_form_t slider_disabled[] = {
         { .type = UI_SLIDER, .flags = UI_DISABLED, .w = 58, .h = 20, .ptr = &slider_midpoint_value, .min = 0, .max = 100 },
+        { .type = UI_END }
+    };
+    ui_form_t vertical_scrollbar_normal[] = {
+        { .type = UI_VSCRBAR, .h = 40, .ptr = &vertical_scrollbar_value, .max = 100 },
+        { .type = UI_END }
+    };
+    ui_form_t horizontal_scrollbar_normal[] = {
+        { .type = UI_HSCRBAR, .w = 58, .ptr = &horizontal_scrollbar_value, .max = 100 },
         { .type = UI_END }
     };
     ui_form_t progress_minimum[] = {
@@ -500,6 +552,10 @@ int main(int argc, char **argv)
         forms = slider_interaction;
     } else if (!strcmp(argv[1], "slider-disabled")) {
         forms = slider_disabled;
+    } else if (!strcmp(argv[1], "vertical-scrollbar-normal")) {
+        forms = vertical_scrollbar_normal;
+    } else if (!strcmp(argv[1], "horizontal-scrollbar-normal")) {
+        forms = horizontal_scrollbar_normal;
     } else if (!strcmp(argv[1], "progress-minimum")) {
         forms = progress_minimum;
     } else if (!strcmp(argv[1], "progress-midpoint")) {
@@ -694,6 +750,11 @@ int main(int argc, char **argv)
     result = ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, width, height, NULL);
     if (result != UI_OK) {
         fprintf(stderr, "ui_init failed: %d\n", result);
+        return 1;
+    }
+    result = apply_environment_skin(&context);
+    if (result != UI_OK) {
+        ui_free(&context);
         return 1;
     }
     if (!strcmp(argv[1], "button-normal") || !strcmp(argv[1], "button-explicit-size") ||

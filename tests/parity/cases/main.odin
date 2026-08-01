@@ -122,6 +122,24 @@ main :: proc() {
 			maximum = 100,
 		},
 	}
+	vertical_scrollbar_value := 50
+	vertical_scrollbar_normal := []smgui.Form {
+		{
+			kind = .Vertical_Scrollbar,
+			height = 40,
+			binding = smgui.bind(&vertical_scrollbar_value),
+			maximum = 100,
+		},
+	}
+	horizontal_scrollbar_value := 50
+	horizontal_scrollbar_normal := []smgui.Form {
+		{
+			kind = .Horizontal_Scrollbar,
+			width = 58,
+			binding = smgui.bind(&horizontal_scrollbar_value),
+			maximum = 100,
+		},
+	}
 	progress_value := 0
 	progress_minimum := []smgui.Form {
 		{
@@ -566,6 +584,10 @@ main :: proc() {
 		forms = slider_interaction
 	case "slider-disabled":
 		forms = slider_disabled
+	case "vertical-scrollbar-normal":
+		forms = vertical_scrollbar_normal
+	case "horizontal-scrollbar-normal":
+		forms = horizontal_scrollbar_normal
 	case "progress-minimum":
 		forms = progress_minimum
 	case "progress-midpoint":
@@ -777,6 +799,22 @@ main :: proc() {
 	defer {
 		if error := smgui.deinit(&ctx); error != .None {
 			fmt.eprintf("deinit failed: %v\n", error)
+		}
+	}
+	if skin_path := os.get_env("SMGUI_PARITY_SKIN", context.temp_allocator); len(skin_path) > 0 {
+		png, file_error := os.read_entire_file(skin_path, context.temp_allocator)
+		if file_error != nil {
+			fmt.eprintf("unable to read SMGUI_PARITY_SKIN %q: %v\n", skin_path, file_error)
+			os.exit(1)
+		}
+		if error := smgui.set_png_skin(&ctx, png); error != .None {
+			fmt.eprintf("unable to decode SMGUI_PARITY_SKIN %q: %v\n", skin_path, error)
+			os.exit(1)
+		}
+		// Cursor parity is independent from widget-skin parity.
+		if error := smgui.use_hardware_cursor(&ctx); error != .None {
+			fmt.eprintf("unable to disable the skin cursor: %v\n", error)
+			os.exit(1)
 		}
 	}
 	font, font_error := psf2.default_font()
