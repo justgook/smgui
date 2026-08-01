@@ -186,6 +186,8 @@ int main(int argc, char **argv)
         { .type = UI_CURVE, .ptr = &curve_points, .value = 0xffff80c0 },
         { .type = UI_HSCRBAR, .x = UI_ABS(300), .y = UI_ABS(300), .w = 120, .max = 300, .ptr = &horizontal_scroll },
         { .type = UI_VSCRBAR, .x = UI_ABS(430), .y = UI_ABS(200), .h = 100, .max = 300, .ptr = &vertical_scroll },
+        { .type = UI_BUTTON, .align = UI_RIGHT, .w = 60, .label = ITEM_1 },
+        { .type = UI_BUTTON, .align = UI_RIGHT, .w = 60, .label = ITEM_2 },
         { .type = UI_END }
     };
 

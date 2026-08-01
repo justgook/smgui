@@ -91,6 +91,7 @@ popup_wrap_uses_configured_vertical_pitch :: proc(t: ^testing.T) {
 	children := []Form {
 		{kind = .Button, flags = {.No_Break}, width = 30, height = 8},
 		{kind = .Button, width = 30, height = 8},
+		{kind = .Button, width = 30, height = 8},
 	}
 	forms := []Form {
 		{kind = .Popup, x = absolute(5), y = absolute(5), width = 50, height = 50, margin = 2, pitch = 6, children = children},
@@ -99,9 +100,10 @@ popup_wrap_uses_configured_vertical_pitch :: proc(t: ^testing.T) {
 		testing.expectf(t, false, "render failed: %v", error)
 		return
 	}
+	testing.expect_value(t, children[1].computed_y, children[0].computed_y)
 	testing.expect_value(
 		t,
-		children[1].computed_y - children[0].computed_y,
+		children[2].computed_y - children[0].computed_y,
 		children[0].computed_height + forms[0].pitch,
 	)
 }
@@ -580,12 +582,68 @@ flow_layout_positions_children_inside_divisions :: proc(t: ^testing.T) {
 	testing.expect_value(t, children[0].computed_y, 15)
 	testing.expect_value(t, children[1].computed_x, 24)
 	testing.expect_value(t, children[1].computed_y, 15)
-	testing.expect_value(t, children[2].computed_x, 15)
-	testing.expect_value(t, children[2].computed_y, 35)
+	testing.expect_value(t, children[2].computed_x, 86)
+	testing.expect_value(t, children[2].computed_y, 15)
 
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Mouse_Left})
 	send_mouse_for_test(t, &ctx, &backend_state, forms, 35, 20, {.Released})
 	testing.expect(t, clicked)
+}
+
+@(test)
+flow_breaks_no_break_and_alignment_match_reference :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	if error := init(&ctx, test_backend(&backend_state), []string{"test"}, 200, 200); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer { _ = deinit(&ctx) }
+
+	right_children := []Form {
+		{kind = .Button, horizontal_alignment = .Right, width = 20, height = 10},
+		{kind = .Button, horizontal_alignment = .Right, width = 20, height = 10},
+		{kind = .Button, horizontal_alignment = .Right, width = 60, height = 10},
+	}
+	break_children := []Form {
+		{kind = .Button, flags = {.Force_Break}, width = 10, height = 10},
+		{kind = .Button, width = 10, height = 10},
+	}
+	no_break_children := []Form {
+		{kind = .Button, flags = {.No_Break}, width = 20, height = 10},
+		{kind = .Button, width = 20, height = 10},
+		{kind = .Button, width = 20, height = 10},
+	}
+	forms := []Form {
+		{kind = .Division, x = absolute(0), y = absolute(0), width = 100, height = 60, pitch = 8, children = right_children},
+		{kind = .Division, x = absolute(0), y = absolute(70), width = 100, height = 50, pitch = 8, children = break_children},
+		{kind = .Division, x = absolute(120), y = absolute(0), width = 30, height = 60, pitch = 8, children = no_break_children},
+		{
+			kind = .Button,
+			x = absolute(50),
+			y = absolute(150),
+			width = 20,
+			height = 10,
+			horizontal_alignment = .Center,
+			vertical_alignment = .Middle,
+		},
+	}
+	if error := render(&ctx, forms); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+		return
+	}
+
+	testing.expect_value(t, right_children[0].computed_x, 78)
+	testing.expect_value(t, right_children[1].computed_x, 50)
+	testing.expect_value(t, right_children[2].computed_x, 38)
+	testing.expect_value(t, right_children[2].computed_y, 18)
+	testing.expect_value(t, break_children[0].computed_y, 70)
+	testing.expect_value(t, break_children[1].computed_y, 88)
+	testing.expect_value(t, no_break_children[1].computed_x, 148)
+	testing.expect_value(t, no_break_children[2].computed_x, 120)
+	testing.expect_value(t, no_break_children[2].computed_y, 18)
+	testing.expect_value(t, forms[3].computed_x, 40)
+	testing.expect_value(t, forms[3].computed_y, 145)
 }
 
 @(test)

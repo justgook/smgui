@@ -242,6 +242,8 @@ main :: proc() {
 		{kind = .Curve, points = curve_points, value = int(0xffff80c0)},
 		{kind = .Horizontal_Scrollbar, x = smgui.absolute(300), y = smgui.absolute(300), width = 120, maximum = 300, binding = smgui.bind(&horizontal_scroll)},
 		{kind = .Vertical_Scrollbar, x = smgui.absolute(430), y = smgui.absolute(200), height = 100, maximum = 300, binding = smgui.bind(&vertical_scroll)},
+		{kind = .Button, horizontal_alignment = .Right, width = 60, label = 4},
+		{kind = .Button, horizontal_alignment = .Right, width = 60, label = 5},
 	}
 	forms[1].binding = smgui.bind(&forms[2])
 	forms[3].binding = smgui.bind(&forms[4])

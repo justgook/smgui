@@ -22,7 +22,7 @@ Status:
   [x] Relative flow layout and division containers implemented
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
   [x] Popup dragging, resizing, and container scrolling implemented
-  [ ] Advanced flow alignment implemented
+  [x] Reference flow breaks, offsets, wrapping, and alignment implemented
   [ ] Remaining widget interaction and event processing implemented
   [ ] Remaining built-in widgets implemented
 
@@ -1015,6 +1015,7 @@ layout_forms :: proc(
 ) {
 	cursor_x := x
 	cursor_y := y
+	right_cursor := x + width - 2
 	row_height := 0
 	content_right := x
 	content_bottom := y
@@ -1037,13 +1038,6 @@ layout_forms :: proc(
 		if is_flow {
 			field_x = cursor_x + int(field.x.value) + int(field.x.offset)
 			field_y = cursor_y + int(field.y.value) + int(field.y.offset)
-			if cursor_x > x && field_x + field_width > x + width {
-				cursor_x = x
-				cursor_y += row_height + gap
-				row_height = 0
-				field_x = cursor_x + int(field.x.value) + int(field.x.offset)
-				field_y = cursor_y + int(field.y.value) + int(field.y.offset)
-			}
 		} else {
 			field_x = x + resolve_position(field.x, width)
 			field_y = y + resolve_position(field.y, height)
@@ -1074,6 +1068,55 @@ layout_forms :: proc(
 		case .Bottom:
 			field_y -= field_height
 		case .Top:
+		}
+
+		right_aligned_flow := false
+		if is_flow {
+			continues_row := previous != nil && .No_Break in previous.flags
+			right_aligned_flow = field.horizontal_alignment == .Right &&
+			                     field.x.value == 0 && field.x.offset == 0
+			if right_aligned_flow {
+				if right_cursor < x + width - 2 {
+					right_cursor -= gap
+				}
+				right_cursor -= field_width
+				row_height = max(row_height, field_height)
+				if right_cursor < x {
+					right_cursor = x + width - field_width - 2
+					if row_height > 0 {
+						row_height += gap
+					}
+					field_y += row_height
+					cursor_y += row_height
+					row_height = 0
+				}
+				field_x = right_cursor
+			} else {
+				if field_x > x {
+					field_x += gap
+				}
+				if (width > 0 && .Force_Break not_in field.flags) || continues_row {
+					if !continues_row && field_x + field_width + 2 >= x + width {
+						if row_height > 0 {
+							row_height += gap
+						}
+						field_x = x
+						field_y += row_height
+						cursor_y += row_height
+						row_height = 0
+					}
+					if field.y.mode == .Relative {
+						cursor_y += int(field.y.value) + int(field.y.offset)
+					}
+					row_height = max(row_height, field_height)
+					cursor_x = field_x + field_width
+				} else {
+					row_height = max(row_height, field_height)
+					cursor_y += row_height + gap
+					cursor_x = x
+					row_height = 0
+				}
+			}
 		}
 
 		if is_overlay {
@@ -1168,17 +1211,9 @@ layout_forms :: proc(
 			}
 		}
 
-		content_right = max(content_right, field_x + field_width)
-		content_bottom = max(content_bottom, field_y + field_height)
-		if is_flow {
-			row_height = max(row_height, field_height + int(field.y.value) + int(field.y.offset))
-			if .No_Break in field.flags && .Force_Break not_in field.flags {
-				cursor_x = field_x + field_width + gap
-			} else {
-				cursor_x = x
-				cursor_y += row_height + gap
-				row_height = 0
-			}
+		if !right_aligned_flow {
+			content_right = max(content_right, field_x + field_width)
+			content_bottom = max(content_bottom, field_y + field_height)
 		}
 		previous = &field
 	}
@@ -1500,11 +1535,19 @@ measure_form :: proc(
 			height = text_height + 4
 		}
 	case .Popup, .Menu:
+		content_available_width := 4
+		content_available_height := 4
+		if width > 0 {
+			content_available_width = max(width - 2 * field.margin + 4, 0)
+		}
+		if height > 0 {
+			content_available_height = max(height - 2 * field.margin + 4, 0)
+		}
 		content_width, content_height, content_error := measure_container_content(
 			ctx,
 			field.children,
-			available_width,
-			available_height,
+			content_available_width,
+			content_available_height,
 			field.pitch,
 		)
 		if content_error != .None {
@@ -1533,11 +1576,19 @@ measure_form :: proc(
 			height = max(content_height + 2 * field.margin + title_height + 2, 16)
 		}
 	case .Division:
+		content_available_width := 4
+		content_available_height := 4
+		if width > 0 {
+			content_available_width = max(width - 2 * field.margin + 4, 0)
+		}
+		if height > 0 {
+			content_available_height = max(height - 2 * field.margin + 4, 0)
+		}
 		content_width, content_height, content_error := measure_container_content(
 			ctx,
 			field.children,
-			max(width - 2 * field.margin - 4, available_width - 2 * field.margin - 4),
-			available_height,
+			content_available_width,
+			content_available_height,
 			field.pitch,
 		)
 		if content_error != .None {
@@ -1560,41 +1611,7 @@ measure_container_content :: proc(
 	width, height: int,
 	error: Error,
 ) {
-	row_width, row_height := 0, 0
-	for &child in children {
-		if child.kind == .End {
-			break
-		}
-		if .Hidden in child.flags {
-			continue
-		}
-		child_width, child_height, child_error := measure_form(
-			ctx,
-			&child,
-			available_width,
-			available_height,
-		)
-		if child_error != .None {
-			return 0, 0, child_error
-		}
-		row_width += child_width
-		row_height = max(row_height, child_height)
-		if .No_Break in child.flags && .Force_Break not_in child.flags {
-			row_width += gap
-		} else {
-			width = max(width, row_width)
-			height += row_height + gap
-			row_width = 0
-			row_height = 0
-		}
-	}
-	if row_width > 0 || row_height > 0 {
-		width = max(width, row_width)
-		height += row_height
-	} else if height > 0 {
-		height -= gap
-	}
-	return width, height, .None
+	return layout_forms(ctx, children, 0, 0, available_width, available_height, gap)
 }
 
 @(private = "file")
