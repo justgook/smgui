@@ -57,6 +57,7 @@ State :: struct {
 	smgui_initialized: bool,
 	gfx_initialized:   bool,
 	framebuffer_ready: bool,
+	native_cursor_bound: bool,
 }
 
 // create is exposed for embedding in an already-running sokol_app. Most callers
@@ -335,6 +336,11 @@ backend_deinit :: proc(data: rawptr) -> smgui.Error {
 		return .Invalid_Input
 	}
 	state := (^State)(data)
+	if state.native_cursor_bound {
+		sapp.set_mouse_cursor(.DEFAULT)
+		sapp.unbind_mouse_cursor_image(.CUSTOM_0)
+		state.native_cursor_bound = false
+	}
 	if state.framebuffer_ready {
 		sfb.destroy_framebuffer(state.framebuffer)
 		sfb.shutdown()
@@ -474,13 +480,58 @@ backend_get_clipboard :: proc(data: rawptr) -> (string, smgui.Error) {
 @(private = "file")
 backend_hide_cursor :: proc(data: rawptr) -> smgui.Error {
 	if data == nil {return .Invalid_Input}
-	sapp.show_mouse(false)
+	state := (^State)(data)
+	if state.ctx == nil {
+		return .Backend_Failure
+	}
+	cursor := &state.ctx.software_cursor
+	if cursor.width < 2 || cursor.height < 2 || cursor.pitch < cursor.width * 4 ||
+	   len(cursor.pixels) < (cursor.height - 1) * cursor.pitch + cursor.width * 4 {
+		// Sokol custom cursor hotspots require dimensions greater than one.
+		sapp.show_mouse(false)
+		return .None
+	}
+	pixels := make([]u8, cursor.width * cursor.height * 4) or_else nil
+	if pixels == nil {
+		return .Out_Of_Memory
+	}
+	defer delete(pixels)
+	for row in 0 ..< cursor.height {
+		source_start := row * cursor.pitch
+		destination_start := row * cursor.width * 4
+		copy(
+			pixels[destination_start:destination_start + cursor.width * 4],
+			cursor.pixels[source_start:source_start + cursor.width * 4],
+		)
+	}
+	if state.native_cursor_bound {
+		sapp.set_mouse_cursor(.DEFAULT)
+		sapp.unbind_mouse_cursor_image(.CUSTOM_0)
+	}
+	sapp.bind_mouse_cursor_image(.CUSTOM_0, {
+		width = c.int(cursor.width),
+		height = c.int(cursor.height),
+		cursor_hotspot_x = 0,
+		cursor_hotspot_y = 0,
+		pixels = {ptr = raw_data(pixels), size = c.size_t(len(pixels))},
+	})
+	sapp.set_mouse_cursor(.CUSTOM_0)
+	sapp.show_mouse(true)
+	state.native_cursor_bound = true
+	// Prevent the core renderer from also drawing the promoted cursor.
+	state.ctx.software_cursor = {}
 	return .None
 }
 
 @(private = "file")
 backend_show_cursor :: proc(data: rawptr) -> smgui.Error {
 	if data == nil {return .Invalid_Input}
+	state := (^State)(data)
+	if state.native_cursor_bound {
+		sapp.set_mouse_cursor(.DEFAULT)
+		sapp.unbind_mouse_cursor_image(.CUSTOM_0)
+		state.native_cursor_bound = false
+	}
 	sapp.show_mouse(true)
 	return .None
 }
