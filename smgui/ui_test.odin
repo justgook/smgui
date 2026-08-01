@@ -313,6 +313,45 @@ toggle_and_icon_buttons_match_reference_interactions :: proc(t: ^testing.T) {
 }
 
 @(test)
+line_connector_and_curve_fields_render :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	texts := []string{"test"}
+	if error := init(&ctx, test_backend(&backend_state), texts, 64, 48); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer {
+		if error := deinit(&ctx); error != .None {
+			testing.expectf(t, false, "deinit failed: %v", error)
+		}
+	}
+	line_points := []i16{2, 2, 20, 2, 20, 12, 0, 0}
+	vertical_points := []i16{24, 4, 40, 20}
+	horizontal_points := []i16{4, 24, 24, 40}
+	curve_points := []i16{30, 26, 58, 42, 34, 42, 54, 26}
+	forms := []Form {
+		{kind = .Lines, points = line_points, value = int(0xffffffff)},
+		{kind = .Vertical_Connector, points = vertical_points, value = int(0xff40c080)},
+		{kind = .Horizontal_Connector, points = horizontal_points, value = int(0xffc08040)},
+		{kind = .Curve, points = curve_points, value = int(0xff8080ff)},
+	}
+	if error := render(&ctx, forms); error != .None {
+		testing.expectf(t, false, "render failed: %v", error)
+		return
+	}
+	pixel := 2 * ctx.screen.pitch + 2 * 4
+	testing.expect(t, ctx.screen.pixels[pixel + 3] != 0)
+	nontransparent := 0
+	for index := 3; index < len(ctx.screen.pixels); index += 4 {
+		if ctx.screen.pixels[index] != 0 {
+			nontransparent += 1
+		}
+	}
+	testing.expect(t, nontransparent > 40)
+}
+
+@(test)
 interactive_controls_mutate_bound_state :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context

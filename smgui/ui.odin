@@ -17,7 +17,7 @@ Status:
   [x] UTF-8 text input, cursor editing, and input filters implemented
   [x] Integer and floating-point text/stepper inputs implemented
   [x] Select dropdowns and option steppers implemented
-  [ ] Remaining drawing primitives implemented
+  [x] Line, connector, and curve drawing primitives implemented
   [x] Relative flow layout and division containers implemented
   [x] Popup/menu overlay layout, rendering, toggles, and event routing implemented
   [x] Popup dragging and resizing implemented
@@ -33,6 +33,7 @@ Definition of done:
 */
 
 import "core:fmt"
+import "core:math"
 import "core:strconv"
 import "core:strings"
 
@@ -487,6 +488,7 @@ Form :: struct {
 	custom:               Custom_Widget,
 	options:              []string,
 	selected_option:      int,
+	points:               []i16,
 	children:             []Form,
 }
 
@@ -563,6 +565,8 @@ Context :: struct {
 	color_mode:     int,
 	color_edit:     [8]u8,
 	color_cursor:   int,
+	curve_x:        int,
+	curve_y:        int,
 	drag_x:         int,
 	drag_y:         int,
 	default_size:   int,
@@ -1752,6 +1756,8 @@ draw_forms :: proc(ctx: ^Context, forms: []Form) -> Error {
 			}
 		case .Icon_Button:
 			draw_icon_button(ctx, &field)
+		case .Lines, .Vertical_Connector, .Horizontal_Connector, .Curve:
+			draw_line_field(ctx, &field)
 		case .Checkbox, .Radio:
 			if error := draw_choice(ctx, &field); error != .None {
 				return error
@@ -4604,6 +4610,177 @@ draw_beveled_rectangle :: proc(ctx: ^Context, x, y, width, height: int, light, c
 	fill_rectangle(ctx, x, y, 1, height, light)
 	fill_rectangle(ctx, x, y + height - 1, width, 1, dark)
 	fill_rectangle(ctx, x + width - 1, y, 1, height, dark)
+}
+
+@(private = "file")
+blend_line_pixel :: proc(ctx: ^Context, x, y: int, color: u32, coverage: int) {
+	if coverage <= 0 || x < 0 || y < 0 || x >= ctx.screen.width || y >= ctx.screen.height {
+		return
+	}
+	source_alpha := int(u8(color >> 24))
+	alpha := clamp(coverage, 0, 255) * source_alpha / 255
+	inverse := 255 - alpha
+	pixel := y * ctx.screen.pitch + x * 4
+	for channel in 0 ..< 4 {
+		source := int(u8(color >> u32(channel * 8)))
+		destination := int(ctx.screen.pixels[pixel + channel])
+		ctx.screen.pixels[pixel + channel] = u8((source * alpha + inverse * destination) >> 8)
+	}
+}
+
+@(private = "file")
+draw_antialiased_line :: proc(ctx: ^Context, start_x, start_y, end_x, end_y: int, color: u32) {
+	if u8(color >> 24) == 0 || (start_x == end_x && start_y == end_y) {
+		return
+	}
+	x, y := start_x, start_y
+	step_x := -1
+	if start_x < end_x {
+		step_x = 1
+	}
+	step_y := -1
+	if start_y < end_y {
+		step_y = 1
+	}
+	delta_x := abs(end_x - start_x)
+	delta_y := abs(end_y - start_y)
+	error_squared := delta_x * delta_x + delta_y * delta_y
+	scale := 1
+	if error_squared != 0 {
+		scale = int(f64(0xffff7f) / math.sqrt(f64(error_squared)))
+	}
+	delta_x *= scale
+	delta_y *= scale
+	error := delta_x - delta_y
+	for {
+		pixel_coverage := 255 - (abs(error - delta_x + delta_y) >> 16)
+		blend_line_pixel(ctx, x, y, color, pixel_coverage)
+		previous_error := error
+		previous_x := x
+		if 2 * previous_error >= -delta_x {
+			if x == end_x {
+				break
+			}
+			neighbor_y := y + step_y
+			if previous_error + delta_y < 0xff0000 {
+				blend_line_pixel(ctx, x, neighbor_y, color, 255 - ((previous_error + delta_y) >> 16))
+			}
+			error -= delta_y
+			x += step_x
+		}
+		if 2 * previous_error <= delta_y {
+			if y == end_y {
+				break
+			}
+			neighbor_x := previous_x + step_x
+			if delta_x - previous_error < 0xff0000 {
+				blend_line_pixel(ctx, neighbor_x, y, color, 255 - ((delta_x - previous_error) >> 16))
+			}
+			error += delta_x
+			y += step_y
+		}
+	}
+}
+
+@(private = "file")
+draw_bezier_recursive :: proc(
+	ctx: ^Context,
+	color: u32,
+	x0, y0, x1, y1, x2, y2, x3, y3, level: int,
+) {
+	if level < 8 && (x0 != x3 || y0 != y3) {
+		m0x, m0y := (x1 - x0) / 2 + x0, (y1 - y0) / 2 + y0
+		m1x, m1y := (x2 - x1) / 2 + x1, (y2 - y1) / 2 + y1
+		m2x, m2y := (x3 - x2) / 2 + x2, (y3 - y2) / 2 + y2
+		m3x, m3y := (m1x - m0x) / 2 + m0x, (m1y - m0y) / 2 + m0y
+		m4x, m4y := (m2x - m1x) / 2 + m1x, (m2y - m1y) / 2 + m1y
+		m5x, m5y := (m4x - m3x) / 2 + m3x, (m4y - m3y) / 2 + m3y
+		draw_bezier_recursive(ctx, color, x0, y0, m0x, m0y, m3x, m3y, m5x, m5y, level + 1)
+		draw_bezier_recursive(ctx, color, m5x, m5y, m4x, m4y, m2x, m2y, x3, y3, level + 1)
+	}
+	if level > 0 {
+		draw_antialiased_line(ctx, ctx.curve_x >> 8, ctx.curve_y >> 8, x3 >> 8, y3 >> 8, color)
+		ctx.curve_x, ctx.curve_y = x3, y3
+	}
+}
+
+@(private = "file")
+draw_cubic_bezier :: proc(
+	ctx: ^Context,
+	x0, y0, x1, y1, control_x0, control_y0, control_x1, control_y1: int,
+	color: u32,
+) {
+	if u8(color >> 24) == 0 {
+		return
+	}
+	ctx.curve_x, ctx.curve_y = x0 << 8, y0 << 8
+	draw_bezier_recursive(
+		ctx,
+		color,
+		x0 << 8,
+		y0 << 8,
+		control_x0 << 8,
+		control_y0 << 8,
+		control_x1 << 8,
+		control_y1 << 8,
+		x1 << 8,
+		y1 << 8,
+		0,
+	)
+}
+
+@(private = "file")
+draw_line_field :: proc(ctx: ^Context, field: ^Form) {
+	color := u32(field.value)
+	#partial switch field.kind {
+	case .Lines:
+		for index := 0; index + 3 < len(field.points); index += 2 {
+			if field.points[index + 2] == 0 && field.points[index + 3] == 0 {
+				break
+			}
+			draw_antialiased_line(
+				ctx,
+				int(field.points[index]),
+				int(field.points[index + 1]),
+				int(field.points[index + 2]),
+				int(field.points[index + 3]),
+				color,
+			)
+		}
+	case .Vertical_Connector, .Horizontal_Connector:
+		if len(field.points) < 4 {
+			return
+		}
+		x0, y0 := int(field.points[0]), int(field.points[1])
+		x1, y1 := int(field.points[2]), int(field.points[3])
+		if x0 > x1 {
+			x0, x1 = x1, x0
+		}
+		if y0 > y1 {
+			y0, y1 = y1, y0
+		}
+		if field.kind == .Horizontal_Connector {
+			draw_cubic_bezier(ctx, x0, y0, x1, y1, x1, y0, x0, y1, color)
+		} else {
+			draw_cubic_bezier(ctx, x0, y0, x1, y1, x0, y1, x1, y0, color)
+		}
+	case .Curve:
+		if len(field.points) < 8 {
+			return
+		}
+		draw_cubic_bezier(
+			ctx,
+			int(field.points[0]),
+			int(field.points[1]),
+			int(field.points[2]),
+			int(field.points[3]),
+			int(field.points[4]),
+			int(field.points[5]),
+			int(field.points[6]),
+			int(field.points[7]),
+			color,
+		)
+	}
 }
 
 @(private = "file")

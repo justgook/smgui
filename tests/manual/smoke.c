@@ -158,6 +158,10 @@ int main(int argc, char **argv)
         { .type = UI_DIV, .flags = UI_FORCEBR, .w = UI_PERCENT(100), .m = 4, .ptr = &inactive_buttons },
         { .type = UI_END }
     };
+    int16_t line_points[] = { 300, 350, 340, 350, 340, 380, 0, 0 };
+    int16_t vertical_connector[] = { 350, 350, 390, 390 };
+    int16_t horizontal_connector[] = { 400, 350, 440, 390 };
+    int16_t curve_points[] = { 300, 410, 440, 430, 340, 450, 400, 390 };
     label_fields[10].ptr = &label_fields[11];
 
     ui_form_t forms[] = {
@@ -174,6 +178,10 @@ int main(int argc, char **argv)
         { .type = UI_DIV, .flags = UI_FORCEBR, .w = UI_PERCENT(100), .m = 4, .ptr = &input_fields },
         { .type = UI_TOGGLE, .flags = UI_FORCEBR, .label = BUTTONS },
         { .type = UI_DIV, .flags = UI_FORCEBR, .w = UI_PERCENT(100), .m = 4, .ptr = &button_fields },
+        { .type = UI_LINES, .ptr = &line_points, .value = 0xff80c0ff },
+        { .type = UI_VCONNECT, .ptr = &vertical_connector, .value = 0xff80ff80 },
+        { .type = UI_HCONNECT, .ptr = &horizontal_connector, .value = 0xffffc080 },
+        { .type = UI_CURVE, .ptr = &curve_points, .value = 0xffff80c0 },
         { .type = UI_END }
     };
 

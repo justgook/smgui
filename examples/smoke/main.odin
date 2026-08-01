@@ -206,6 +206,10 @@ main :: proc() {
 		{kind = .Toggle, flags = {.Force_Break}, label = 9},
 		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = inactive_buttons},
 	}
+	line_points := []i16{300, 350, 340, 350, 340, 380, 0, 0}
+	vertical_connector := []i16{350, 350, 390, 390}
+	horizontal_connector := []i16{400, 350, 440, 390}
+	curve_points := []i16{300, 410, 440, 430, 340, 450, 400, 390}
 	forms := []smgui.Form {
 		{
 			kind = .Popup,
@@ -230,6 +234,10 @@ main :: proc() {
 		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = input_fields},
 		{kind = .Toggle, flags = {.Force_Break}, label = 10},
 		{kind = .Division, flags = {.Force_Break}, width_percentage = 100, margin = 4, children = button_fields},
+		{kind = .Lines, points = line_points, value = int(0xff80c0ff)},
+		{kind = .Vertical_Connector, points = vertical_connector, value = int(0xff80ff80)},
+		{kind = .Horizontal_Connector, points = horizontal_connector, value = int(0xffffc080)},
+		{kind = .Curve, points = curve_points, value = int(0xffff80c0)},
 	}
 	forms[1].binding = smgui.bind(&forms[2])
 	forms[3].binding = smgui.bind(&forms[4])

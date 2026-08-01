@@ -182,7 +182,7 @@ only their module and must agree with this list.
 - [x] Migrate image and icon fields.
 - [x] Migrate color input.
 - [x] Migrate toggle buttons and icon buttons.
-- [ ] Migrate line, connector, and curve drawing fields.
+- [x] Migrate line, connector, and curve drawing fields.
 - [ ] Migrate vertical and horizontal scrollbars.
 - [ ] Migrate scrolling, dragging, resizing, and remaining alignment behavior.
 - [ ] Complete drop, resize, wheel, gamepad, and remaining event processing.
