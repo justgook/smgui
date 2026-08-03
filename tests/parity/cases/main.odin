@@ -25,10 +25,37 @@ main :: proc() {
 	multiline_normal := []smgui.Form{{kind = .Multiline_Label, label = 9}}
 	status_normal := []smgui.Form{{kind = .Status, width = 52, text = "Ready"}}
 	icon_pixels := []u8 {
-		0x10, 0x20, 0xf0, 0xff,  0x20, 0xe0, 0x30, 0xc0,  0xd0, 0x40, 0x20, 0x80,
-		0xf0, 0xd0, 0x10, 0x40,  0x70, 0x30, 0xc0, 0xff,  0x40, 0xb0, 0xe0, 0xa0,
+		0x10,
+		0x20,
+		0xf0,
+		0xff,
+		0x20,
+		0xe0,
+		0x30,
+		0xc0,
+		0xd0,
+		0x40,
+		0x20,
+		0x80,
+		0xf0,
+		0xd0,
+		0x10,
+		0x40,
+		0x70,
+		0x30,
+		0xc0,
+		0xff,
+		0x40,
+		0xb0,
+		0xe0,
+		0xa0,
 	}
-	icon_image := smgui.Image{width = 3, height = 2, pitch = 12, pixels = icon_pixels}
+	icon_image := smgui.Image {
+		width  = 3,
+		height = 2,
+		pitch  = 12,
+		pixels = icon_pixels,
+	}
 	icon_scaled := []smgui.Form{{kind = .Icon, width = 11, height = 9, icon = &icon_image}}
 	icon_disabled := []smgui.Form {
 		{kind = .Icon, flags = {.Disabled}, width = 11, height = 9, icon = &icon_image},
@@ -280,7 +307,8 @@ main :: proc() {
 		},
 	}
 	text_input_overflow_value: smgui.Text_Buffer
-	if error := smgui.text_buffer_init(&text_input_overflow_value, "ABCDEFGHIJKLMNO", 31); error != .None {
+	if error := smgui.text_buffer_init(&text_input_overflow_value, "ABCDEFGHIJKLMNO", 31);
+	   error != .None {
 		fmt.eprintln("failed to initialize overflowing text input buffer")
 		os.exit(1)
 	}
@@ -421,20 +449,62 @@ main :: proc() {
 	}
 	division_label_children := []smgui.Form{{kind = .Label, label = 1}}
 	division_intrinsic := []smgui.Form {
-		{kind = .Division, x = smgui.absolute(5), y = smgui.absolute(5), margin = 4, children = division_label_children},
+		{
+			kind = .Division,
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			margin = 4,
+			children = division_label_children,
+		},
 	}
 	division_percentage := []smgui.Form {
 		{kind = .Division, width_percentage = 100, margin = 4, children = division_label_children},
 	}
 	layout_alignment := []smgui.Form {
-		{kind = .Label, x = smgui.absolute(20), y = smgui.absolute(14), width = 10, height = 20, horizontal_alignment = .Center, vertical_alignment = .Middle, label = 10},
-		{kind = .Label, x = smgui.absolute(52), y = smgui.absolute(36), width = 10, height = 20, horizontal_alignment = .Right, vertical_alignment = .Bottom, label = 10},
+		{
+			kind = .Label,
+			x = smgui.absolute(20),
+			y = smgui.absolute(14),
+			width = 10,
+			height = 20,
+			horizontal_alignment = .Center,
+			vertical_alignment = .Middle,
+			label = 10,
+		},
+		{
+			kind = .Label,
+			x = smgui.absolute(52),
+			y = smgui.absolute(36),
+			width = 10,
+			height = 20,
+			horizontal_alignment = .Right,
+			vertical_alignment = .Bottom,
+			label = 10,
+		},
 	}
 	layout_from_end := []smgui.Form {
-		{kind = .Label, x = smgui.absolute_from_end(8), y = smgui.absolute_from_end(8), width = 10, height = 20, horizontal_alignment = .Right, vertical_alignment = .Bottom, label = 10},
+		{
+			kind = .Label,
+			x = smgui.absolute_from_end(8),
+			y = smgui.absolute_from_end(8),
+			width = 10,
+			height = 20,
+			horizontal_alignment = .Right,
+			vertical_alignment = .Bottom,
+			label = 10,
+		},
 	}
 	layout_percent := []smgui.Form {
-		{kind = .Label, x = smgui.percent(50, 3), y = smgui.percent(50, 2), width = 10, height = 20, horizontal_alignment = .Center, vertical_alignment = .Middle, label = 10},
+		{
+			kind = .Label,
+			x = smgui.percent(50, 3),
+			y = smgui.percent(50, 2),
+			width = 10,
+			height = 20,
+			horizontal_alignment = .Center,
+			vertical_alignment = .Middle,
+			label = 10,
+		},
 	}
 	layout_right_flow_children := []smgui.Form {
 		{kind = .Label, horizontal_alignment = .Right, width = 10, height = 20, label = 10},
@@ -442,7 +512,16 @@ main :: proc() {
 		{kind = .Label, horizontal_alignment = .Right, width = 10, height = 20, label = 10},
 	}
 	layout_right_flow := []smgui.Form {
-		{kind = .Division, x = smgui.absolute(5), y = smgui.absolute(5), width = 40, height = 50, margin = 3, pitch = 4, children = layout_right_flow_children},
+		{
+			kind = .Division,
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 40,
+			height = 50,
+			margin = 3,
+			pitch = 4,
+			children = layout_right_flow_children,
+		},
 	}
 	layout_flow_children := []smgui.Form {
 		{kind = .Label, flags = {.No_Break}, width = 10, height = 20, label = 10},
@@ -450,7 +529,16 @@ main :: proc() {
 		{kind = .Label, width = 10, height = 20, label = 10},
 	}
 	layout_flow := []smgui.Form {
-		{kind = .Division, x = smgui.absolute(5), y = smgui.absolute(5), width = 40, height = 50, margin = 3, pitch = 4, children = layout_flow_children},
+		{
+			kind = .Division,
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 40,
+			height = 50,
+			margin = 3,
+			pitch = 4,
+			children = layout_flow_children,
+		},
 	}
 	layout_hidden_flow := []smgui.Form {
 		{kind = .Label, flags = {.No_Break}, width = 10, height = 20, label = 10},
@@ -461,40 +549,134 @@ main :: proc() {
 	popup_empty_children := []smgui.Form{}
 	popup_content_children := []smgui.Form{{kind = .Label, label = 1}}
 	popup_normal := []smgui.Form {
-		{kind = .Popup, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+		{
+			kind = .Popup,
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 50,
+			height = 35,
+			children = popup_empty_children,
+		},
 	}
 	popup_intrinsic := []smgui.Form {
-		{kind = .Popup, x = smgui.absolute(5), y = smgui.absolute(5), children = popup_content_children},
+		{
+			kind = .Popup,
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			children = popup_content_children,
+		},
 	}
 	popup_no_border := []smgui.Form {
-		{kind = .Popup, flags = {.No_Border}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.No_Border},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 50,
+			height = 35,
+			children = popup_empty_children,
+		},
 	}
 	popup_no_shadow := []smgui.Form {
-		{kind = .Popup, flags = {.No_Shadow}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.No_Shadow},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 50,
+			height = 35,
+			children = popup_empty_children,
+		},
 	}
 	popup_title := []smgui.Form {
-		{kind = .Popup, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
+		{
+			kind = .Popup,
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 55,
+			height = 40,
+			label = 6,
+			children = popup_empty_children,
+		},
 	}
 	popup_draggable := []smgui.Form {
-		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.Draggable},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 55,
+			height = 40,
+			label = 6,
+			children = popup_empty_children,
+		},
 	}
 	popup_chrome := []smgui.Form {
-		{kind = .Popup, flags = {.Draggable, .Resizable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.Draggable, .Resizable},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 55,
+			height = 40,
+			children = popup_empty_children,
+		},
 	}
 	popup_resizable := []smgui.Form {
-		{kind = .Popup, flags = {.Resizable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.Resizable},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 50,
+			height = 35,
+			children = popup_empty_children,
+		},
 	}
 	popup_hidden := []smgui.Form {
-		{kind = .Popup, flags = {.Hidden}, x = smgui.absolute(5), y = smgui.absolute(5), width = 50, height = 35, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.Hidden},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 50,
+			height = 35,
+			children = popup_empty_children,
+		},
 	}
 	popup_close := []smgui.Form {
-		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, label = 6, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.Draggable},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 55,
+			height = 40,
+			label = 6,
+			children = popup_empty_children,
+		},
 	}
 	popup_drag := []smgui.Form {
-		{kind = .Popup, flags = {.Draggable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.Draggable},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 55,
+			height = 40,
+			children = popup_empty_children,
+		},
 	}
 	popup_resize := []smgui.Form {
-		{kind = .Popup, flags = {.Resizable}, x = smgui.absolute(5), y = smgui.absolute(5), width = 55, height = 40, children = popup_empty_children},
+		{
+			kind = .Popup,
+			flags = {.Resizable},
+			x = smgui.absolute(5),
+			y = smgui.absolute(5),
+			width = 55,
+			height = 40,
+			children = popup_empty_children,
+		},
 	}
 	menu_label_children := []smgui.Form{{kind = .Label, label = 8}}
 	menu_disabled_children := []smgui.Form{{kind = .Label, flags = {.Disabled}, label = 8}}
@@ -504,7 +686,15 @@ main :: proc() {
 	}
 	menu_closed := []smgui.Form {
 		{kind = .Toggle, label = 7},
-		{kind = .Menu, flags = {.Hidden}, x = smgui.absolute(5), y = smgui.absolute(22), width = 50, height = 24, children = menu_label_children},
+		{
+			kind = .Menu,
+			flags = {.Hidden},
+			x = smgui.absolute(5),
+			y = smgui.absolute(22),
+			width = 50,
+			height = 24,
+			children = menu_label_children,
+		},
 	}
 	menu_button_closed := []smgui.Form{menu_closed[0], menu_closed[1]}
 	menu_button_closed[0].flags = {.No_Bullet}
@@ -744,7 +934,19 @@ main :: proc() {
 		os.exit(2)
 	}
 
-	texts := []string{"Parity fixture", "Label", "Button", "Btn", "Check", "Radio", "Panel", "Menu", "Open", "Alpha\nBeta", "X"}
+	texts := []string {
+		"Parity fixture",
+		"Label",
+		"Button",
+		"Btn",
+		"Check",
+		"Radio",
+		"Panel",
+		"Menu",
+		"Open",
+		"Alpha\nBeta",
+		"X",
+	}
 	interaction_case :=
 		os.args[1] == "button-hover" ||
 		os.args[1] == "button-pressed" ||
@@ -778,15 +980,19 @@ main :: proc() {
 	if interaction_case {
 		capture_delay = 1
 	}
-	if os.args[1] == "menu-hover" || os.args[1] == "menu-disabled" ||
-	   os.args[1] == "menu-choice" || os.args[1] == "menu-outside-close" ||
+	if os.args[1] == "menu-hover" ||
+	   os.args[1] == "menu-disabled" ||
+	   os.args[1] == "menu-choice" ||
+	   os.args[1] == "menu-outside-close" ||
 	   os.args[1] == "menu-escape-close" {
 		capture_delay = 4
 	} else if os.args[1] == "popup-drag" || os.args[1] == "popup-resize" {
 		capture_delay = 4
-	} else if os.args[1] == "popup-close" || os.args[1] == "menu-open" ||
-	          os.args[1] == "menu-button-open" ||
-	          os.args[1] == "menu-intrinsic" || os.args[1] == "menu-anchored" {
+	} else if os.args[1] == "popup-close" ||
+	   os.args[1] == "menu-open" ||
+	   os.args[1] == "menu-button-open" ||
+	   os.args[1] == "menu-intrinsic" ||
+	   os.args[1] == "menu-anchored" {
 		capture_delay = 2
 	} else if os.args[1] == "select-pressed" {
 		capture_delay = 2
@@ -907,25 +1113,26 @@ main :: proc() {
 		if os.args[1] == "select-pressed" ||
 		   os.args[1] == "select-open" ||
 		   os.args[1] == "select-choice" {
-			if error := smgui.push_event(
-				&ctx,
-				{kind = .Mouse, x = event_x, y = event_y},
-			); error != .None {
+			if error := smgui.push_event(&ctx, {kind = .Mouse, x = event_x, y = event_y});
+			   error != .None {
 				fmt.eprintf("select hover injection failed: %v\n", error)
 				os.exit(1)
 			}
 		}
-		if os.args[1] == "popup-close" || os.args[1] == "popup-drag" ||
-		   os.args[1] == "popup-resize" || os.args[1] == "menu-open" ||
+		if os.args[1] == "popup-close" ||
+		   os.args[1] == "popup-drag" ||
+		   os.args[1] == "popup-resize" ||
+		   os.args[1] == "menu-open" ||
 		   os.args[1] == "menu-button-open" ||
-		   os.args[1] == "menu-intrinsic" || os.args[1] == "menu-anchored" ||
+		   os.args[1] == "menu-intrinsic" ||
+		   os.args[1] == "menu-anchored" ||
 		   os.args[1] == "menu-hover" ||
-		   os.args[1] == "menu-disabled" || os.args[1] == "menu-choice" ||
-		   os.args[1] == "menu-outside-close" || os.args[1] == "menu-escape-close" {
-			if error := smgui.push_event(
-				&ctx,
-				{kind = .Mouse, x = event_x, y = event_y},
-			); error != .None {
+		   os.args[1] == "menu-disabled" ||
+		   os.args[1] == "menu-choice" ||
+		   os.args[1] == "menu-outside-close" ||
+		   os.args[1] == "menu-escape-close" {
+			if error := smgui.push_event(&ctx, {kind = .Mouse, x = event_x, y = event_y});
+			   error != .None {
 				fmt.eprintf("menu warmup injection failed: %v\n", error)
 				os.exit(1)
 			}
@@ -937,8 +1144,10 @@ main :: proc() {
 			fmt.eprintf("event injection failed: %v\n", error)
 			os.exit(1)
 		}
-		if os.args[1] == "menu-hover" || os.args[1] == "menu-disabled" ||
-		   os.args[1] == "menu-choice" || os.args[1] == "menu-outside-close" ||
+		if os.args[1] == "menu-hover" ||
+		   os.args[1] == "menu-disabled" ||
+		   os.args[1] == "menu-choice" ||
+		   os.args[1] == "menu-outside-close" ||
 		   os.args[1] == "menu-escape-close" {
 			idle_x, idle_y := 10, 30
 			if os.args[1] == "menu-outside-close" {
@@ -952,22 +1161,20 @@ main :: proc() {
 				os.exit(1)
 			}
 		}
-		if os.args[1] == "menu-hover" || os.args[1] == "menu-disabled" ||
+		if os.args[1] == "menu-hover" ||
+		   os.args[1] == "menu-disabled" ||
 		   os.args[1] == "menu-choice" {
 			second_event := smgui.Event {
 				kind = .Key,
-				key = smgui.key_input("x"),
-				x = 10,
-				y = 30,
+				key  = smgui.key_input("x"),
+				x    = 10,
+				y    = 30,
 			}
 			if os.args[1] == "menu-choice" {
 				second_event.kind = .Mouse
 				second_event.buttons = {.Mouse_Left, .Released}
 			}
-			if error := smgui.push_event(
-				&ctx,
-				second_event,
-			); error != .None {
+			if error := smgui.push_event(&ctx, second_event); error != .None {
 				fmt.eprintf("menu item injection failed: %v\n", error)
 				os.exit(1)
 			}
@@ -1051,7 +1258,8 @@ main :: proc() {
 		}
 	}
 	if os.args[1] == "division-intrinsic" &&
-	   (division_intrinsic[0].computed_width != 57 || division_intrinsic[0].computed_height != 32) {
+	   (division_intrinsic[0].computed_width != 57 ||
+			   division_intrinsic[0].computed_height != 32) {
 		fmt.eprintf(
 			"intrinsic division measured %dx%d instead of 57x32\n",
 			division_intrinsic[0].computed_width,
@@ -1060,7 +1268,8 @@ main :: proc() {
 		os.exit(1)
 	}
 	if os.args[1] == "division-percentage" &&
-	   (division_percentage[0].computed_width != max(width, 57) || division_percentage[0].computed_height != 32) {
+	   (division_percentage[0].computed_width != max(width, 57) ||
+			   division_percentage[0].computed_height != 32) {
 		fmt.eprintf(
 			"percentage division measured %dx%d instead of %dx32\n",
 			division_percentage[0].computed_width,
