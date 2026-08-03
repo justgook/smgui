@@ -594,7 +594,10 @@ Context :: struct {
 	events:         [MAX_EVENTS]Event,
 	event_head:     int,
 	event_tail:     int,
-	flags:          Context_Flags,
+	flags:            Context_Flags,
+	screen_revision:  u64,
+	rendered_mouse_x: int,
+	rendered_mouse_y: int,
 	mouse_x:        int,
 	mouse_y:        int,
 	last_mouse_x:   int,
@@ -1032,8 +1035,10 @@ poll_event :: proc(ctx: ^Context, form: []Form) -> (Event, Poll_State, Error) {
 		return {}, .Closed, .None
 	}
 	ctx.form = form
-	if error = render(ctx, form); error != .None {
-		return {}, .Running, error
+	if .Refresh in ctx.flags || .Recalculate in ctx.flags {
+		if error = render(ctx, form); error != .None {
+			return {}, .Running, error
+		}
 	}
 	if error = ctx.backend.redraw(ctx.backend.data); error != .None {
 		return {}, .Running, error
@@ -1147,6 +1152,9 @@ render :: proc(ctx: ^Context, form: []Form) -> Error {
 		)
 	}
 	ctx.flags -= {.Refresh, .Recalculate}
+	ctx.rendered_mouse_x = ctx.mouse_x
+	ctx.rendered_mouse_y = ctx.mouse_y
+	ctx.screen_revision += 1
 	return .None
 }
 
@@ -2618,12 +2626,12 @@ interpolate_channel :: proc(a, b: int, fraction: int) -> int {
 @(private = "file")
 sample_scaled_channel :: proc(
 	image: ^Image,
-	x0, y0, x1, y1, fraction_x, fraction_y, channel: int,
+	index_00, index_01, index_10, index_11, fraction_x, fraction_y, channel: int,
 ) -> u8 {
-	c00 := int(image.pixels[y0 * image.pitch + x0 * 4 + channel])
-	c01 := int(image.pixels[y0 * image.pitch + x1 * 4 + channel])
-	c10 := int(image.pixels[y1 * image.pitch + x0 * 4 + channel])
-	c11 := int(image.pixels[y1 * image.pitch + x1 * 4 + channel])
+	c00 := int(image.pixels[index_00 * 4 + channel])
+	c01 := int(image.pixels[index_01 * 4 + channel])
+	c10 := int(image.pixels[index_10 * 4 + channel])
+	c11 := int(image.pixels[index_11 * 4 + channel])
 	top := interpolate_channel(c00, c01, fraction_x)
 	bottom := interpolate_channel(c10, c11, fraction_x)
 	result := interpolate_channel(top, bottom, fraction_y)
@@ -2650,32 +2658,44 @@ draw_icon :: proc(ctx: ^Context, field: ^Form) {
 	}
 	x := field.computed_x + (field.computed_width - width) / 2
 	y := field.computed_y + (field.computed_height - height) / 2
+	// Reference _ui_scaled truncates the fixed-point step once, then accumulates
+	// that value. Recomputing each coordinate from the exact ratio drifts by a
+	// fraction and produces different interpolated channels.
+	step_x := 65536 * image.width / width
+	step_y := 65536 * image.height / height
+	source_stride := image.pitch / 4
+	last_source := source_stride * image.height - 1
 	for destination_y in 0 ..< height - 1 {
 		pixel_y := y + destination_y
 		if pixel_y < 0 || pixel_y >= ctx.screen.height {
 			continue
 		}
-		source_y_fixed := destination_y * 65536 * image.height / height
+		source_y_fixed := destination_y * step_y
 		source_y := min(source_y_fixed >> 16, image.height - 1)
-		next_source_y := min(source_y + 1, image.height - 1)
 		fraction_y := source_y_fixed & 0xffff
 		for destination_x in 0 ..< width - 1 {
 			pixel_x := x + destination_x
 			if pixel_x < 0 || pixel_x >= ctx.screen.width {
 				continue
 			}
-			source_x_fixed := destination_x * 65536 * image.width / width
+			source_x_fixed := destination_x * step_x
 			source_x := min(source_x_fixed >> 16, image.width - 1)
-			next_source_x := min(source_x + 1, image.width - 1)
 			fraction_x := source_x_fixed & 0xffff
+			// Reference clamps the four neighboring pointers against the final
+			// image pixel, rather than clamping X and Y independently. At the
+			// right edge this intentionally samples the next row.
+			index_00 := min(source_y * source_stride + source_x, last_source)
+			index_01 := min(index_00 + 1, last_source)
+			index_10 := min(index_00 + source_stride, last_source)
+			index_11 := min(index_10 + 1, last_source)
 			channels: [4]u8
 			for channel in 0 ..< 4 {
 				channels[channel] = sample_scaled_channel(
 					image,
-					source_x,
-					source_y,
-					next_source_x,
-					next_source_y,
+					index_00,
+					index_01,
+					index_10,
+					index_11,
 					fraction_x,
 					fraction_y,
 					channel,
@@ -4476,6 +4496,7 @@ binding_selected :: proc(field: ^Form) -> bool {
 
 @(private = "file")
 update_hover :: proc(ctx: ^Context, form: []Form) {
+	previous := ctx.hovered
 	ctx.hovered = hovered_form_at(form, ctx.mouse_x, ctx.mouse_y)
 	for &field in form {
 		if field.kind == .End {
@@ -4493,6 +4514,11 @@ update_hover :: proc(ctx: ^Context, form: []Form) {
 		   candidate != nil {
 			ctx.hovered = candidate
 		}
+	}
+	if ctx.hovered != previous ||
+	   (image_valid(&ctx.software_cursor) &&
+	    (ctx.mouse_x != ctx.rendered_mouse_x || ctx.mouse_y != ctx.rendered_mouse_y)) {
+		ctx.flags += {.Refresh}
 	}
 }
 

@@ -50,6 +50,7 @@ State :: struct {
 	ctx:               ^smgui.Context,
 	framebuffer:       sfb.Framebuffer,
 	presentation_pixels: []u8,
+	presented_revision: u64,
 	buttons:           smgui.Input_Buttons,
 	pending_mouse_move: smgui.Event,
 	has_mouse_move:    bool,
@@ -327,6 +328,7 @@ backend_init :: proc(data: rawptr, ctx: ^smgui.Context, title: string, width, he
 		return .Backend_Failure
 	}
 	state.framebuffer_ready = true
+	state.presented_revision = ~u64(0)
 	return .None
 }
 
@@ -384,22 +386,25 @@ backend_redraw :: proc(data: rawptr) -> smgui.Error {
 	}
 	screen := &state.ctx.screen
 	clear := resolved_clear_color(state.config.clear_color)
-	if len(state.presentation_pixels) != len(screen.pixels) {
-		if state.presentation_pixels != nil {
-			delete(state.presentation_pixels)
+	if state.presented_revision != state.ctx.screen_revision {
+		if len(state.presentation_pixels) != len(screen.pixels) {
+			if state.presentation_pixels != nil {
+				delete(state.presentation_pixels)
+			}
+			state.presentation_pixels = make([]u8, len(screen.pixels)) or_else nil
+			if state.presentation_pixels == nil {
+				return .Out_Of_Memory
+			}
 		}
-		state.presentation_pixels = make([]u8, len(screen.pixels)) or_else nil
-		if state.presentation_pixels == nil {
-			return .Out_Of_Memory
-		}
+		composite_over_clear(state.presentation_pixels, screen.pixels, clear)
+		sfb.update(state.framebuffer, {
+			pixels = {
+				ptr = raw_data(state.presentation_pixels),
+				size = c.size_t(len(state.presentation_pixels)),
+			},
+		})
+		state.presented_revision = state.ctx.screen_revision
 	}
-	composite_over_clear(state.presentation_pixels, screen.pixels, clear)
-	sfb.update(state.framebuffer, {
-		pixels = {
-			ptr = raw_data(state.presentation_pixels),
-			size = c.size_t(len(state.presentation_pixels)),
-		},
-	})
 	pass_action := sg.Pass_Action{}
 	pass_action.colors[0] = {
 		load_action = .CLEAR,

@@ -96,11 +96,19 @@ int main(int argc, char **argv)
     uint32_t color_value = 0xffd06020;
     float float_value = 3.141f;
     char text_value[64] = "Overflowing text field sample";
-    uint8_t image_pixels[] = {
-        0x20, 0x60, 0xd0, 0xff, 0xd0, 0x80, 0x20, 0xff,
-        0x40, 0xc0, 0x60, 0xff, 0xd0, 0x30, 0x80, 0xff,
+    char fps_text[32] = "FPS: --";
+    /* Keep the recognizable 8x8 smiley used by reference-c/examples/widgets.c. */
+    uint32_t image_pixels[] = {
+         0, 0,-1,-1,-1, 0, 0, 0,
+         0,-1,-1,-1,-1,-1, 0, 0,
+        -1,-1, 0,-1, 0,-1,-1, 0,
+        -1,-1,-1,-1,-1,-1,-1, 0,
+        -1, 0,-1,-1,-1, 0,-1, 0,
+         0,-1, 0, 0, 0,-1, 0, 0,
+         0, 0,-1,-1,-1, 0, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 0,
     };
-    ui_image_t sample_image = { .w = 2, .h = 2, .p = 8, .buf = image_pixels };
+    ui_image_t sample_image = { .w = 8, .h = 8, .p = 32, .buf = (uint8_t *)image_pixels };
     ui_form_t toggle_panel_children[] = {
         { .type = UI_IMAGE, .w = 24, .h = 12, .icon = &sample_image },
         { .type = UI_END }
@@ -235,6 +243,7 @@ int main(int argc, char **argv)
         { .type = UI_BUTTON, .align = UI_RIGHT, .w = 60, .label = ITEM_1 },
         { .type = UI_BUTTON, .align = UI_RIGHT, .w = 60, .label = ITEM_2 },
         { .type = UI_CUSTOM, .x = UI_ABS(460), .y = UI_ABS(400), .bbox = &smoke_custom_bounds, .view = &smoke_custom_view },
+        { .type = UI_STATUS, .flags = UI_HIDDEN, .x = UI_ABS(570), .y = UI_ABS(462), .w = 68, .h = 16, .ptr = fps_text },
         { .type = UI_END }
     };
 
@@ -250,9 +259,34 @@ int main(int argc, char **argv)
     (void)argv;
 #endif
     ui_init(&context, (int)(sizeof(texts) / sizeof(texts[0])), texts, 640, 480, NULL);
+#ifndef SMOKE_IMAGE_BACKEND
+    ui_form_t *fps_form = &forms[(sizeof(forms) / sizeof(forms[0])) - 2];
+    double fps_started = glfwGetTime();
+    int fps_frames = 0;
+    int fps_width = context.screen.w;
+    int fps_height = context.screen.h;
+    fps_form->flags &= ~UI_HIDDEN;
+#endif
     context.skin[UI_CURSOR] = software_cursor;
     ui_swcursor(&context, &software_cursor);
     while (ui_event(&context, forms)) {
+#ifndef SMOKE_IMAGE_BACKEND
+        double fps_now = glfwGetTime();
+        fps_frames++;
+        if (context.screen.w != fps_width || context.screen.h != fps_height) {
+            fps_width = context.screen.w;
+            fps_height = context.screen.h;
+            fps_form->x = UI_ABS(fps_width - fps_form->w - 2);
+            fps_form->y = UI_ABS(fps_height - fps_form->h - 2);
+            ui_refresh(&context);
+        }
+        if (fps_now - fps_started >= 1.0) {
+            snprintf(fps_text, sizeof(fps_text), "FPS: %.0f", fps_frames / (fps_now - fps_started));
+            fps_frames = 0;
+            fps_started = fps_now;
+            ui_refresh(&context);
+        }
+#endif
         if (button_option) {
             printf("button option %d selected\n", button_option);
             button_option = 0;

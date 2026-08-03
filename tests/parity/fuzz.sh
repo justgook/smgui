@@ -120,7 +120,9 @@ BEGIN {
     fixtures[89] = "layout-right-flow"
     fixtures[90] = "layout-percent"
     fixtures[91] = "layout-from-end"
-    fixture_count = 92
+    fixtures[92] = "icon-scaled"
+    fixtures[93] = "icon-disabled"
+    fixture_count = 94
     for (case_number = 1; case_number <= count; case_number++) {
         width = 32 + next_random() % 225
         height = 24 + next_random() % 169

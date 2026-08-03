@@ -24,6 +24,15 @@ main :: proc() {
 	label_normal := []smgui.Form{{kind = .Label, label = 1}}
 	multiline_normal := []smgui.Form{{kind = .Multiline_Label, label = 9}}
 	status_normal := []smgui.Form{{kind = .Status, width = 52, text = "Ready"}}
+	icon_pixels := []u8 {
+		0x10, 0x20, 0xf0, 0xff,  0x20, 0xe0, 0x30, 0xc0,  0xd0, 0x40, 0x20, 0x80,
+		0xf0, 0xd0, 0x10, 0x40,  0x70, 0x30, 0xc0, 0xff,  0x40, 0xb0, 0xe0, 0xa0,
+	}
+	icon_image := smgui.Image{width = 3, height = 2, pitch = 12, pixels = icon_pixels}
+	icon_scaled := []smgui.Form{{kind = .Icon, width = 11, height = 9, icon = &icon_image}}
+	icon_disabled := []smgui.Form {
+		{kind = .Icon, flags = {.Disabled}, width = 11, height = 9, icon = &icon_image},
+	}
 	button_normal := []smgui.Form{{kind = .Button, label = 2}}
 	button_explicit_size := []smgui.Form{{kind = .Button, label = 3, width = 58, height = 28}}
 	button_hover := []smgui.Form{{kind = .Button, label = 2}}
@@ -544,6 +553,10 @@ main :: proc() {
 		forms = multiline_normal
 	case "status-normal":
 		forms = status_normal
+	case "icon-scaled":
+		forms = icon_scaled
+	case "icon-disabled":
+		forms = icon_disabled
 	case "button-normal":
 		forms = button_normal
 	case "button-explicit-size":

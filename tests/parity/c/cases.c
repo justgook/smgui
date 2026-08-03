@@ -97,6 +97,11 @@ int main(int argc, char **argv)
     int menu_choice_value = 0;
     int checked_value = 1;
     int pressed_value = 0;
+    uint8_t icon_pixels[] = {
+        0x10, 0x20, 0xf0, 0xff,  0x20, 0xe0, 0x30, 0xc0,  0xd0, 0x40, 0x20, 0x80,
+        0xf0, 0xd0, 0x10, 0x40,  0x70, 0x30, 0xc0, 0xff,  0x40, 0xb0, 0xe0, 0xa0
+    };
+    ui_image_t icon_image = { .w = 3, .h = 2, .p = 12, .buf = icon_pixels };
     ui_form_t empty[] = {
         { .type = UI_END }
     };
@@ -110,6 +115,14 @@ int main(int argc, char **argv)
     };
     ui_form_t status_normal[] = {
         { .type = UI_STATUS, .w = 52, .ptr = "Ready" },
+        { .type = UI_END }
+    };
+    ui_form_t icon_scaled[] = {
+        { .type = UI_ICON, .w = 11, .h = 9, .icon = &icon_image },
+        { .type = UI_END }
+    };
+    ui_form_t icon_disabled[] = {
+        { .type = UI_ICON, .flags = UI_DISABLED, .w = 11, .h = 9, .icon = &icon_image },
         { .type = UI_END }
     };
     ui_form_t button_normal[] = {
@@ -512,6 +525,10 @@ int main(int argc, char **argv)
         forms = multiline_normal;
     } else if (!strcmp(argv[1], "status-normal")) {
         forms = status_normal;
+    } else if (!strcmp(argv[1], "icon-scaled")) {
+        forms = icon_scaled;
+    } else if (!strcmp(argv[1], "icon-disabled")) {
+        forms = icon_disabled;
     } else if (!strcmp(argv[1], "button-normal")) {
         forms = button_normal;
     } else if (!strcmp(argv[1], "button-explicit-size")) {

@@ -23,7 +23,8 @@ make parity
 
 `parity-case` renders one named C/Odin case and compares decoded RGBA pixels.
 `parity` runs the registry of completed, expected-green cases. Current green
-cases are `empty`, `label-normal`, `multiline-normal`, `status-normal`, `button-normal`, and
+cases are `empty`, `label-normal`, `multiline-normal`, `status-normal`,
+`icon-scaled`, `icon-disabled`, `button-normal`, and
 `button-explicit-size`, `button-hover`, `button-pressed`, `button-disabled`, and
 `checkbox-normal`, `checkbox-checked`, `checkbox-hover`, `checkbox-pressed`, and
 `checkbox-disabled`, `radio-normal`, `radio-selected`, `radio-hover`, and

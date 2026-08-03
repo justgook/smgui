@@ -15,14 +15,62 @@ import raylib_backend "../../smgui/raylib"
 import sokol_backend "../../smgui/sokol"
 import "core:fmt"
 import "core:os"
+import "core:slice"
+import "core:time"
 
 USE_SOKOL :: #config(SMGUI_BACKEND_SOKOL, false)
 Sokol_Config :: sokol_backend.Config
+
+FPS_Meter :: struct {
+	field:   ^smgui.Form,
+	buffer:  [32]u8,
+	started:    time.Tick,
+	frames:     int,
+	last_width: int,
+	last_height: int,
+}
 
 Sokol_Smoke_State :: struct {
 	font:          psf2.Font,
 	cursor:        ^smgui.Image,
 	button_option: ^int,
+	fps:           FPS_Meter,
+}
+
+fps_meter_init :: proc(meter: ^FPS_Meter, field: ^smgui.Form) {
+	meter.field = field
+	meter.started = time.tick_now()
+	meter.frames = 0
+	meter.field.flags -= {.Hidden}
+	meter.field.text = fmt.bprintf(meter.buffer[:], "FPS: --")
+}
+
+fps_meter_tick :: proc(meter: ^FPS_Meter, ctx: ^smgui.Context) -> smgui.Error {
+	if meter == nil || meter.field == nil {
+		return .None
+	}
+	needs_refresh := false
+	if ctx.screen.width != meter.last_width || ctx.screen.height != meter.last_height {
+		meter.field.x = smgui.absolute(max(ctx.screen.width - meter.field.width - 2, 0))
+		meter.field.y = smgui.absolute(max(ctx.screen.height - meter.field.height - 2, 0))
+		meter.last_width = ctx.screen.width
+		meter.last_height = ctx.screen.height
+		needs_refresh = true
+	}
+	meter.frames += 1
+	now := time.tick_now()
+	elapsed := time.tick_diff(meter.started, now)
+	if elapsed >= time.Second {
+		fps := int(f64(meter.frames) * f64(time.Second) / f64(elapsed) + 0.5)
+		meter.field.text = fmt.bprintf(meter.buffer[:], "FPS: %d", fps)
+		meter.frames = 0
+		meter.started = now
+		needs_refresh = true
+	}
+	if needs_refresh {
+		return smgui.refresh(ctx)
+	}
+	return .None
 }
 
 configure_sokol :: proc(ctx: ^smgui.Context, data: rawptr) -> smgui.Error {
@@ -48,6 +96,9 @@ frame_sokol :: proc(
 ) -> smgui.Error {
 	_ = event
 	state := (^Sokol_Smoke_State)(data)
+	if error := fps_meter_tick(&state.fps, ctx); error != .None {
+		return error
+	}
 	return handle_button_option(ctx, state.button_option)
 }
 
@@ -143,11 +194,19 @@ main :: proc() {
 	}
 	defer smgui.text_buffer_deinit(&text_value)
 
-	image_pixels := []u8 {
-		0x20, 0x60, 0xd0, 0xff, 0xd0, 0x80, 0x20, 0xff,
-		0x40, 0xc0, 0x60, 0xff, 0xd0, 0x30, 0x80, 0xff,
+	// Keep the recognizable 8x8 smiley used by reference-c/examples/widgets.c.
+	image_words := []u32 {
+		0, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0, 0, 0,
+		0, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0, 0,
+		0xffffffff, 0xffffffff, 0, 0xffffffff, 0, 0xffffffff, 0xffffffff, 0,
+		0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0,
+		0xffffffff, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0, 0xffffffff, 0,
+		0, 0xffffffff, 0, 0, 0, 0xffffffff, 0, 0,
+		0, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
 	}
-	sample_image := smgui.Image{width = 2, height = 2, pitch = 8, pixels = image_pixels}
+	image_pixels := slice.reinterpret([]u8, image_words)
+	sample_image := smgui.Image{width = 8, height = 8, pitch = 32, pixels = image_pixels}
 	toggle_panel_children := []smgui.Form {
 		{kind = .Image, width = 24, height = 12, icon = &sample_image},
 	}
@@ -375,6 +434,14 @@ main :: proc() {
 			y = smgui.absolute(400),
 			custom = {bounds = smoke_custom_bounds, view = smoke_custom_view},
 		},
+		{
+			kind = .Status,
+			flags = {.Hidden},
+			x = smgui.absolute(570),
+			y = smgui.absolute(462),
+			width = 68,
+			height = 16,
+		},
 	}
 	forms[1].binding = smgui.bind(&forms[2])
 	forms[3].binding = smgui.bind(&forms[4])
@@ -395,6 +462,7 @@ main :: proc() {
 			cursor = &software_cursor,
 			button_option = &button_option,
 		}
+		fps_meter_init(&state.fps, &forms[len(forms) - 1])
 		if error := sokol_backend.run(Sokol_Config{
 			ctx = &sokol_ctx,
 			texts = texts,
@@ -431,6 +499,10 @@ main :: proc() {
 	}
 
 	ctx: smgui.Context
+	fps: FPS_Meter
+	if !writing_image {
+		fps_meter_init(&fps, &forms[len(forms) - 1])
+	}
 	if error := smgui.init(&ctx, backend, texts, 640, 480); error != .None {
 		fail("initializing smoke test", error)
 	}
@@ -461,6 +533,11 @@ main :: proc() {
 		}
 		if state == .Closed {
 			break
+		}
+		if !writing_image {
+			if fps_error := fps_meter_tick(&fps, &ctx); fps_error != .None {
+				fail("updating FPS meter", fps_error)
+			}
 		}
 		if handle_error := handle_button_option(&ctx, &button_option); handle_error != .None {
 			fail("handling smoke-test button", handle_error)

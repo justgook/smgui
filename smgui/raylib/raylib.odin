@@ -33,8 +33,9 @@ State :: struct {
 	buttons:      smgui.Input_Buttons,
 	last_mouse_x: int,
 	last_mouse_y: int,
-	initialized:  bool,
-	background:   rl.Color,
+	initialized:       bool,
+	presented_revision: u64,
+	background:        rl.Color,
 }
 
 create :: proc(state: ^State) -> smgui.Backend {
@@ -82,12 +83,11 @@ backend_init :: proc(
 	if title_c == nil {
 		return .Out_Of_Memory
 	}
-	rl.SetConfigFlags(rl.ConfigFlags{.WINDOW_RESIZABLE})
+	rl.SetConfigFlags(rl.ConfigFlags{.WINDOW_RESIZABLE, .VSYNC_HINT})
 	rl.InitWindow(i32(width), i32(height), title_c)
 	if !rl.IsWindowReady() {
 		return .Backend_Failure
 	}
-	rl.SetTargetFPS(60)
 	if state.background.a == 0 {
 		state.background = rl.BLACK
 	}
@@ -95,6 +95,7 @@ backend_init :: proc(
 	state.last_mouse_x = int(rl.GetMouseX())
 	state.last_mouse_y = int(rl.GetMouseY())
 	state.texture = load_framebuffer_texture(ctx)
+	state.presented_revision = ~u64(0)
 	state.initialized = true
 	return .None
 }
@@ -297,7 +298,10 @@ backend_redraw :: proc(data: rawptr) -> smgui.Error {
 	if !state.initialized || state.ctx == nil || len(state.ctx.screen.pixels) == 0 {
 		return .Backend_Failure
 	}
-	rl.UpdateTexture(state.texture, raw_data(state.ctx.screen.pixels))
+	if state.presented_revision != state.ctx.screen_revision {
+		rl.UpdateTexture(state.texture, raw_data(state.ctx.screen.pixels))
+		state.presented_revision = state.ctx.screen_revision
+	}
 	rl.BeginDrawing()
 	rl.ClearBackground(state.background)
 	rl.DrawTexture(state.texture, 0, 0, rl.WHITE)

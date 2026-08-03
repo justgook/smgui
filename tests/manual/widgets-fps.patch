@@ -1,0 +1,57 @@
+--- widgets.c
++++ widgets-fps.c
+@@ -61,6 +61,7 @@
+     int64_t pbarcur = 42;
+     float fval = 3.1415;
+     char strbuf[64] = { 0 }, *opts[] = { "one", "two", "three" }, pathbuf[PATH_MAX] = { 0 };
++    char fps_text[32] = "FPS: --";
+     uint32_t color = 0xcf775533;
+ 
+     /* a hacked image. These should actually be RGBA pixels, but -1U is 0xffffffff, which is full opaque white */
+@@ -191,6 +192,7 @@
+         { .type = UI_DIV, .flags = UI_FORCEBR, .w = UI_PERCENT(100), .ptr = &div4 },
+         { .type = UI_TOGGLE, .flags = UI_FORCEBR, .label = BUTTONS },
+         { .type = UI_DIV, .flags = UI_FORCEBR, .w = UI_PERCENT(100), .ptr = &div7 },
++        { .type = UI_STATUS, .x = UI_ABS(570), .y = UI_ABS(462), .w = 68, .h = 16, .ptr = fps_text },
+         { .type = UI_END }
+     };
+ 
+@@ -220,6 +222,13 @@
+     ui_init(&ctx, sizeof(eng)/sizeof(eng[0]), eng, 640, 480, NULL);
+ #endif
+ 
++#ifndef UI_FBDEV_H
++    ui_form_t *fps_form = &form[(sizeof(form) / sizeof(form[0])) - 2];
++    double fps_started = glfwGetTime();
++    int fps_frames = 0;
++    int fps_width = ctx.screen.w, fps_height = ctx.screen.h;
++#endif
++
+ #ifdef SKIN
+     /* decode png and load skin into UI context */
+     if(buf) {
+@@ -252,6 +261,24 @@
+         /* get events and exit if user closed the window or pressed Esc (should be '\e', but not all compilers like that) */
+         if(!(evt = ui_event(&ctx, form)) || (evt->type == UI_EVT_KEY && evt->key[0] == 0x1b)) break;
+ 
++#ifndef UI_FBDEV_H
++        {
++            double fps_now = glfwGetTime();
++            fps_frames++;
++            if(ctx.screen.w != fps_width || ctx.screen.h != fps_height) {
++                fps_width = ctx.screen.w; fps_height = ctx.screen.h;
++                fps_form->x = UI_ABS(fps_width - fps_form->w - 2);
++                fps_form->y = UI_ABS(fps_height - fps_form->h - 2);
++                ui_refresh(&ctx);
++            }
++            if(fps_now - fps_started >= 1.0) {
++                snprintf(fps_text, sizeof(fps_text), "FPS: %.0f", fps_frames / (fps_now - fps_started));
++                fps_frames = 0; fps_started = fps_now;
++                ui_refresh(&ctx);
++            }
++        }
++#endif
++
+         /* handle menus */
+         if(menu_option) {
+             printf("menu option %d selected\n", menu_option);

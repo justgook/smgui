@@ -17,7 +17,9 @@ Compare the initial layout and then exercise menus, collapsible sections, text
 and numeric inputs, selection controls, sliders, scrollbars, scrollable popups,
 wheel routing, custom-form rendering, the software cursor, choices, and buttons. Close one
 window before starting the other unless the platform supports running both from
-separate terminals.
+separate terminals. Interactive smoke windows show an FPS meter in the bottom-right.
+`make c-run` also shows the meter by applying `widgets-fps.patch` to a generated
+build copy of upstream `widgets.c`; the pinned Reference C submodule is unchanged.
 
 The fixture excludes higher-level Odin-only widgets that have no Reference C
 form counterpart. Core `ui.h` form coverage must remain paired: additions or

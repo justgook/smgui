@@ -59,7 +59,7 @@ observable behavior belongs to the corresponding form and event rows below.
 | `UI_DEC_FLOAT` | `Decimal_Float` | Green | `float-normal`, `float-magnitude`, explicit-size, disabled. |
 | `UI_PBAR` | `Progress_Bar` | Green | minimum/midpoint/maximum/disabled fixtures. |
 | `UI_IMAGE` | `Image` | Focused, Smoke | `image_and_icon_fields_render_and_activate`. |
-| `UI_ICON` | `Icon` | Focused, Smoke | `image_and_icon_fields_render_and_activate`. |
+| `UI_ICON` | `Icon` | Green, Focused, Smoke | `icon-scaled` and `icon-disabled` cover aspect-preserving bilinear scaling, alpha blending, and grayscale rendering; `image_and_icon_fields_render_and_activate` covers activation. |
 | `UI_DEC8/16/32` | `Decimal_8/16/32` | Smoke | Paired all-components smoke; add width/signed-value fixtures for each binding width. |
 | `UI_DEC64` | `Decimal_64` | Green, Smoke | `decimal-normal`, negative, explicit-size, disabled; paired smoke. |
 | `UI_HEX8/16/32` | `Hexadecimal_8/16/32` | Smoke | Paired all-components smoke; add truncation/format fixtures for each width. |

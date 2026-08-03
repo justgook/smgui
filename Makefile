@@ -14,6 +14,7 @@ endif
 
 ODIN ?= odin
 ODIN_FLAGS ?=
+ODIN_BUILD_FLAGS ?= -o:speed
 ODIN_VENDOR_STB_DIR := $(shell $(ODIN) root)/vendor/stb/src
 # The default Odin target is the screen1 migration fixture.
 EXAMPLE ?= smoke
@@ -27,6 +28,9 @@ SOKOL_LIBS_STAMP := $(BUILD_DIR)/.sokol-libs
 C_EXAMPLE ?= widgets
 C_EXAMPLES_DIR := reference-c/examples
 C_BIN := $(C_EXAMPLES_DIR)/$(C_EXAMPLE)
+C_WIDGETS_FPS_SOURCE := $(BUILD_DIR)/widgets-fps.c
+C_WIDGETS_FPS_BIN := $(BUILD_DIR)/widgets-fps
+C_WIDGETS_FPS_PATCH := tests/manual/widgets-fps.patch
 SMOKE_C_SOURCE := tests/manual/smoke.c
 SMOKE_C_BIN := $(BUILD_DIR)/smoke-c
 SMOKE_C_IMAGE_BIN := $(BUILD_DIR)/smoke-image-c
@@ -37,7 +41,7 @@ SMOKE_C_PNG := $(PARITY_ACTUAL_DIR)/smoke-c.png
 SMOKE_ODIN_PNG := $(PARITY_ACTUAL_DIR)/smoke-odin.png
 PARITY_C_BIN := $(BUILD_DIR)/parity-case-c
 PARITY_ODIN_BIN := $(BUILD_DIR)/parity-case-odin
-PARITY_CASES := empty label-normal multiline-normal status-normal button-normal button-explicit-size button-hover button-pressed button-disabled checkbox-normal checkbox-checked checkbox-hover checkbox-pressed checkbox-disabled radio-normal radio-selected radio-hover radio-pressed radio-disabled slider-minimum slider-midpoint slider-maximum slider-interaction slider-disabled vertical-scrollbar-normal horizontal-scrollbar-normal progress-minimum progress-midpoint progress-maximum progress-disabled decimal-normal decimal-negative decimal-explicit-size decimal-disabled hex-normal hex-zero hex-explicit-size hex-disabled float-normal float-magnitude float-explicit-size float-disabled text-input-normal text-input-empty text-input-explicit-size text-input-edit text-input-overflow-edit text-input-disabled numeric-input-normal numeric-input-explicit-size numeric-input-decrement numeric-input-increment numeric-input-disabled select-normal select-explicit-size select-pressed select-open select-choice select-disabled option-normal option-explicit-size option-decrement option-increment option-disabled division-intrinsic division-percentage layout-alignment layout-flow layout-hidden-flow layout-right-flow layout-percent layout-from-end popup-normal popup-intrinsic popup-no-border popup-no-shadow popup-title popup-draggable popup-chrome popup-resizable popup-hidden popup-close popup-drag popup-resize menu-closed menu-button-closed menu-button-open menu-open menu-intrinsic menu-anchored menu-hover menu-disabled menu-choice menu-outside-close menu-escape-close
+PARITY_CASES := empty label-normal multiline-normal status-normal icon-scaled icon-disabled button-normal button-explicit-size button-hover button-pressed button-disabled checkbox-normal checkbox-checked checkbox-hover checkbox-pressed checkbox-disabled radio-normal radio-selected radio-hover radio-pressed radio-disabled slider-minimum slider-midpoint slider-maximum slider-interaction slider-disabled vertical-scrollbar-normal horizontal-scrollbar-normal progress-minimum progress-midpoint progress-maximum progress-disabled decimal-normal decimal-negative decimal-explicit-size decimal-disabled hex-normal hex-zero hex-explicit-size hex-disabled float-normal float-magnitude float-explicit-size float-disabled text-input-normal text-input-empty text-input-explicit-size text-input-edit text-input-overflow-edit text-input-disabled numeric-input-normal numeric-input-explicit-size numeric-input-decrement numeric-input-increment numeric-input-disabled select-normal select-explicit-size select-pressed select-open select-choice select-disabled option-normal option-explicit-size option-decrement option-increment option-disabled division-intrinsic division-percentage layout-alignment layout-flow layout-hidden-flow layout-right-flow layout-percent layout-from-end popup-normal popup-intrinsic popup-no-border popup-no-shadow popup-title popup-draggable popup-chrome popup-resizable popup-hidden popup-close popup-drag popup-resize menu-closed menu-button-closed menu-button-open menu-open menu-intrinsic menu-anchored menu-hover menu-disabled menu-choice menu-outside-close menu-escape-close
 SKIN_PARITY_CASES := status-normal button-normal button-hover button-pressed button-disabled checkbox-normal checkbox-checked checkbox-disabled radio-normal radio-selected radio-disabled slider-minimum slider-midpoint slider-maximum slider-disabled vertical-scrollbar-normal horizontal-scrollbar-normal progress-minimum progress-midpoint progress-maximum progress-disabled text-input-normal text-input-edit text-input-disabled numeric-input-normal numeric-input-decrement numeric-input-increment numeric-input-disabled select-normal select-pressed select-open select-disabled option-normal option-decrement option-increment option-disabled popup-normal popup-title popup-chrome popup-resizable menu-button-open menu-open menu-hover menu-disabled menu-choice
 PARITY_SKIN ?= $${SMGUI_PARITY_SKIN-}
 CASE ?= empty
@@ -90,7 +94,7 @@ help:
 	  '  parity-fuzz            Run seeded bounded cases (FUZZ_SEED=1 FUZZ_CASES=20)' \
 	  '' \
 	  'Reference C targets:' \
-	  '  c-run, run-c      Run the upstream C widgets target behind screen1' \
+	  '  c-run, run-c      Run the upstream C widgets target with an FPS meter' \
 	  '  reference-c-init  Initialize/update the C git submodule' \
 	  '  c-build           Build upstream C_EXAMPLE (default: widgets)' \
 	  '  c-example-run     Build and run upstream C_EXAMPLE' \
@@ -136,7 +140,7 @@ build: | $(BUILD_DIR)
 			$(MAKE) sokol-libs; example_dir="$(EXAMPLE_DIR)"; backend_flags="-define:SMGUI_BACKEND_SOKOL=true" ;; \
 		*) echo "Backend '$(BACKEND)' is not implemented yet" >&2; exit 2 ;; \
 	esac; \
-	$(ODIN) build "$$example_dir" $(ODIN_FLAGS) $$backend_flags -out:"$(ODIN_BIN)"
+	$(ODIN) build "$$example_dir" $(ODIN_BUILD_FLAGS) $(ODIN_FLAGS) $$backend_flags -out:"$(ODIN_BIN)"
 
 .PHONY: run
 run: build
@@ -157,8 +161,22 @@ c-build: reference-c-init
 		CC="$(C_REFERENCE_CC) $(C_REFERENCE_CPPFLAGS)" \
 		LIBS="$(C_REFERENCE_LIBS)"
 
-.PHONY: c-run run-c c-example-run
-c-run run-c c-example-run: c-build
+$(C_WIDGETS_FPS_SOURCE): $(C_EXAMPLES_DIR)/widgets.c $(C_WIDGETS_FPS_PATCH) | $(BUILD_DIR) reference-c-init
+	$(Q)cp "$<" "$@"
+	$(Q)patch --silent "$@" < "$(C_WIDGETS_FPS_PATCH)"
+
+$(C_WIDGETS_FPS_BIN): $(C_WIDGETS_FPS_SOURCE)
+	$(Q)$(PKG_CONFIG) --exists glfw3 || { echo "GLFW development files not found; enter the direnv/Nix shell first" >&2; exit 2; }
+	$(Q)$(C_REFERENCE_CC) $(C_REFERENCE_CPPFLAGS) \
+		-std=c99 -Wall -Wextra -Wno-pragmas -O2 \
+		-Ireference-c -Ireference-c/mods -Ireference-c/examples "$<" -o "$@" $(C_REFERENCE_LIBS)
+
+.PHONY: c-run run-c
+c-run run-c: $(C_WIDGETS_FPS_BIN)
+	$(Q)"$(C_WIDGETS_FPS_BIN)"
+
+.PHONY: c-example-run
+c-example-run: c-build
 	$(Q)"$(C_BIN)"
 
 $(SMOKE_C_BIN): $(SMOKE_C_SOURCE) | $(BUILD_DIR) reference-c-init
@@ -181,10 +199,10 @@ $(SMOKE_C_IMAGE_BIN): $(SMOKE_C_SOURCE) tests/parity/c/ui_image_backend.h tests/
 		"$(SMOKE_C_SOURCE)" -o "$@" -lm
 
 $(SMOKE_ODIN_IMAGE_BIN): examples/smoke/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin $(SOKOL_LIBS_STAMP) | $(BUILD_DIR)
-	$(Q)$(ODIN) build examples/smoke $(ODIN_FLAGS) -out:"$@"
+	$(Q)$(ODIN) build examples/smoke $(ODIN_BUILD_FLAGS) $(ODIN_FLAGS) -out:"$@"
 
 $(PNG_COMPARE_BIN): tests/parity/compare/main.odin | $(BUILD_DIR)
-	$(Q)$(ODIN) build tests/parity/compare $(ODIN_FLAGS) -out:"$@"
+	$(Q)$(ODIN) build tests/parity/compare $(ODIN_BUILD_FLAGS) $(ODIN_FLAGS) -out:"$@"
 
 $(PARITY_ACTUAL_DIR):
 	$(Q)mkdir -p "$@"
@@ -205,7 +223,7 @@ $(PARITY_C_BIN): tests/parity/c/cases.c tests/parity/c/ui_image_backend.h tests/
 		tests/parity/c/cases.c -o "$@" -lm
 
 $(PARITY_ODIN_BIN): tests/parity/cases/main.odin smgui/ui.odin smgui/image/image.odin psf2/psf2.odin | $(BUILD_DIR)
-	$(Q)$(ODIN) build tests/parity/cases $(ODIN_FLAGS) -out:"$@"
+	$(Q)$(ODIN) build tests/parity/cases $(ODIN_BUILD_FLAGS) $(ODIN_FLAGS) -out:"$@"
 
 .PHONY: parity-case
 parity-case: $(PARITY_C_BIN) $(PARITY_ODIN_BIN) $(PNG_COMPARE_BIN) | $(PARITY_ACTUAL_DIR)

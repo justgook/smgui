@@ -112,6 +112,24 @@ render_clears_unpainted_pixels_to_transparent_black :: proc(t: ^testing.T) {
 }
 
 @(test)
+idle_poll_reuses_the_rendered_framebuffer :: proc(t: ^testing.T) {
+	backend_state: Test_Backend_State
+	ctx: Context
+	if error := init(&ctx, test_backend(&backend_state), []string{"test"}, 4, 3); error != .None {
+		testing.expectf(t, false, "init failed: %v", error)
+		return
+	}
+	defer { _ = deinit(&ctx) }
+
+	_, _, first_error := poll_event(&ctx, nil)
+	testing.expect_value(t, first_error, Error.None)
+	first_revision := ctx.screen_revision
+	_, _, second_error := poll_event(&ctx, nil)
+	testing.expect_value(t, second_error, Error.None)
+	testing.expect_value(t, ctx.screen_revision, first_revision)
+}
+
+@(test)
 resize_reallocates_framebuffer_and_requests_layout :: proc(t: ^testing.T) {
 	backend_state: Test_Backend_State
 	ctx: Context

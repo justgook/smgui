@@ -128,6 +128,7 @@ only their module and must agree with this list.
 - [x] Build headless stb image adapters and decoded-RGBA comparison tooling.
 - [x] Pass the 64×48 empty-framebuffer tracer fixture.
 - [x] Pass the normal-label glyph, baseline, and intrinsic-size fixture.
+- [x] Match scaled and disabled icon interpolation, alpha blending, and grayscale rendering.
 - [x] Pass the normal button fixture.
 - [x] Pass the explicit-size button fixture.
 - [x] Pass the scripted button-hover fixture.
