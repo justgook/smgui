@@ -14,6 +14,8 @@ green.
 - **Smoke** — represented in both paired smoke fixtures; `smoke-compare` is still
   red, so this is not parity proof.
 - **Missing** — no parity fixture covers the public behavior yet.
+- **Requires fix** — a fixture exposes behavior that is reproducible but considered
+  defective; parity with that defect does not make the surface complete.
 
 Fixture names refer to `tests/parity/c/cases.c` and
 `tests/parity/cases/main.odin`. Focused test names refer to
@@ -152,7 +154,7 @@ hardening even though they are not separate C operations.
 | Relative flow | Green | `layout-flow` and `layout-right-flow` cover nested origin, wrapping, and row continuation. |
 | Absolute position | Green | Popup, division, and `layout-alignment` fixtures. |
 | Percent / percent-plus | Green | `division-percentage` and `layout-percent`. Zero-percent packed edge behavior remains unrepresented. |
-| Absolute from right/bottom | Green | `layout-from-end` and typed `absolute_from_end`; behavior follows Reference C's packed 127%-minus-inset result. |
+| Absolute from right/bottom | Requires fix | `layout-from-end` currently reproduces Reference C's accidental packed 127%-minus-inset result. Intended semantics are `extent - inset`: fix `resolve_position` in Odin and propose the corresponding `UI_ABS_RIGHT` / `UI_ABS_BOTTOM` mask correction as an upstream C patch/PR, then update the pinned reference and fixture. |
 | Left/top alignment | Green | Default element fixtures. |
 | Right/center/bottom/middle alignment | Green, Focused | `layout-alignment`, `layout-right-flow`; `flow_breaks_no_break_and_alignment_match_reference`. |
 | `UI_FILTER_NONE` | Green | Text-input edit fixture. |
@@ -164,15 +166,17 @@ hardening even though they are not separate C operations.
 
 Work top-down from the smallest unsupported surfaces:
 
-1. Multiline explicit sizing/wrapping/alignment and status hover-description fixtures.
-2. Image and icon intrinsic/scaled/grayscale/activation fixtures.
-3. Color input closed/open/commit/cancel fixtures.
-4. Toggle, toggle-button, and icon-button state fixtures.
-5. Lines, connectors, and curve fixtures.
-6. Standalone and popup scrollbar fixtures.
-7. Absolute fill-width/fill-height and zero-percent packed layout edge fixtures.
-8. Drop, resize, wheel, gamepad, and modifier event fixtures.
-9. Custom callback/lifecycle fixtures.
-10. Theme, skin, PNG skin, cursor, clipboard, window, and fullscreen operations.
-11. Width-specific display and numeric-input variants.
+1. Correct absolute-from-right/bottom semantics to `extent - inset` in Odin and
+   Reference C (upstream patch/PR), then update the pinned reference and parity fixture.
+2. Multiline explicit sizing/wrapping/alignment and status hover-description fixtures.
+3. Image and icon intrinsic/scaled/grayscale/activation fixtures.
+4. Color input closed/open/commit/cancel fixtures.
+5. Toggle, toggle-button, and icon-button state fixtures.
+6. Lines, connectors, and curve fixtures.
+7. Standalone and popup scrollbar fixtures.
+8. Absolute fill-width/fill-height and zero-percent packed layout edge fixtures.
+9. Drop, resize, wheel, gamepad, and modifier event fixtures.
+10. Custom callback/lifecycle fixtures.
+11. Theme, skin, PNG skin, cursor, clipboard, window, and fullscreen operations.
+12. Width-specific display and numeric-input variants.
 12. Paired widget smoke convergence.

@@ -10,54 +10,50 @@ with sokol_framebuffer.
 */
 
 import smgui ".."
-import "base:runtime"
-import "core:c"
-import "core:strings"
-import "core:unicode/utf8"
 import sapp "../../vendor/sokol-odin/sokol/app"
 import sfb "../../vendor/sokol-odin/sokol/framebuffer"
 import sg "../../vendor/sokol-odin/sokol/gfx"
 import sglue "../../vendor/sokol-odin/sokol/glue"
 import slog "../../vendor/sokol-odin/sokol/log"
+import "base:runtime"
+import "core:c"
+import "core:strings"
+import "core:unicode/utf8"
 
 Init_Proc :: #type proc(ctx: ^smgui.Context, user_data: rawptr) -> smgui.Error
-Frame_Proc :: #type proc(
-	ctx: ^smgui.Context,
-	event: smgui.Event,
-	user_data: rawptr,
-) -> smgui.Error
+Frame_Proc :: #type proc(ctx: ^smgui.Context, event: smgui.Event, user_data: rawptr) -> smgui.Error
 
 Config :: struct {
-	ctx:              ^smgui.Context,
-	texts:            []string,
-	forms:            []smgui.Form,
-	width:            int,
-	height:           int,
-	icon:             ^smgui.Image,
-	user_data:        rawptr,
-	init:             Init_Proc,
-	frame:            Frame_Proc,
-	high_dpi:         bool,
-	fullscreen:       bool,
-	disable_vsync:    bool,
-	clipboard_size:   int,
+	ctx:               ^smgui.Context,
+	texts:             []string,
+	forms:             []smgui.Form,
+	width:             int,
+	height:            int,
+	icon:              ^smgui.Image,
+	user_data:         rawptr,
+	init:              Init_Proc,
+	frame:             Frame_Proc,
+	high_dpi:          bool,
+	fullscreen:        bool,
+	disable_vsync:     bool,
+	clipboard_size:    int,
 	max_dropped_files: int,
 	clear_color:       [4]f32,
 }
 
 State :: struct {
-	config:            Config,
-	ctx:               ^smgui.Context,
-	framebuffer:       sfb.Framebuffer,
+	config:              Config,
+	ctx:                 ^smgui.Context,
+	framebuffer:         sfb.Framebuffer,
 	presentation_pixels: []u8,
-	presented_revision: u64,
-	buttons:           smgui.Input_Buttons,
-	pending_mouse_move: smgui.Event,
-	has_mouse_move:    bool,
-	error:             smgui.Error,
-	smgui_initialized: bool,
-	gfx_initialized:   bool,
-	framebuffer_ready: bool,
+	presented_revision:  u64,
+	buttons:             smgui.Input_Buttons,
+	pending_mouse_move:  smgui.Event,
+	has_mouse_move:      bool,
+	error:               smgui.Error,
+	smgui_initialized:   bool,
+	gfx_initialized:     bool,
+	framebuffer_ready:   bool,
 	native_cursor_bound: bool,
 }
 
@@ -89,7 +85,10 @@ run :: proc(config: Config) -> smgui.Error {
 	if config.ctx == nil || len(config.texts) == 0 || config.width < 1 || config.height < 1 {
 		return .Invalid_Input
 	}
-	state := State{config = config, ctx = config.ctx}
+	state := State {
+		config = config,
+		ctx    = config.ctx,
+	}
 	title := strings.clone_to_cstring(config.texts[0]) or_else nil
 	if title == nil {
 		return .Out_Of_Memory
@@ -121,7 +120,10 @@ run :: proc(config: Config) -> smgui.Error {
 		desc.icon.images[0] = {
 			width = c.int(config.icon.width),
 			height = c.int(config.icon.height),
-			pixels = {ptr = raw_data(config.icon.pixels), size = c.size_t(len(config.icon.pixels))},
+			pixels = {
+				ptr = raw_data(config.icon.pixels),
+				size = c.size_t(len(config.icon.pixels)),
+			},
 		}
 	}
 	sapp.run(desc)
@@ -220,21 +222,31 @@ app_event :: proc "c" (source: ^sapp.Event, data: rawptr) {
 		} else {
 			state.buttons -= {button}
 		}
-		event = {kind = .Mouse, buttons = state.buttons, x = state.ctx.mouse_x, y = state.ctx.mouse_y}
+		event = {
+			kind    = .Mouse,
+			buttons = state.buttons,
+			x       = state.ctx.mouse_x,
+			y       = state.ctx.mouse_y,
+		}
 		if source.type == .MOUSE_UP {
 			event.buttons += {.Released}
 		}
 	case .MOUSE_MOVE:
 		state.pending_mouse_move = {
-			kind = .Mouse,
+			kind    = .Mouse,
 			buttons = state.buttons,
-			x = state.ctx.mouse_x,
-			y = state.ctx.mouse_y,
+			x       = state.ctx.mouse_x,
+			y       = state.ctx.mouse_y,
 		}
 		state.has_mouse_move = true
 		return
 	case .MOUSE_SCROLL:
-		event = {kind = .Mouse, buttons = state.buttons, x = state.ctx.mouse_x, y = state.ctx.mouse_y}
+		event = {
+			kind    = .Mouse,
+			buttons = state.buttons,
+			x       = state.ctx.mouse_x,
+			y       = state.ctx.mouse_y,
+		}
 		if source.scroll_y > 0 {event.buttons += {.Direction_Up}}
 		if source.scroll_y < 0 {event.buttons += {.Direction_Down}}
 		if source.scroll_x > 0 {event.buttons += {.Gamepad_A}}
@@ -244,13 +256,21 @@ app_event :: proc "c" (source: ^sapp.Event, data: rawptr) {
 		if len(text) == 0 {
 			return
 		}
-		event = {kind = .Key, buttons = state.buttons, key = smgui.key_input(text)}
+		event = {
+			kind    = .Key,
+			buttons = state.buttons,
+			key     = smgui.key_input(text),
+		}
 	case .CHAR:
 		if source.char_code < 32 {
 			return
 		}
 		bytes, length := utf8.encode_rune(rune(source.char_code))
-		event = {kind = .Key, buttons = state.buttons, key = smgui.key_input(string(bytes[:length]))}
+		event = {
+			kind    = .Key,
+			buttons = state.buttons,
+			key     = smgui.key_input(string(bytes[:length])),
+		}
 	case .RESIZED:
 		width, height := int(source.framebuffer_width), int(source.framebuffer_height)
 		if width < 1 || height < 1 {
@@ -262,27 +282,37 @@ app_event :: proc "c" (source: ^sapp.Event, data: rawptr) {
 			return
 		}
 		if state.framebuffer_ready {
-			sfb.resize(state.framebuffer, {
-				width = c.int(width),
-				height = c.int(height),
-				prescale = 1,
-				cliprect = {width = c.int(width), height = c.int(height)},
-			})
+			sfb.resize(
+				state.framebuffer,
+				{
+					width = c.int(width),
+					height = c.int(height),
+					prescale = 1,
+					cliprect = {width = c.int(width), height = c.int(height)},
+				},
+			)
 		}
-		event = {kind = .Resize, x = width, y = height}
+		event = {
+			kind = .Resize,
+			x    = width,
+			y    = height,
+		}
 	case .QUIT_REQUESTED:
 		return
 	case .FILES_DROPPED:
 		for index in 0 ..< int(sapp.get_num_dropped_files()) {
 			path := sapp.get_dropped_file_path(index)
 			if path != nil {
-				if error := smgui.push_event(state.ctx, {
-					kind = .Drop,
-					buttons = state.buttons,
-					x = state.ctx.mouse_x,
-					y = state.ctx.mouse_y,
-					file_name = string(path),
-				}); error != .None {
+				if error := smgui.push_event(
+					state.ctx,
+					{
+						kind = .Drop,
+						buttons = state.buttons,
+						x = state.ctx.mouse_x,
+						y = state.ctx.mouse_y,
+						file_name = string(path),
+					},
+				); error != .None {
 					state.error = error
 					sapp.request_quit()
 					return
@@ -300,7 +330,13 @@ app_event :: proc "c" (source: ^sapp.Event, data: rawptr) {
 }
 
 @(private = "file")
-backend_init :: proc(data: rawptr, ctx: ^smgui.Context, title: string, width, height: int, icon: ^smgui.Image) -> smgui.Error {
+backend_init :: proc(
+	data: rawptr,
+	ctx: ^smgui.Context,
+	title: string,
+	width, height: int,
+	icon: ^smgui.Image,
+) -> smgui.Error {
 	if data == nil || ctx == nil || width < 1 || height < 1 || !sapp.isvalid() {
 		return .Invalid_Input
 	}
@@ -314,13 +350,15 @@ backend_init :: proc(data: rawptr, ctx: ^smgui.Context, title: string, width, he
 	}
 	state.gfx_initialized = true
 	sfb.setup({logger = {func = slog.func}})
-	state.framebuffer = sfb.make_framebuffer({
-		width = c.int(width),
-		height = c.int(height),
-		prescale = 1,
-		format = .RGBA8,
-		cliprect = {width = c.int(width), height = c.int(height)},
-	})
+	state.framebuffer = sfb.make_framebuffer(
+		{
+			width = c.int(width),
+			height = c.int(height),
+			prescale = 1,
+			format = .RGBA8,
+			cliprect = {width = c.int(width), height = c.int(height)},
+		},
+	)
 	if sfb.query_framebuffer_state(state.framebuffer) != .VALID {
 		sfb.shutdown()
 		sg.shutdown()
@@ -397,12 +435,15 @@ backend_redraw :: proc(data: rawptr) -> smgui.Error {
 			}
 		}
 		composite_over_clear(state.presentation_pixels, screen.pixels, clear)
-		sfb.update(state.framebuffer, {
-			pixels = {
-				ptr = raw_data(state.presentation_pixels),
-				size = c.size_t(len(state.presentation_pixels)),
+		sfb.update(
+			state.framebuffer,
+			{
+				pixels = {
+					ptr = raw_data(state.presentation_pixels),
+					size = c.size_t(len(state.presentation_pixels)),
+				},
 			},
-		})
+		)
 		state.presented_revision = state.ctx.screen_revision
 	}
 	pass_action := sg.Pass_Action{}
@@ -490,7 +531,9 @@ backend_hide_cursor :: proc(data: rawptr) -> smgui.Error {
 		return .Backend_Failure
 	}
 	cursor := &state.ctx.software_cursor
-	if cursor.width < 2 || cursor.height < 2 || cursor.pitch < cursor.width * 4 ||
+	if cursor.width < 2 ||
+	   cursor.height < 2 ||
+	   cursor.pitch < cursor.width * 4 ||
 	   len(cursor.pixels) < (cursor.height - 1) * cursor.pitch + cursor.width * 4 {
 		// Sokol custom cursor hotspots require dimensions greater than one.
 		sapp.show_mouse(false)
@@ -514,13 +557,16 @@ backend_hide_cursor :: proc(data: rawptr) -> smgui.Error {
 		sapp.unbind_mouse_cursor_image(.CUSTOM_0)
 	}
 	hotspot_x, hotspot_y := cursor_hotspot(cursor)
-	sapp.bind_mouse_cursor_image(.CUSTOM_0, {
-		width = c.int(cursor.width),
-		height = c.int(cursor.height),
-		cursor_hotspot_x = c.int(hotspot_x),
-		cursor_hotspot_y = c.int(hotspot_y),
-		pixels = {ptr = raw_data(pixels), size = c.size_t(len(pixels))},
-	})
+	sapp.bind_mouse_cursor_image(
+		.CUSTOM_0,
+		{
+			width = c.int(cursor.width),
+			height = c.int(cursor.height),
+			cursor_hotspot_x = c.int(hotspot_x),
+			cursor_hotspot_y = c.int(hotspot_y),
+			pixels = {ptr = raw_data(pixels), size = c.size_t(len(pixels))},
+		},
+	)
 	sapp.set_mouse_cursor(.CUSTOM_0)
 	sapp.show_mouse(true)
 	state.native_cursor_bound = true
@@ -534,8 +580,10 @@ cursor_hotspot :: proc(cursor: ^smgui.Image) -> (x, y: int) {
 	if cursor == nil {
 		return 0, 0
 	}
-	return min(cursor.width / 2, max(cursor.width - 2, 0)),
-	       min(cursor.height / 2, max(cursor.height - 2, 0))
+	return min(
+		cursor.width / 2,
+		max(cursor.width - 2, 0),
+	), min(cursor.height / 2, max(cursor.height - 2, 0))
 }
 
 @(private = "file")
@@ -568,10 +616,7 @@ backend_show_keyboard :: proc(data: rawptr) -> smgui.Error {
 @(private = "file")
 backend_native_window :: proc(data: rawptr) -> rawptr {
 	if data == nil {return nil}
-	when ODIN_OS == .Darwin {return sapp.macos_get_window()}
-	else when ODIN_OS == .Windows {return sapp.win32_get_hwnd()}
-	else when ODIN_OS == .Linux {return sapp.x11_get_window()}
-	else {return nil}
+	when ODIN_OS == .Darwin {return sapp.macos_get_window()} else when ODIN_OS == .Windows {return sapp.win32_get_hwnd()} else when ODIN_OS == .Linux {return sapp.x11_get_window()} else {return nil}
 }
 
 buttons_from_modifiers :: proc(modifiers: u32) -> smgui.Input_Buttons {
@@ -588,29 +633,47 @@ buttons_from_modifiers :: proc(modifiers: u32) -> smgui.Input_Buttons {
 
 mouse_button :: proc(button: sapp.Mousebutton) -> (smgui.Input_Button, bool) {
 	#partial switch button {
-	case .LEFT: return .Mouse_Left, true
-	case .MIDDLE: return .Mouse_Middle, true
-	case .RIGHT: return .Mouse_Right, true
-	case: return {}, false
+	case .LEFT:
+		return .Mouse_Left, true
+	case .MIDDLE:
+		return .Mouse_Middle, true
+	case .RIGHT:
+		return .Mouse_Right, true
+	case:
+		return {}, false
 	}
 }
 
 special_key_text :: proc(key: sapp.Keycode) -> string {
 	#partial switch key {
-	case .ESCAPE: return "Escape"
-	case .ENTER, .KP_ENTER: return "Enter"
-	case .TAB: return "Tab"
-	case .BACKSPACE: return "Backspace"
-	case .DELETE: return "Delete"
-	case .LEFT: return "Left"
-	case .RIGHT: return "Right"
-	case .UP: return "Up"
-	case .DOWN: return "Down"
-	case .HOME: return "Home"
-	case .END: return "End"
-	case .PAGE_UP: return "PgUp"
-	case .PAGE_DOWN: return "PgDown"
-	case .INSERT: return "Insert"
+	case .ESCAPE:
+		return "Escape"
+	case .ENTER, .KP_ENTER:
+		return "Enter"
+	case .TAB:
+		return "Tab"
+	case .BACKSPACE:
+		return "Backspace"
+	case .DELETE:
+		return "Delete"
+	case .LEFT:
+		return "Left"
+	case .RIGHT:
+		return "Right"
+	case .UP:
+		return "Up"
+	case .DOWN:
+		return "Down"
+	case .HOME:
+		return "Home"
+	case .END:
+		return "End"
+	case .PAGE_UP:
+		return "PgUp"
+	case .PAGE_DOWN:
+		return "PgDown"
+	case .INSERT:
+		return "Insert"
 	}
 	return ""
 }

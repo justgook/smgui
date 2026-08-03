@@ -1202,8 +1202,9 @@ resolve_position :: proc(position: Position, extent: int) -> int {
 	case .Percent, .Percent_Plus:
 		return extent * int(position.value) / 100 + int(position.offset)
 	case .Absolute_From_End:
-		// UI_ABS_RIGHT/UI_ABS_BOTTOM leave the packed percentage bits set;
-		// preserve the reference implementation's resulting 127%-minus-inset anchor.
+		// TODO: This reproduces a Reference C packing defect, not the intended
+		// "from end" semantics. Change this to extent - value + offset when the
+		// corresponding UI_ABS_RIGHT/UI_ABS_BOTTOM mask fix is patched upstream.
 		return extent * 127 / 100 - int(position.value) + int(position.offset)
 	case .Relative, .Absolute:
 		return int(position.value) + int(position.offset)

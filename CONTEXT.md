@@ -199,8 +199,11 @@ only their module and must agree with this list.
 - [ ] Backfill reference parity fixtures for migrated labels, buttons, choices,
   flow divisions, value displays, sliders, progress bars, text/numeric inputs,
   selects/options, popups, and menus.
-- [x] Match nested left/right flow origins, wrapping, breaks, percentages,
-  from-end positions, and horizontal/vertical alignment.
+- [x] Match nested left/right flow origins, wrapping, breaks, percentages, and
+  horizontal/vertical alignment.
+- [ ] Correct absolute-from-right/bottom semantics to `extent - inset` in the
+  Odin port, propose the corresponding mask fix as an upstream Reference C
+  patch/PR, then update the pinned reference and parity fixture.
 - [ ] Make the paired widget smoke framebuffer fixture match reference C.
 
 ### Packages and adapters
